@@ -1,0 +1,15 @@
+# secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+# tooling
+node_modules/
+dist/
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.ruff_cache/
+.DS_Store

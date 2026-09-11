@@ -1,0 +1,102 @@
+{
+  "catalogue_version": "2026.08.24",
+  "built": "2026-09-07",
+  "skills": [
+    {
+      "name": "abdm-m1",
+      "title": "M1, ABHA identity",
+      "files": [
+        "SKILL.md",
+        "references/scaffold.md",
+        "references/integrate.md",
+        "references/debug.md",
+        "references/test.md"
+      ]
+    },
+    {
+      "name": "abdm-m2",
+      "title": "M2, linking and sharing",
+      "files": [
+        "SKILL.md",
+        "references/scaffold.md",
+        "references/integrate.md",
+        "references/debug.md",
+        "references/test.md"
+      ]
+    },
+    {
+      "name": "abdm-m3",
+      "title": "M3, consent and fetching",
+      "files": [
+        "SKILL.md",
+        "references/scaffold.md",
+        "references/integrate.md",
+        "references/debug.md",
+        "references/test.md"
+      ]
+    },
+    {
+      "name": "abdm-m4",
+      "title": "M4, facility and professional registries",
+      "files": [
+        "SKILL.md",
+        "references/scaffold.md",
+        "references/integrate.md",
+        "references/debug.md",
+        "references/test.md"
+      ]
+    },
+    {
+      "name": "abdm-p1",
+      "title": "P1, PHR identity and profile",
+      "files": [
+        "SKILL.md",
+        "references/scaffold.md",
+        "references/integrate.md",
+        "references/debug.md",
+        "references/test.md"
+      ]
+    },
+    {
+      "name": "abdm-p2",
+      "title": "P2, PHR linking and records",
+      "files": [
+        "SKILL.md",
+        "references/scaffold.md",
+        "references/integrate.md",
+        "references/debug.md",
+        "references/test.md"
+      ]
+    },
+    {
+      "name": "abdm-p3",
+      "title": "P3, PHR consent and notifications",
+      "files": [
+        "SKILL.md",
+        "references/scaffold.md",
+        "references/integrate.md",
+        "references/debug.md",
+        "references/test.md"
+      ]
+    },
+    {
+      "name": "abdm-phr-services",
+      "title": "PHR application services",
+      "files": [
+        "SKILL.md",
+        "references/integrate.md",
+        "references/debug.md",
+        "references/test.md"
+      ]
+    },
+    {
+      "name": "abdm-fhir",
+      "title": "FHIR, generating and auditing bundles",
+      "files": [
+        "SKILL.md",
+        "references/generate.md",
+        "references/audit.md"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,136 @@
+# ABDM Developer Portal
+
+> Documentation for integrating with ABDM, India's health data exchange: the HIE-CM gateway milestones M1 to M3, the ABHA, HPR and HFR registries, and UHI. Nothing here has been run against the ABDM sandbox unless a page says so, so treat request and response shapes as unconfirmed.
+
+Add `.md` to any link below to get that page as markdown. Individual API operations are not listed here: each module has its own `llms.txt` naming every call it carries, linked under Optional. `llms-full.txt` beside this file carries every page in one document.
+
+## docs/hiecm
+
+- [API references](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api): Every operation published for this gateway, module by module.
+- [Gateway session](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/gateway): Every ABDM call carries a bearer token from one endpoint. This is that endpoint, plus the certificate and bridge registration calls that sit beside it.
+- [Gateway session errors](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/gateway/errors): What Gateway session returns when a call fails, and what to do about it.
+- [M1 ABHA identity](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/m1): M1 base URLs and the operations grouped by use case.
+- [M1 APIs](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/m1/apis): The rules that hold across every M1 endpoint. Base URLs, how scope picks the job, RSA encryption, and the two token rule.
+- [M1 ABHA identity errors](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/m1/errors): What M1 ABHA identity returns when a call fails, and what to do about it.
+- [M2 linking and sharing](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/m2): M2 base URLs and the operations grouped by use case.
+- [M2 Linking and sharing errors](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/m2/errors): What M2 Linking and sharing returns when a call fails, and what to do about it.
+- [M3 consent and fetching](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/m3): The M3 operations grouped by use case.
+- [M3 Consent and fetching errors](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/m3/errors): What M3 Consent and fetching returns when a call fails, and what to do about it.
+- [M4 HPR and HFR](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/m4): M4 base URLs and the HPR and HFR operations.
+- [M4 HPR and HFR errors](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/m4/errors): What M4 HPR and HFR returns when a call fails, and what to do about it.
+- [M4 operations and fields](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/m4/undocumented): Every M4 call for the HPR and the HFR, with its parameters, codes and rules, including the calls whose path is not yet published.
+- [P1 PHR identity and profile](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/p1): How a patient gets into their own PHR: registration, login, the profile they see, the family members they manage.
+- [P1 PHR identity and profile errors](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/p1/errors): What P1 PHR identity and profile returns when a call fails, and what to do about it.
+- [P2 PHR linking and records](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/p2): How a patient finds records held elsewhere and attaches them to their ABHA address.
+- [P2 PHR linking and records errors](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/p2/errors): What P2 PHR linking and records returns when a call fails, and what to do about it.
+- [P3 PHR consent and notifications](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/p3): How a patient grants, reviews and revokes consent, and how they are told any of it happened.
+- [P3 PHR consent and notifications errors](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/p3/errors): What P3 PHR consent and notifications returns when a call fails, and what to do about it.
+- [PHR application services](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/phr-services): Services a PHR application can offer on top of ABDM. Not a certification milestone.
+- [PHR application services errors](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/phr-services/errors): What PHR application services returns when a call fails, and what to do about it.
+- [Proving a callback came from ABDM](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/callback-authenticity): Your callback URL is a public address, so anything can post to it. How ABDM signs what it sends, and how to check that before your handler acts.
+- [Consent](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/consent): What a consent request is, what a consent artefact is, who holds it, and the states it moves through.
+- [How a record travels](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/data-flow): The path a health record takes from the system that asks for it to the system that holds it, and the encryption in between.
+- [Encryption](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/encryption): Which values must be encrypted before they go in a request body, why it is required, and why you encrypt inside your own system rather than through a helper.
+- [FHIR and health record formats](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/fhir): The R4 profiles ABDM uses, the document bundle every record travels in, and how to validate one before you ship it.
+- [The ABDM gateway](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/gateway): The routing layer every ABDM call goes through, and the session endpoint that issues your token.
+- [Hospital, lab and pharmacy systems](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/hip-hiu): What a facility does as a health information provider in ABDM, and how care context linking fits into a clinical workflow.
+- [How the pieces fit](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/how-it-fits): The registries, the HIE-CM gateway, the two roles a record moves between, and where a health record actually lives.
+- [Care contexts and linking](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/linking): What a care context is, why a record has to be linked before anyone can find it, and how the link token works.
+- [Ecosystem participants](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/participants): The eight participants on India's health data network, the identifier each one holds, and what each can do.
+- [Citizen](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/participants/citizen): What an ABHA gives a person, what consent means in practice, and what a citizen controls on the network.
+- [Doctor](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/participants/doctor): The HPR ID a healthcare professional holds, how it is issued, and what it unlocks for the facility they work in.
+- [Hospital](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/participants/hospital): The facility ID a hospital holds, the HIP and HIU roles it takes, and what registering on ABDM gets it.
+- [Insurer](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/participants/insurer): An insurer reads records as an HIU under consent, and settles claims on NHCX, a separate gateway with its own onboarding.
+- [Diagnostics](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/participants/lab): A laboratory or imaging centre takes the same roles as a hospital, with a narrower record surface. What differs and what does not.
+- [NHA](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/participants/nha): The National Health Authority runs ABDM. What it operates, what it issues, and what that gives the systems on the network.
+- [Pharmacy](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/participants/pharmacy): A pharmacy takes the same roles as a hospital, with a narrower record surface. What differs, and what runs on another gateway.
+- [PHR app](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/participants/phr): The citizen facing app: what identifies it, the three milestones it builds, and why it is where consent happens.
+- [PHR applications](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/phr): What a personal health record app does in ABDM, the screens it needs, and the modules you have to build.
+- [Get started](https://abdm-docs.dev.eka.care/docs/hiecm/v3/getting-started): Connect your application to India's health data network, from sandbox credentials to your first call to going live.
+- [Build with AI](https://abdm-docs.dev.eka.care/docs/hiecm/v3/getting-started/build-with-ai): Set a coding agent up to build your ABDM integration, from a one-file skill to live retrieval over MCP.
+- [Quickstart](https://abdm-docs.dev.eka.care/docs/hiecm/v3/getting-started/first-fifteen-minutes): Create a gateway session and then create your first ABHA, live from this page, with your own sandbox credentials.
+- [Glossary](https://abdm-docs.dev.eka.care/docs/hiecm/v3/getting-started/glossary): The ABDM terms used across this documentation, and the HIE-CM ones, defined once.
+- [Go live](https://abdm-docs.dev.eka.care/docs/hiecm/v3/getting-started/going-live): Complete the sandbox exit process, two demonstrations, functional testing, the security audit and the exit form, then switch to production.
+- [Get your sandbox credentials](https://abdm-docs.dev.eka.care/docs/hiecm/v3/getting-started/sandbox): Register on the sandbox, collect your client id and secret, register a callback URL, and note the base URLs.
+- [Security audit](https://abdm-docs.dev.eka.care/docs/hiecm/v3/getting-started/security-audit): Pass the WASA security audit and hold a Safe to Host certificate, which every application needs before it runs in production.
+- [Milestones](https://abdm-docs.dev.eka.care/docs/hiecm/v3/milestones): The four milestones spell CARE. Create, Attach, Retrieve, Enrol, in build order, plus the three PHR milestones and which ones you need.
+- [M1 Create: ABHA identity](https://abdm-docs.dev.eka.care/docs/hiecm/v3/milestones/m1): What Milestone 1 gives you, what you need before your first call, and the order to build it in.
+- [M2 Attach: linking and sharing](https://abdm-docs.dev.eka.care/docs/hiecm/v3/milestones/m2): What Milestone 2 gives you, the prerequisites that block it, the record types you can link, and the order to build it in.
+- [M3 Retrieve: consent and fetching](https://abdm-docs.dev.eka.care/docs/hiecm/v3/milestones/m3): What Milestone 3 gives you, who asks the patient for consent, what you store, and the order to build it in.
+- [M4 Enrol: facilities and professionals](https://abdm-docs.dev.eka.care/docs/hiecm/v3/milestones/m4): What Milestone 4 covers, who needs it, how the two registries connect, and why it blocks going live.
+- [P1 Identity and profile](https://abdm-docs.dev.eka.care/docs/hiecm/v3/milestones/p1): The patient side of M1: how a person registers in your PHR app, logs in four ways, and holds their own profile and ABHA card.
+- [P2 Linking and records](https://abdm-docs.dev.eka.care/docs/hiecm/v3/milestones/p2): The patient side of M2: how a PHR app finds records held elsewhere, links them to an ABHA address, and shares a profile at a facility.
+- [P3 Consent and notifications](https://abdm-docs.dev.eka.care/docs/hiecm/v3/milestones/p3): The patient side of M3: subscriptions, auto approval, granting and revoking consent, and fetching the records a grant covers.
+- [Authentication](https://abdm-docs.dev.eka.care/docs/hiecm/v3/reference/authentication): The credentials every ABDM call carries, and the headers that go with them.
+- [Sandbox data dictionary](https://abdm-docs.dev.eka.care/docs/hiecm/v3/reference/data-dictionary): The tables and columns behind the ABDM sandbox portal, grouped by what each one records.
+- [Error codes](https://abdm-docs.dev.eka.care/docs/hiecm/v3/reference/error-codes): Every error code the specifications carry, with its message and what to do.
+- [Registries](https://abdm-docs.dev.eka.care/docs/hiecm/v3/registries): What an ABDM registry is, why there are two, and where ABHA, HPR and HFR sit.
+- [ABHA, the patient registry](https://abdm-docs.dev.eka.care/docs/hiecm/v3/registries/abha): The registry that identifies patients, the 14 digit ABHA number, the ABHA address, and what every milestone assumes about both.
+- [NHPR, the provider registries](https://abdm-docs.dev.eka.care/docs/hiecm/v3/registries/nhpr): The National Health Professional Registry, why professionals and facilities are registered separately, and which one you need first.
+- [HFR, the facility registry](https://abdm-docs.dev.eka.care/docs/hiecm/v3/registries/nhpr/hfr): The Health Facility Registry, what a facility record holds, the five call onboarding sequence, and how a bridge is linked to it.
+- [HPR, the professional registry](https://abdm-docs.dev.eka.care/docs/hiecm/v3/registries/nhpr/hpr): The Healthcare Professionals Registry, the HPID, what identifies a doctor, and the registration journey.
+- [Developer resources](https://abdm-docs.dev.eka.care/docs/hiecm/v3/resources): What sits beside the API reference for HIE-CM. Today that is the testing use cases, one page per module.
+- [Testing use cases](https://abdm-docs.dev.eka.care/docs/hiecm/v3/resources/testing): The cases every HIE-CM module is tested against, where you run them, and how to read a case id and its marking.
+- [M1 testing use cases](https://abdm-docs.dev.eka.care/docs/hiecm/v3/resources/testing/m1): The cases M1 is tested against. ABHA creation on four routes, verification, profile read and update, and profile sharing.
+- [M2 testing use cases](https://abdm-docs.dev.eka.care/docs/hiecm/v3/resources/testing/m2): The cases M2 is tested against. Care context linking on five authentication routes, user initiated linking, and the data transfer.
+- [M3 testing use cases](https://abdm-docs.dev.eka.care/docs/hiecm/v3/resources/testing/m3): The cases M3 is tested against. Raising a consent request, what comes back on each outcome, and revoking or expiring one.
+- [M4 testing use cases](https://abdm-docs.dev.eka.care/docs/hiecm/v3/resources/testing/m4): The cases M4 is tested against. Facility search, registration and update in the HFR, bridge linkage, and HPR professional registration.
+- [When something breaks](https://abdm-docs.dev.eka.care/docs/hiecm/v3/troubleshooting): Find the symptom you are seeing, not the error code, and work through the checks in order.
+- [Accepted, then nothing](https://abdm-docs.dev.eka.care/docs/hiecm/v3/troubleshooting/accepted-then-nothing): Discovery or care context linking started, the first call was accepted, and the flow stalled somewhere in the middle.
+- [The callback never arrives](https://abdm-docs.dev.eka.care/docs/hiecm/v3/troubleshooting/callback-never-arrives): A call returned 202, and nothing followed on your registered callback URL. The checks in order.
+- [Consent stuck in Requested](https://abdm-docs.dev.eka.care/docs/hiecm/v3/troubleshooting/consent-stuck-requested): A consent request was created and never moved to Granted or Denied. The checks in order.
+- [Everything returns 401](https://abdm-docs.dev.eka.care/docs/hiecm/v3/troubleshooting/everything-returns-401): Every call fails the same way, not just one endpoint. The checks in order, before you assume the gateway is down.
+- [The OTP never arrives](https://abdm-docs.dev.eka.care/docs/hiecm/v3/troubleshooting/otp-never-arrives): You requested an OTP and nothing reached the phone. The checks in order.
+
+## docs/nhcx
+
+- [NHCX](https://abdm-docs.dev.eka.care/docs/nhcx/v1): What NHCX is, who is on it, and the index of the NHCX documentation set.
+- [NHCX API reference](https://abdm-docs.dev.eka.care/docs/nhcx/v1/api): What is published for the NHCX gateway today.
+- [Core concepts](https://abdm-docs.dev.eka.care/docs/nhcx/v1/concepts): What a claim is made of on NHCX, at the level the documentation set records.
+- [Glossary](https://abdm-docs.dev.eka.care/docs/nhcx/v1/getting-started/glossary): The ABDM terms NHCX shares. No NHCX-specific vocabulary is documented here yet.
+- [Registries](https://abdm-docs.dev.eka.care/docs/nhcx/v1/registries): The participant registry NHCX runs, and how ABDM's three identifiers appear on this gateway.
+
+## docs/support
+
+- [Support](https://abdm-docs.dev.eka.care/docs/support): Where to ask about the sandbox, and what to put in a report.
+
+## docs/uhi
+
+- [Introduction](https://abdm-docs.dev.eka.care/docs/uhi/v1): What UHI is, the two roles you can build, and how far each service goes today.
+- [UHI API reference](https://abdm-docs.dev.eka.care/docs/uhi/v1/api): What is published for the UHI gateway today, and where the message shapes come from.
+- [UHI gateway](https://abdm-docs.dev.eka.care/docs/uhi/v1/concepts/network-and-protocol): The open network for discovering and booking health services, its two roles, and its signing scheme.
+- [Ambulance booking](https://abdm-docs.dev.eka.care/docs/uhi/v1/concepts/services/ambulance-booking): Find an ambulance nearby and get a quote from the provider, using the two call pairs live in this service today.
+- [AMRIT Pharmacy discovery](https://abdm-docs.dev.eka.care/docs/uhi/v1/concepts/services/amrit-pharmacy): Find AMRIT Pharmacy stores over UHI by store code, state and district, pincode or GPS radius.
+- [Blood bank discovery](https://abdm-docs.dev.eka.care/docs/uhi/v1/concepts/services/blood-bank): Search live blood stock by group and component across registered blood banks, using one call pair.
+- [Jan Aushadhi Kendra discovery](https://abdm-docs.dev.eka.care/docs/uhi/v1/concepts/services/jan-aushadhi-kendra): Find Jan Aushadhi Kendras over UHI by Kendra code, state and district, pincode or GPS radius.
+- [Jan Aushadhi medicine search](https://abdm-docs.dev.eka.care/docs/uhi/v1/concepts/services/jan-aushadhi-medicine-search): Search the Jan Aushadhi medicine catalogue, then find the Kendras that stock a chosen medicine.
+- [Physical consultation](https://abdm-docs.dev.eka.care/docs/uhi/v1/concepts/services/physical-consultation): Doctor discovery, appointment booking, PIN check-in and the full appointment lifecycle on UHI.
+- [PM-JAY HEM hospital discovery](https://abdm-docs.dev.eka.care/docs/uhi/v1/concepts/services/pmjay-hem): Find PM-JAY empanelled hospitals over UHI by state, district, speciality, facility name, pincode or GPS.
+- [Glossary](https://abdm-docs.dev.eka.care/docs/uhi/v1/getting-started/glossary): The ABDM terms UHI shares, and the two roles that belong to UHI alone.
+- [Onboarding to UHI](https://abdm-docs.dev.eka.care/docs/uhi/v1/getting-started/onboarding): How an application joins the UHI network, from the M2 gate to sandbox sign-off and production go-live.
+- [Registries](https://abdm-docs.dev.eka.care/docs/uhi/v1/registries): The registry UHI runs itself, the three ABDM identifiers that ride inside UHI messages, and which of them onboarding actually asks for.
+- [ABHA on UHI](https://abdm-docs.dev.eka.care/docs/uhi/v1/registries/abha): Where a patient's ABHA address appears in UHI messages, in which services it is mandatory, and what UHI does not do with it.
+- [HFR on UHI](https://abdm-docs.dev.eka.care/docs/uhi/v1/registries/hfr): The one UHI service that carries an HFR ID, the tag it travels in, and what is issued at onboarding.
+- [HPR on UHI](https://abdm-docs.dev.eka.care/docs/uhi/v1/registries/hpr): Where a practitioner's HPR ID appears in a UHI catalogue and a UHI order, and the two forms it takes.
+
+## docs/whats-new
+
+- [What's new](https://abdm-docs.dev.eka.care/docs/whats-new): Dated changes to what you can build against, newest first.
+- [24 August 2026](https://abdm-docs.dev.eka.care/docs/whats-new/2026-08-24): What changed in these pages on 24 August 2026.
+- [25 August 2026](https://abdm-docs.dev.eka.care/docs/whats-new/2026-08-25): What changed in these pages on 25 August 2026.
+- [1 September 2026](https://abdm-docs.dev.eka.care/docs/whats-new/2026-09-01): What changed in these pages on 1 September 2026.
+- [2 September 2026](https://abdm-docs.dev.eka.care/docs/whats-new/2026-09-02): What changed in these pages on 2 September 2026.
+- [3 September 2026](https://abdm-docs.dev.eka.care/docs/whats-new/2026-09-03): What changed in these pages on 3 September 2026.
+
+## Optional
+
+- [Agent skills](https://abdm-docs.dev.eka.care/skills): one markdown file per module, carrying its endpoints, error codes and test cases.
+- [GATEWAY module index](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/gateway/llms.txt): per-page links for the GATEWAY module.
+- [M1 module index](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/m1/llms.txt): per-page links for the M1 module.
+- [M2 module index](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/m2/llms.txt): per-page links for the M2 module.
+- [M3 module index](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/m3/llms.txt): per-page links for the M3 module.
+- [M4 module index](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/m4/llms.txt): per-page links for the M4 module.
+- [P1 module index](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/p1/llms.txt): per-page links for the P1 module.
+- [P2 module index](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/p2/llms.txt): per-page links for the P2 module.
+- [P3 module index](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/p3/llms.txt): per-page links for the P3 module.
+- [PHR-SERVICES module index](https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/phr-services/llms.txt): per-page links for the PHR-SERVICES module.
