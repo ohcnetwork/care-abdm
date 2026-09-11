@@ -190,6 +190,20 @@ def _login_scope(hint: LoginHint, otp_system: OtpSystem) -> tuple[list[str], str
     return ["abha-login", verify], "profile"
 
 
+def _wire_login_id(hint: LoginHint, login_id: str) -> str:
+    """Put `login_id` in the plaintext shape the service accepts, before encryption.
+
+    Observed on sandbox 2026-09-11 (docs/findings.md) with a synthetic Luhn-valid number:
+    14 bare digits -> 400 {"loginId": "LoginId is invalid"}; the same digits as
+    NN-NNNN-NNNN-NNNN -> 404 ABDM-1114 "User not found" (format accepted, account looked up).
+    The docs give no example for loginHint `abha-number`, so the dashes are a sandbox finding.
+    Callers pass 14 digits (abdm/abha/views.py LoginOtpRequest strips the separators)."""
+    if hint != "abha-number":
+        return login_id
+    d = login_id.replace("-", "")
+    return f"{d[0:2]}-{d[2:6]}-{d[6:10]}-{d[10:14]}" if len(d) == 14 else login_id
+
+
 def login_request_otp(hint: LoginHint, login_id: str, otp_system: OtpSystem = "abdm") -> dict:
     """m1-login-request-otp / m1-phr-request-otp -> {txnId, message}.
     `login_id` is the raw mobile / ABHA number / ABHA address / Aadhaar; encrypted here.
@@ -198,7 +212,12 @@ def login_request_otp(hint: LoginHint, login_id: str, otp_system: OtpSystem = "a
     return _call(
         "POST",
         _LOGIN_PATHS[family][0],
-        json={"scope": scope, "loginHint": hint, "loginId": encrypt(login_id), "otpSystem": otp_system},
+        json={
+            "scope": scope,
+            "loginHint": hint,
+            "loginId": encrypt(_wire_login_id(hint, login_id)),
+            "otpSystem": otp_system,
+        },
         headers=_headers({"BENEFIT_NAME": "healthid api"}),
     )
 
