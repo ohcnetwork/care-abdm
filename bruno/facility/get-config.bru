@@ -1,0 +1,20 @@
+meta {
+  name: 1. Get ABDM config
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{careUrl}}/api/abdm/facilities/{{facilityId}}/abdm
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  Read `Facility.extensions.abdm`. The response also gives `bridge_url_registered_at`,
+  `hrp_registered_at`, and `last_error`.
+}

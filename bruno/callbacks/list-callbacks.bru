@@ -1,0 +1,26 @@
+meta {
+  name: 1. List callbacks
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{careUrl}}/api/abdm/callbacks?limit=20
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+script:post-response {
+  if (res.body.results && res.body.results.length) {
+    bru.setEnvVar("callbackId", res.body.results[0].id);
+  }
+}
+
+docs {
+  List the newest callbacks. `limit` accepts 1 to 100. The default is 20.
+  The list hides the raw body and the headers. The script saves the newest `id`.
+}

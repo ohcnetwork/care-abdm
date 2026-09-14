@@ -1,0 +1,26 @@
+meta {
+  name: 5. ABHA address suggestions
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{careUrl}}/api/abdm/abha/enrol/address/suggestions
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "txn_id": "{{txnId}}"
+  }
+}
+
+docs {
+  Read the ABHA address suggestions for this transaction.
+}

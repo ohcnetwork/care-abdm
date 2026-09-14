@@ -21,7 +21,7 @@ Read this before touching code. Every module has one job; keep it that way.
 | `gateway/session.py` | Gateway session token (`POST /api/hiecm/gateway/v3/sessions`), Redis-cached, 60 s margin | Token never leaves the server |
 | `gateway/bridge.py` | Bridge URL PATCH (accepts 200 and 202) | Uses `gateway/outbound.py` |
 | `gateway/certs.py` | Fetches and caches gateway JWKS from `gateway-get-gateway-certs` | Certs endpoint has no bearer token |
-| `gateway/hrp.py` | Registers HRP bridge services and reads bridge service lookup endpoints | Register body uses the docs page shape |
+| `gateway/hrp.py` | Registers HRP bridge services and reads bridge service lookup endpoints | Registration goes to `ABDM_HSP_URL` (`apihspsbx`), not the gateway host. The reads stay on the gateway host. |
 | `gateway/outbound.py` | Sends gateway calls with `REQUEST-ID`, `TIMESTAMP`, `Authorization`, and `X-CM-ID`; records `AbdmOutboundRequest` | Never store bearer tokens in request JSON |
 | `abha/__init__.py` | ABHA package marker | No runtime code |
 | `abha/crypto.py` | RSA-OAEP(SHA-1) encryption of Aadhaar/OTP/mobile with the pinned public key (cert endpoint 404s — `findings.md`). Optional `public_key` parameter is only for unit tests | Plaintext PII never logged or stored |
@@ -57,6 +57,25 @@ hook. See `adr/004` amendment.
 | `components/abdm/patient-search-actions.tsx` | Slot next to "Add patient": Find by ABHA → open existing patient or register with prefill |
 | `components/ui/*` | Vendored from careui.ohc.network registry (`input-otp` added 2026-09-09). Legacy shadcn copies from the reference plug otherwise |
 | `public/locale/en.json` | All `abdm_*` keys, sorted. Missing keys render as raw key strings, silently |
+
+## Bruno collection — `bruno/`
+
+| Path | Job |
+|---|---|
+| `bruno.json` | Collection marker |
+| `collection.bru` | Collection documentation and the pre-request script that sets `requestId` and `timestamp` |
+| `environments/local.bru` | The `local` environment. Credentials and personal data stay in secret variables |
+| `auth/` | Care login and token refresh. Host routes, not plug routes |
+| `probes/` | `health` and `gateway/status` |
+| `facility/` | The 5 facility and bridge routes |
+| `abha-enrol/` | The 6 enrol steps, in order |
+| `abha-login/` | The 3 login steps |
+| `transactions/` | Transaction read-back |
+| `patient/` | ABHA status, link, and card |
+| `callbacks/` | The 2 callback probes and all 13 callback receiver paths |
+
+Invariant: the collection mirrors `backend/src/abdm/urls.py`, like `frontend/src/lib/careApi.ts`.
+Change all 3 files together.
 
 ## Data flow — registration
 

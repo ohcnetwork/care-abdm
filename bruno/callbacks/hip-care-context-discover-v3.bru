@@ -1,0 +1,44 @@
+meta {
+  name: 7. discover (v3)
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{careUrl}}/api/abdm/api/v3/hip/patient/care-context/discover
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{callbackToken}}
+  REQUEST-ID: {{requestId}}
+  TIMESTAMP: {{timestamp}}
+  X-HIP-ID: {{hipId}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "transactionId": "<TRANSACTION_ID>",
+    "patient": {
+      "id": "<ID>",
+      "verifiedIdentifiers": [
+        "<VERIFIED_IDENTIFIERS>"
+      ],
+      "unverifiedIdentifiers": [
+        "<UNVERIFIED_IDENTIFIERS>"
+      ],
+      "name": "<NAME>",
+      "gender": "M",
+      "yearOfBirth": 0
+    }
+  }
+}
+
+docs {
+  Inbound discovery request. Operation id `m2-on-discovery-request`.
+  Answer with care context metadata only. Send no clinical data.
+
+  Path: `/api/abdm/api/v3/hip/patient/care-context/discover`.
+}

@@ -38,7 +38,11 @@ class CallbackSignatureTests(unittest.TestCase):
     def test_verify_callback_signature_rejects_tampered_token(self):
         private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         token = jwt.encode({"iss": "abdm-gateway"}, private_key, algorithm="RS256", headers={"kid": "test-key"})
-        bad_token = f"{token[:-1]}x"
+        # Change the first character of the signature. The last character is
+        # partly base64 padding, so a change there does not always alter the
+        # signature bytes.
+        header, payload, signature = token.split(".")
+        bad_token = f"{header}.{payload}.{'A' if signature[0] != 'A' else 'B'}{signature[1:]}"
         with patch(
             "abdm.callbacks.signature.get_jwks",
             return_value={"keys": [_jwk(private_key.public_key(), "test-key")]},

@@ -1,0 +1,34 @@
+meta {
+  name: 3. Request mobile OTP
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{careUrl}}/api/abdm/abha/enrol/mobile/request-otp
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "txn_id": "{{txnId}}",
+    "mobile": "{{mobileNumber}}"
+  }
+}
+
+script:post-response {
+  if (res.body.txnId) {
+    bru.setEnvVar("txnId", res.body.txnId);
+  }
+}
+
+docs {
+  Send an OTP to the mobile number of the person. Use this step when the mobile number
+  is different from the Aadhaar mobile number.
+}

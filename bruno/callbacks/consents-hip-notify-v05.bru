@@ -1,0 +1,39 @@
+meta {
+  name: 13. consent notify (v0.5)
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{careUrl}}/api/abdm/v0.5/consents/hip/notify
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{callbackToken}}
+  REQUEST-ID: {{requestId}}
+  TIMESTAMP: {{timestamp}}
+  X-HIP-ID: {{hipId}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "notification": {
+      "consentDetail": {},
+      "consentId": "<CONSENT_ID>",
+      "signature": "<SIGNATURE>"
+    }
+  }
+}
+
+docs {
+  Inbound consent artefact for the HIP. Operation id `m2-consent-hip-on-notify`.
+
+  The docs give no schema for this callback (see `docs/findings.md`, 2026-09-10). The prose names the
+  consent detail, the care contexts, the HI types, the date range, and the signature.
+  The body in this request is a placeholder. Replace it with a real sandbox body.
+
+  Path: `/api/abdm/v0.5/consents/hip/notify`.
+}

@@ -1,0 +1,20 @@
+meta {
+  name: 1. Get transaction
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{careUrl}}/api/abdm/abha/transactions/{{txnId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  Read the stored transaction: `kind`, `ABHANumber`, `preferredAbhaAddress`, `profile`,
+  `sessionAvailable`, and `existingPatient`. The tokens never leave the server.
+}

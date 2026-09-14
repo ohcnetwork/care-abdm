@@ -1,0 +1,58 @@
+docs {
+  # care-abdm-sbx — plug API collection
+
+  This collection calls the ABDM plug routes on Care. It does not call ABDM directly.
+  The plug does the encryption, the gateway session, and the token storage on the server.
+
+  Source of truth: `backend/src/abdm/urls.py`. The MFE mirror is `frontend/src/lib/careApi.ts`.
+
+  ## Before you start
+
+  1. Run Care with the plug installed. See `docs/04-dev-setup.md`.
+  2. Select the `local` environment.
+  3. Set the secret variables `careUsername` and `carePassword` in the environment.
+  4. Send `auth > 1. Login`. The script saves `careToken` to the environment.
+
+  ## Variables
+
+  | Variable | Job |
+  |---|---|
+  | `careUrl` | Base URL of Care. Default `http://localhost:8000` |
+  | `careToken` | Care JWT access token. The login request saves it |
+  | `careRefreshToken` | Care JWT refresh token. The login request saves it |
+  | `facilityId` | `external_id` of the Care facility |
+  | `patientId` | `external_id` of the Care patient |
+  | `txnId` | ABDM transaction id. The OTP requests save it |
+  | `callbackId` | `id` of a stored callback. The callback list saves it |
+  | `hipId` | HIP identifier that the gateway sends as `X-HIP-ID` |
+  | `callbackToken` | Signed JWT that the gateway sends in the callback `Authorization` header |
+  | `linkRefNumber` | Link reference number from the link init step |
+
+  The pre-request script of this collection sets 2 more variables for each request:
+  `requestId` is a new UUID, and `timestamp` is the time now in UTC with milliseconds.
+  The callback requests send them as `REQUEST-ID` and `TIMESTAMP`.
+
+  Secret variables hold the credentials and the personal data: `careUsername`,
+  `carePassword`, `aadhaarNumber`, `mobileNumber`, `otp`. Bruno keeps these values
+  out of the file.
+
+  ## Rules
+
+  - Each request sends the token in an explicit `Authorization` header.
+  - The callback requests send the gateway signature token, not the Care token.
+  - The plug relays an ABDM failure as HTTP 502 with `abdm_code`, `message`, and `request_id`.
+}
+
+script:pre-request {
+  // The gateway sends a fresh REQUEST-ID and a UTC TIMESTAMP with each callback.
+  // The callback requests read these 2 runtime variables.
+  bru.setVar(
+    "requestId",
+    "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    })
+  );
+  bru.setVar("timestamp", new Date().toISOString());
+}

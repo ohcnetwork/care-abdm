@@ -1,0 +1,24 @@
+meta {
+  name: 1. Plug health
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{careUrl}}/api/abdm/health
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  Confirm that Care loaded the plug. The route needs no authentication.
+  Expect `{"status": "ok", "plug": "abdm"}`.
+}

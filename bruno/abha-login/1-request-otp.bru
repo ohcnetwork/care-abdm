@@ -1,0 +1,35 @@
+meta {
+  name: 1. Request login OTP
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{careUrl}}/api/abdm/abha/login/request-otp
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "hint": "{{loginHint}}",
+    "login_id": "{{loginId}}",
+    "otp_system": "{{otpSystem}}"
+  }
+}
+
+script:post-response {
+  if (res.body.txnId) {
+    bru.setEnvVar("txnId", res.body.txnId);
+  }
+}
+
+docs {
+  Ask ABDM for a login OTP. The script saves `txnId`.
+  The plug sets `otp_system` to `aadhaar` for the `aadhaar` hint, because UIDAI sends that OTP.
+}

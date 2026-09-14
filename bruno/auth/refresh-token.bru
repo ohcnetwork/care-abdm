@@ -1,0 +1,33 @@
+meta {
+  name: 2. Refresh token
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{careUrl}}/api/v1/auth/token/refresh/
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "refresh": "{{careRefreshToken}}"
+  }
+}
+
+script:post-response {
+  bru.setEnvVar("careToken", res.body.access);
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  Refresh an expired `careToken`. The script saves the new access token.
+}

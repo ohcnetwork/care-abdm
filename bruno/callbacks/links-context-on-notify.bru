@@ -1,0 +1,41 @@
+meta {
+  name: 5. context on-notify
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{careUrl}}/api/abdm/v3/links/context/on-notify
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{callbackToken}}
+  REQUEST-ID: {{requestId}}
+  TIMESTAMP: {{timestamp}}
+  X-HIP-ID: {{hipId}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "acknowledgement": {
+      "status": "SUCCESS"
+    },
+    "error": {
+      "code": "<CODE>",
+      "message": "<MESSAGE>"
+    },
+    "response": {
+      "requestId": "<REQUEST_ID>"
+    }
+  }
+}
+
+docs {
+  Result of `m2-link-care-context-notify`. Operation id `m2-on-context-notify-result`.
+  `acknowledgement.status` is `SUCCESS` or `ERRORED`.
+
+  Path: `/api/abdm/v3/links/context/on-notify`.
+}

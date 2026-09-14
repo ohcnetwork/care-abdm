@@ -1,0 +1,41 @@
+meta {
+  name: 3. on-generate-token
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{careUrl}}/api/abdm/v3/hip/token/on-generate-token
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{callbackToken}}
+  REQUEST-ID: {{requestId}}
+  TIMESTAMP: {{timestamp}}
+  X-HIP-ID: {{hipId}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "abhaAddress": "<ABHA_ADDRESS>",
+    "linkToken": "<LINK_TOKEN>",
+    "error": {
+      "code": "<CODE>",
+      "message": "<MESSAGE>"
+    },
+    "response": {
+      "requestId": "<REQUEST_ID>"
+    }
+  }
+}
+
+docs {
+  Result of `m2-generate-link-token`. Operation id `m2-on-generate-token-result`.
+  `response.requestId` echoes the REQUEST-ID of the call that you sent.
+  Put the `linkToken` in `X-Link-Token` on the next link call.
+
+  Path: `/api/abdm/v3/hip/token/on-generate-token`.
+}

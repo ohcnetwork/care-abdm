@@ -1,0 +1,21 @@
+meta {
+  name: 2. Gateway status
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{careUrl}}/api/abdm/gateway/status
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  Confirm that this deployment can get a gateway session token.
+  The response gives only the first 8 characters of the token.
+  A failure gives HTTP 502 with `status_code` and `request_id`.
+}

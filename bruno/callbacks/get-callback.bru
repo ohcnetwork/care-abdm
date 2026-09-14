@@ -1,0 +1,20 @@
+meta {
+  name: 2. Get callback
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{careUrl}}/api/abdm/callbacks/{{callbackId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  Read one callback with the headers, the raw body, and the parsed JSON.
+  Only a superuser can read this route.
+}

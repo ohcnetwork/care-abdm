@@ -15,7 +15,7 @@ api/<plug>/, care/config/urls.py:111-112) and confirm with the first real callba
 
 import logging
 
-from abdm.gateway.outbound import send
+from abdm.gateway.outbound import failure_detail, send
 from abdm.settings import plugin_settings
 
 logger = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ def update_bridge_url(url: str | None = None, *, facility=None) -> dict:
         facility=facility,
     )
     if row.status != row.Status.SUCCEEDED:
-        raise BridgeError(f"HTTP {row.http_status} (REQUEST-ID {row.request_id})")
+        raise BridgeError(failure_detail(row))
     return {
         "url": url,
         "status_code": row.http_status,

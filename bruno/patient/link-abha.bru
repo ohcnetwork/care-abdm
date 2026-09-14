@@ -1,0 +1,28 @@
+meta {
+  name: 2. Link ABHA to patient
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{careUrl}}/api/abdm/patients/{{patientId}}/abha/link
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "txn_id": "{{txnId}}"
+  }
+}
+
+docs {
+  Attach a transaction that is complete to a patient that exists.
+  The plug writes the identifiers and the extension. The response is the ABHA status.
+  A transaction that is already bound to a different patient gives HTTP 400.
+}

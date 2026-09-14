@@ -140,3 +140,29 @@ Append-only. Each entry: date, what we needed, where we looked, what happened.
   shows a placeholder JWKS response.
   It does not give a captured sandbox response.
   The code validates only the required `keys` array until sandbox confirms the shape.
+
+## 2026-09-14 — HRP registration host conflict, resolved against the sandbox
+
+- `https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/gateway/endpoints/gateway-register-bridge-services/index.md`
+  host conflict, now settled by observation.
+  The prose host is correct. The curl host is wrong.
+  Observed with the same token, body, and headers:
+  `https://dev.abdm.gov.in/v4/int/v1/bridges/MutipleHRPAddUpdateServices`
+  returns HTTP 503 with the plain text `Please make a valid request.`
+  `https://apihspsbx.abdm.gov.in/v4/int/v1/bridges/MutipleHRPAddUpdateServices`
+  returns HTTP 200 and a real answer.
+  The code now reads the host from `ABDM_HSP_URL`.
+- The docs do not warn that this endpoint reports a failure with HTTP 200.
+  Observed: HTTP 200 with the body
+  `[{"error": {"code": "2500", "message": "Provided facility name is not matched with registered name"}}]`.
+  The outbound helper now marks such a response as failed.
+- The docs publish 1 error envelope, but the HSP Registry uses 2.
+  `/reference/error-codes` shows `{"error": {"code", "message"}}`.
+  Observed on the same endpoint:
+  `{"code": "HIS-400", "message": "...", "details": [{"code": "HIS-1070", "message": "Bridge ID cannot be blank", "attribute": {"key": "multipleHrpRequest[0].bridgeId", "value": ""}}]}`.
+  The outbound helper reads both shapes.
+- `https://abdm-docs.dev.eka.care/docs/hiecm/v3/api/gateway/endpoints/gateway-list-bridge-services/index.md`
+  does not say which host serves the read endpoints.
+  Observed: `https://dev.abdm.gov.in` and `https://apihspsbx.abdm.gov.in`
+  both return HTTP 200 for `/api/hiecm/gateway/v3/bridge-services`.
+  The code keeps the read endpoints on the gateway host.

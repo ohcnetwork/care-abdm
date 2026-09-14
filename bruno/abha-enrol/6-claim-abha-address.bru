@@ -1,0 +1,28 @@
+meta {
+  name: 6. Claim ABHA address
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{careUrl}}/api/abdm/abha/enrol/address/claim
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "txn_id": "{{txnId}}",
+    "abha_address": "{{abhaAddress}}"
+  }
+}
+
+docs {
+  Claim the ABHA address. This step completes the enrolment.
+  The plug stores the transaction. Use the `txnId` to link a patient.
+}

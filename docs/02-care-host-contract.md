@@ -72,8 +72,8 @@ Tailwind v4 via `@tailwindcss/vite`.
 - Plugin settings pattern: copy `care_token_display/src/token_display/settings.py`
   (`PluginSettings` reading `settings.PLUGIN_CONFIGS[plugin]` then env, with
   `required_settings`). ABDM needs at minimum `ABDM_CLIENT_ID`,
-  `ABDM_CLIENT_SECRET`, `ABDM_GATEWAY_URL`, `ABDM_ABHA_URL`, `ABDM_CM_ID`,
-  plus the public callback base URL.
+  `ABDM_CLIENT_SECRET`, `ABDM_GATEWAY_URL`, `ABDM_HSP_URL`, `ABDM_ABHA_URL`,
+  `ABDM_CM_ID`, plus the public callback base URL.
 - Registries available in `care/emr/registries/`: `device_type`,
   `care_valueset`, `extensions` (`ExtensionRegistry.register`),
   `system_questionnaire`. Read `extensions/registry.py` before deciding whether

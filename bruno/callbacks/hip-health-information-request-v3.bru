@@ -1,0 +1,37 @@
+meta {
+  name: 14. health information request (v3)
+  type: http
+  seq: 14
+}
+
+post {
+  url: {{careUrl}}/api/abdm/api/v3/hip/health-information/request
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{callbackToken}}
+  REQUEST-ID: {{requestId}}
+  TIMESTAMP: {{timestamp}}
+  X-HIP-ID: {{hipId}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "transactionId": "<TRANSACTION_ID>",
+    "hiRequest": {}
+  }
+}
+
+docs {
+  Inbound request for the records that a consent covers.
+  Operation id `m2-on-health-information-request`.
+
+  The docs page gives no body (ADR-008). The prose names the consent id, the date
+  range, the data push URL, and the key material. Replace the body with a real one.
+  You have 20 minutes from this request to the data push.
+
+  Path: `/api/abdm/api/v3/hip/health-information/request`.
+}

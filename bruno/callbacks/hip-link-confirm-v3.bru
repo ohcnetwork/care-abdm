@@ -1,0 +1,36 @@
+meta {
+  name: 11. link confirm (v3)
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{careUrl}}/api/abdm/api/v3/hip/link/care-context/confirm
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{callbackToken}}
+  REQUEST-ID: {{requestId}}
+  TIMESTAMP: {{timestamp}}
+  X-HIP-ID: {{hipId}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "confirmation": {
+      "token": 0,
+      "linkRefNumber": "{{linkRefNumber}}"
+    }
+  }
+}
+
+docs {
+  Inbound link confirmation. Operation id `m2-on-link-confirm`.
+  `confirmation.token` is the 6-digit OTP of the patient.
+  A repeat arrives as ABDM-1105. A refusal arrives as ABDM-1111.
+
+  Path: `/api/abdm/api/v3/hip/link/care-context/confirm`.
+}

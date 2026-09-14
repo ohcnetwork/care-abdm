@@ -1,0 +1,25 @@
+meta {
+  name: 4. Register HRP service
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{careUrl}}/api/abdm/facilities/{{facilityId}}/abdm/hrp-services
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {}
+}
+
+docs {
+  Register the bridge services for this facility. The body is empty.
+  The plug builds the request from the saved config.
+}

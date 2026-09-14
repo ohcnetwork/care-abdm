@@ -15,6 +15,9 @@
   Both plugs use `ABDM_*` vars.
 - Use `ABDM_GATEWAY_URL=https://dev.abdm.gov.in`.
   Do not add an `/api/hiecm` suffix.
+- Use `ABDM_HSP_URL=https://apihspsbx.abdm.gov.in`.
+  Only the HRP service registration uses this host.
+  The gateway host answers HTTP 503 for that path (findings, 2026-09-14).
 - Use `ABDM_ABHA_URL=https://abhasbx.abdm.gov.in/abha/api`.
   Do not add `/v3`.
 - M2 callback signature env: `ABDM_CALLBACK_SIGNATURE_HEADER=Authorization`.
@@ -45,6 +48,33 @@
   `cd ~/ohc.network/care_fe && npx vite --port 4000`.
 - Point `REACT_CARE_API_URL` at `http://localhost:8000`.
   You can also use the `care-local.localhost` URL map in `.env.local`.
+
+## Bruno collection
+
+- Collection: `bruno/`.
+  It calls the plug routes on Care. It does not call ABDM directly.
+- Open it in 1 of 2 ways.
+  Use "Open Collection" and select `bruno/`.
+  Use "Open Workspace" and select the repository root, which holds `workspace.yml`.
+  Bruno 4 shows "Invalid workspace: workspace.yml not found" if you open a folder that has no `workspace.yml`.
+- It mirrors `backend/src/abdm/urls.py`.
+  Change both files together.
+- Folders: `auth`, `probes`, `facility`, `abha-enrol`, `abha-login`, `transactions`,
+  `patient`, `callbacks`.
+- Select the `local` environment.
+  Set the secret variables `careUsername` and `carePassword`.
+- Send `auth > 1. Login` first.
+  The script saves `careToken` to the environment.
+- The OTP requests save `txnId`.
+  The callback list saves `callbackId`.
+- The collection pre-request script sets `requestId` and `timestamp`.
+  The callback requests send them as `REQUEST-ID` and `TIMESTAMP`.
+- The secret variables hold the credentials and the personal data.
+  Bruno keeps these values out of the file.
+- Run it from a terminal:
+  `cd bruno && npx @usebruno/cli run probes --env local`.
+- Caution: the callback requests write a row in `AbdmCallback` before the signature check.
+  Use a development database only.
 
 ## Tunnel (ADR-005)
 

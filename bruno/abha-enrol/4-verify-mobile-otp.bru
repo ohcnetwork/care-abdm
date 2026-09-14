@@ -1,0 +1,33 @@
+meta {
+  name: 4. Verify mobile OTP
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{careUrl}}/api/abdm/abha/enrol/mobile/verify
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "txn_id": "{{txnId}}",
+    "otp": "{{otp}}"
+  }
+}
+
+script:post-response {
+  if (res.body.txnId) {
+    bru.setEnvVar("txnId", res.body.txnId);
+  }
+}
+
+docs {
+  Verify the mobile OTP. The response holds `authResult` and `message`.
+}

@@ -129,7 +129,8 @@ export type PatientAbhaStatus = {
  * What the person identifies with when logging in to an existing ABHA
  * (m1-login-request-otp `loginHint`; abha-address goes via the phr variant).
  * `otp_system`: where the OTP is delivered — `abdm` = mobile registered with ABHA,
- * `aadhaar` = mobile registered with Aadhaar. `mobile` hint only supports `abdm`.
+ * `aadhaar` = mobile registered with Aadhaar. The `mobile` hint only supports `abdm`.
+ * The `aadhaar` hint only supports `aadhaar`.
  */
 export type LoginHint = "mobile" | "abha-number" | "abha-address" | "aadhaar";
 export type OtpSystem = "abdm" | "aadhaar";

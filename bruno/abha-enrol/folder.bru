@@ -1,0 +1,12 @@
+meta {
+  name: abha-enrol
+  seq: 4
+}
+
+docs {
+  Create a new ABHA with Aadhaar OTP (M1, journeys 1 and 2).
+  Run the requests in order. Each step needs the `txnId` of the step before it.
+  The caller needs the Care permission `can_create_patient`.
+
+  Warning: Aadhaar and OTP values are personal data. Keep them in the secret variables.
+}

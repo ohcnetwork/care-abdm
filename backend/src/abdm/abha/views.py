@@ -81,7 +81,8 @@ class LoginOtpRequest(BaseModel):
     login_id   the raw value: 10-digit mobile, 14-digit ABHA number (dashes optional),
                ABHA address (name@abdm / name@sbx), or 12-digit Aadhaar
     otp_system where the OTP is delivered: `abdm` = mobile registered with ABHA,
-               `aadhaar` = mobile registered with Aadhaar (UIDAI). `mobile` only allows `abdm`.
+               `aadhaar` = mobile registered with Aadhaar (UIDAI). `mobile` only allows `abdm`;
+               `aadhaar` only allows `aadhaar`, because UIDAI sends the OTP.
     """
 
     hint: Literal["mobile", "abha-number", "abha-address", "aadhaar"]
@@ -105,6 +106,8 @@ class LoginOtpRequest(BaseModel):
             v = re.sub(r"\D", "", v)
             if not is_valid_aadhaar(v):
                 raise ValueError("Invalid Aadhaar number (checksum)")
+            # UIDAI sends the OTP, so the ABHA mobile is not a valid destination.
+            self.otp_system = "aadhaar"
         else:  # abha-address
             v = v.lower()
             if not re.fullmatch(r"[a-z0-9._]{3,}(@[a-z]+)?", v):

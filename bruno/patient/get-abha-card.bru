@@ -1,0 +1,21 @@
+meta {
+  name: 3. Get ABHA card
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{careUrl}}/api/abdm/patients/{{patientId}}/abha/card
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  Get the ABHA card of the patient. The response is binary. The plug passes the
+  content type of ABDM through, because ABDM does not document it.
+  HTTP 409 means that no ABHA session is available. Verify with an OTP again then.
+}

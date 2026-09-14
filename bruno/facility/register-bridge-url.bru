@@ -1,0 +1,29 @@
+meta {
+  name: 3. Register bridge URL
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{careUrl}}/api/abdm/facilities/{{facilityId}}/abdm/bridge-url
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "url": null
+  }
+}
+
+docs {
+  PATCH the bridge URL at the gateway. Send `"url": null` to use the saved `bridge_url`.
+  The gateway gives 200 or 202. The response has `config` and `gateway`.
+
+  Caution: set the tunnel up first. The gateway must reach the URL. See ADR-005.
+}

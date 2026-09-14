@@ -19,10 +19,19 @@ ENV_PREFIX = "ABDM_"
 # Base URLs come from the docs: sandbox gateway https://dev.abdm.gov.in with
 # X-CM-ID sbx; ABHA service https://abhasbx.abdm.gov.in/abha/api/v3/
 # (/docs/hiecm/v3/getting-started/sandbox).
+#
+# HSP_URL is the HSP Registry host that serves the HRP service registration
+# (`/v4/int/v1/bridges/MutipleHRPAddUpdateServices`). The docs page
+# `/api/gateway/endpoints/gateway-register-bridge-services` conflicts with
+# itself: the prose gives https://apihspsbx.abdm.gov.in, the curl example gives
+# the gateway host. Observed 2026-09-14: the gateway host answers HTTP 503
+# "Please make a valid request."; the prose host answers HTTP 200. The prose
+# wins (findings.md).
 DEFAULTS = {
     "CLIENT_ID": "",
     "CLIENT_SECRET": "",
     "GATEWAY_URL": "https://dev.abdm.gov.in",
+    "HSP_URL": "https://apihspsbx.abdm.gov.in",
     "ABHA_URL": "https://abhasbx.abdm.gov.in/abha/api",
     "CM_ID": "sbx",
     "CALLBACK_BASE_URL": "",

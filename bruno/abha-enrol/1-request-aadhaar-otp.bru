@@ -1,0 +1,33 @@
+meta {
+  name: 1. Request Aadhaar OTP
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{careUrl}}/api/abdm/abha/enrol/aadhaar/request-otp
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "aadhaar_number": "{{aadhaarNumber}}"
+  }
+}
+
+script:post-response {
+  if (res.body.txnId) {
+    bru.setEnvVar("txnId", res.body.txnId);
+  }
+}
+
+docs {
+  Start the enrolment. Send 12 digits. The plug checks the Verhoeff checksum,
+  encrypts the number, and calls ABDM. The script saves `txnId`.
+}

@@ -1,0 +1,17 @@
+meta {
+  name: abha-login
+  seq: 5
+}
+
+docs {
+  Log in to an ABHA that exists (M1, journey 5). One entry point for 4 hints.
+
+  | `hint` | `login_id` | `otp_system` |
+  |---|---|---|
+  | `mobile` | 10 digits | `abdm` only |
+  | `abha-number` | 14 digits | `abdm` or `aadhaar` |
+  | `abha-address` | `name@abdm` | `abdm` or `aadhaar` |
+  | `aadhaar` | 12 digits | `aadhaar` only |
+
+  Only the `mobile` hint can give more than one account. Use "Select account" then.
+}

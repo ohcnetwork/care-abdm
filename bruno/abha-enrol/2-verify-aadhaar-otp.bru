@@ -1,0 +1,35 @@
+meta {
+  name: 2. Verify Aadhaar OTP
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{careUrl}}/api/abdm/abha/enrol/aadhaar/verify
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "txn_id": "{{txnId}}",
+    "otp": "{{otp}}",
+    "mobile": "{{mobileNumber}}"
+  }
+}
+
+script:post-response {
+  if (res.body.txnId) {
+    bru.setEnvVar("txnId", res.body.txnId);
+  }
+}
+
+docs {
+  Verify the Aadhaar OTP and create the ABHA. Send a 6-digit OTP and a 10-digit mobile.
+  The response holds `ABHAProfile` and `isNew`. The plug removes the tokens.
+}

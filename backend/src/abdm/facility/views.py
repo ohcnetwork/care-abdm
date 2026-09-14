@@ -9,6 +9,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from abdm.facility import service
+from abdm.gateway.bridge import BridgeError
+from abdm.gateway.hrp import HrpRegistrationError
 
 
 class FacilityAbdmConfigBody(BaseModel):
@@ -68,7 +70,10 @@ class FacilityBridgeUrl(APIView):
         facility = _facility(facility_id)
         _can_update(request, facility)
         data = _parse(BridgeUrlBody, request.data or {})
-        return Response(service.register_bridge_url(facility, data.url))
+        try:
+            return Response(service.register_bridge_url(facility, data.url))
+        except BridgeError as exc:
+            raise ValidationError({"errors": str(exc)}) from exc
 
 
 class FacilityHrpServices(APIView):
@@ -77,9 +82,15 @@ class FacilityHrpServices(APIView):
     def get(self, request, facility_id):
         facility = _facility(facility_id)
         _can_update(request, facility)
-        return Response(service.read_bridge_services(facility))
+        try:
+            return Response(service.read_bridge_services(facility))
+        except HrpRegistrationError as exc:
+            raise ValidationError({"errors": str(exc)}) from exc
 
     def post(self, request, facility_id):
         facility = _facility(facility_id)
         _can_update(request, facility)
-        return Response(service.register_hrp_service(facility))
+        try:
+            return Response(service.register_hrp_service(facility))
+        except HrpRegistrationError as exc:
+            raise ValidationError({"errors": str(exc)}) from exc

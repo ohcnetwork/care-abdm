@@ -1,0 +1,22 @@
+meta {
+  name: callbacks
+  seq: 8
+}
+
+docs {
+  Gateway callbacks (M2 step 2) and the callback log.
+
+  The gateway sends a callback to `{bridgeUrl}<path>`. The bridge URL is
+  `${ABDM_CALLBACK_BASE_URL}/api/abdm` (ADR-005). The requests below use `careUrl`,
+  so that you can probe the receiver on a local machine.
+
+  The receiver stores every callback before it checks the signature. It then
+  verifies the `Authorization` JWT against the gateway JWKS. A signature that fails
+  gives HTTP 401. A signature that passes gives HTTP 202 and a Celery job.
+  A repeat of the same callback gives the first result again.
+
+  Set `callbackToken` to a signed gateway JWT. A made-up value gives HTTP 401.
+  That result is correct: the receiver fails closed.
+
+  The list and the detail routes need a superuser.
+}

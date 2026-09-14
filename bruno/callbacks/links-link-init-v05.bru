@@ -1,0 +1,44 @@
+meta {
+  name: 10. link init (v0.5)
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{careUrl}}/api/abdm/v0.5/links/link/init
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{callbackToken}}
+  REQUEST-ID: {{requestId}}
+  TIMESTAMP: {{timestamp}}
+  X-HIP-ID: {{hipId}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "transactionId": "<TRANSACTION_ID>",
+    "abhaAddress": "<ABHA_ADDRESS>",
+    "patient": [
+      {
+        "referenceNumber": "<REFERENCE_NUMBER>",
+        "display": "<DISPLAY>",
+        "careContexts": [
+          "<CARE_CONTEXTS>"
+        ],
+        "hiType": "<HI_TYPE>",
+        "count": 0
+      }
+    ]
+  }
+}
+
+docs {
+  The same link init on the older path. Operation id `m2-on-link-init` (see `docs/findings.md`, 2026-09-10).
+  The body is a copy of the v3 body, because the docs give no v0.5 body.
+
+  Path: `/api/abdm/v0.5/links/link/init`.
+}

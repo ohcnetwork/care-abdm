@@ -25,6 +25,7 @@ Repo layout:
 care-abdm-sbx/
   backend/          Django plug (pip-installable app for ohcnetwork/care)
   frontend/         MFE plug (Vite + module federation remote for ohcnetwork/care_fe)
+  bruno/            Bruno collection for every plug route (mirrors backend/src/abdm/urls.py)
   docs/             this knowledge base
   .agent/skills/    the docs site's own agent skills (abdm-m1 … abdm-fhir), downloaded verbatim
   .env.local        sandbox credentials — gitignored, never copy into docs

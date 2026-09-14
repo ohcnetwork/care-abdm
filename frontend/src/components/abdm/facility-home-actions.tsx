@@ -45,6 +45,7 @@ export default function AbdmFacilityHomeActions({
     <PluginComponent>
       <Link
         href={`/facility/${facility.id}/abdm/setup`}
+        basePath="/"
         className={cn(
           "hover:bg-muted flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
           className,

@@ -1,0 +1,35 @@
+meta {
+  name: 2. Save ABDM config
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{careUrl}}/api/abdm/facilities/{{facilityId}}/abdm
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "hip_id": "",
+    "bridge_id": "",
+    "service_id": "",
+    "facility_id": "",
+    "facility_name": "",
+    "hip_name": "",
+    "x_hip_id_source": "hip_id",
+    "bridge_url": ""
+  }
+}
+
+docs {
+  Write the facility ABDM config. Send the full object. Empty strings clear a field.
+  `x_hip_id_source` selects the value that the plug sends as `X-HIP-ID`.
+  Use one of `hip_id`, `bridge_id`, or `service_id`.
+}

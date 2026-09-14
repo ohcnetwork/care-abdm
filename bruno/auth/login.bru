@@ -1,0 +1,41 @@
+meta {
+  name: 1. Login
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{careUrl}}/api/v1/auth/login/
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "username": "{{careUsername}}",
+    "password": "{{carePassword}}"
+  }
+}
+
+vars:pre-request {
+  careUsername: admin
+  carePassword: admin
+}
+
+assert {
+  res.status: eq 200
+}
+
+script:post-response {
+  bru.setEnvVar("careToken", res.body.access);
+  bru.setEnvVar("careRefreshToken", res.body.refresh);
+}
+
+docs {
+  Get a Care JWT. The script saves `careToken` and `careRefreshToken`.
+  Set `careUsername` and `carePassword` first. They are secret variables.
+}

@@ -1,0 +1,12 @@
+opencollection: 1.0.0
+info:
+  name: "care-abdm-sbx"
+  type: workspace
+
+collections:
+  - name: "care-abdm-sbx (plug API)"
+    path: "bruno"
+
+specs:
+
+docs: 'Bruno workspace for the ABDM plug. The collection in `bruno/` calls the plug routes on Care.'

@@ -1,0 +1,34 @@
+meta {
+  name: 12. link confirm (v0.5)
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{careUrl}}/api/abdm/v0.5/links/link/confirm
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{callbackToken}}
+  REQUEST-ID: {{requestId}}
+  TIMESTAMP: {{timestamp}}
+  X-HIP-ID: {{hipId}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "confirmation": {
+      "token": 0,
+      "linkRefNumber": "{{linkRefNumber}}"
+    }
+  }
+}
+
+docs {
+  The same link confirmation on the older path. Operation id `m2-on-link-confirm`.
+
+  Path: `/api/abdm/v0.5/links/link/confirm`.
+}

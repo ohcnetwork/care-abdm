@@ -5,7 +5,6 @@ import AbhaWizard, {
 import PluginComponent from "@/components/common/plugin-component";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/hooks/use-translation";
-import { cn } from "@/lib/utils";
 import { IdCard, UserPlus, UserRound } from "lucide-react";
 import { navigate } from "raviger";
 import { useState } from "react";
@@ -25,10 +24,8 @@ import { useState } from "react";
  */
 export default function AbdmPatientSearchActions({
   facilityId,
-  className,
 }: {
   facilityId: string;
-  className?: string;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -42,11 +39,7 @@ export default function AbdmPatientSearchActions({
 
   return (
     <PluginComponent>
-      <Button
-        type="button"
-        className={cn(className)}
-        onClick={() => setOpen(true)}
-      >
+      <Button type="button" variant="tertiary" onClick={() => setOpen(true)}>
         <IdCard />
         {t("abdm_find_by_abha")}
       </Button>

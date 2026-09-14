@@ -1,0 +1,20 @@
+meta {
+  name: 1. Get ABHA status
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{careUrl}}/api/abdm/patients/{{patientId}}/abha
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  Read the ABHA state of the patient: `linked`, `abha_number`, `abha_address`,
+  `abha_source`, `kyc_verified`, and `card_available`.
+}

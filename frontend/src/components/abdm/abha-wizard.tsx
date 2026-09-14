@@ -80,6 +80,18 @@ const SOURCE_BY_HINT: Record<LoginHint, AbhaSource> = {
   aadhaar: "login_aadhaar",
 };
 
+/**
+ * The OTP system that an identifier uses when the desk makes no choice.
+ * A `mobile` login only supports `abdm`. An `aadhaar` login authenticates
+ * against UIDAI, so the OTP must go to the Aadhaar-linked mobile.
+ */
+const defaultOtpSystem = (h: LoginHint): OtpSystem =>
+  h === "aadhaar" ? "aadhaar" : "abdm";
+
+/** Only an ABHA number or an ABHA address supports both OTP systems. */
+const canChooseOtpSystem = (h: LoginHint) =>
+  h === "abha-number" || h === "abha-address";
+
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -244,7 +256,9 @@ export default function AbhaWizard({
   const [linkStep, setLinkStep] = useState<LinkStep>("identify");
   const [hint, setHint] = useState<LoginHint>(initialHint);
   const [loginId, setLoginId] = useState("");
-  const [otpSystem, setOtpSystem] = useState<OtpSystem>("abdm");
+  const [otpSystem, setOtpSystem] = useState<OtpSystem>(
+    defaultOtpSystem(initialHint),
+  );
   const [accounts, setAccounts] = useState<AbhaAccount[]>([]);
   const [selected, setSelected] = useState<string>("");
   const [result, setResult] = useState<AbhaWizardResult>();
@@ -258,7 +272,7 @@ export default function AbhaWizard({
     setLinkStep("identify");
     setHint(initialHint);
     setLoginId(initialHint === "mobile" ? defaultMobile : "");
-    setOtpSystem("abdm");
+    setOtpSystem(defaultOtpSystem(initialHint));
     setAadhaar("");
     setMobile(defaultMobile);
     setOtp("");
@@ -466,7 +480,7 @@ export default function AbhaWizard({
     loginOtp.mutate({
       hint,
       login_id: loginId,
-      otp_system: hint === "mobile" ? "abdm" : otpSystem,
+      otp_system: canChooseOtpSystem(hint) ? otpSystem : defaultOtpSystem(hint),
     });
 
   const busy =
@@ -548,7 +562,7 @@ export default function AbhaWizard({
   const changeHint = (h: LoginHint) => {
     setHint(h);
     setLoginId(h === "mobile" ? defaultMobile : "");
-    setOtpSystem("abdm");
+    setOtpSystem(defaultOtpSystem(h));
     setError(undefined);
   };
 
@@ -848,7 +862,7 @@ export default function AbhaWizard({
               </p>
             </div>
 
-            {hint !== "mobile" && (
+            {canChooseOtpSystem(hint) && (
               <div className="grid gap-1.5">
                 <Label>{t("abdm_otp_send_to")}</Label>
                 <div className="grid grid-cols-2 gap-2">

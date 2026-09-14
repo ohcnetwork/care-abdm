@@ -1,0 +1,38 @@
+meta {
+  name: 2. Verify login OTP
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{careUrl}}/api/abdm/abha/login/verify
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "txn_id": "{{txnId}}",
+    "otp": "{{otp}}"
+  }
+}
+
+script:post-response {
+  if (res.body.txnId) {
+    bru.setEnvVar("txnId", res.body.txnId);
+  }
+  if (res.body.ABHANumber) {
+    bru.setEnvVar("abhaNumber", res.body.ABHANumber);
+  }
+}
+
+docs {
+  Verify the login OTP. The response has one of two shapes.
+  `completed: true` gives the profile and `existingPatient`.
+  `completed: false` gives an `accounts` list. Select one account then.
+}
