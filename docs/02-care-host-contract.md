@@ -149,13 +149,24 @@ No model named `Immunization` or `Procedure` was found under `care/emr/models/` 
 | The host renders `FacilityHomeActions` inside the "Configurations" dropdown popup. The popup is a transformed ancestor, so a `position: fixed` panel in that subtree anchors to the popup and not to the viewport. | `~/ohc.network/care_fe/src/components/Facility/FacilityHome.tsx:236-257` |
 | `GET /api/v1/facility/{facilityId}/` returns the facility. The setup page reads the name from it. | `~/ohc.network/care_fe/src/types/facility/facilityApi.ts:34-38` |
 
+### Admin routes and nav (read 2026-09-14; not used since ADR-011 removed the admin page)
+
+| Host fact | Source |
+|---|---|
+| The manifest type accepts `adminNavItems?: NavigationLink[]`. | `~/ohc.network/care_fe/src/pluginTypes.ts:220-227` |
+| `NavigationLink` has `name`, `url`, optional `icon`, optional `section`, and optional children. | `~/ohc.network/care_fe/src/components/ui/sidebar/nav-main.tsx:62-72` |
+| The admin sidebar appends each plug `adminNavItems` entry after the core admin links. | `~/ohc.network/care_fe/src/components/ui/sidebar/admin-nav.tsx:17-105` |
+| The app treats any `/admin` path as an admin page and shows the admin sidebar. | `~/ohc.network/care_fe/src/Routers/AppRouter.tsx:132-138` |
+| Plug routes merge into the app route table before the host routes. A plug can own `/admin/...` when no host route collides. | `~/ohc.network/care_fe/src/Routers/AppRouter.tsx:121-132` |
+| The frontend permission context treats `user.is_superuser` as `isSuperAdmin`. | `~/ohc.network/care_fe/src/Routers/AppRouter.tsx:169-177` |
+
 ### Phase 3 frontend slots
 
 | Need | Slot | Mount source |
 |---|---|---|
-| Link an Encounter as a care context. | `EncounterActions` | `~/ohc.network/care_fe/src/pluginTypes.ts:36-39`; `~/ohc.network/care_fe/src/pages/Encounters/tabs/overview/summary-panel-actions.tab.tsx:93-101`; `~/ohc.network/care_fe/src/components/Encounter/EncounterCommandDialog.tsx:519-529` |
+| Link an Encounter as a care context. Props `{encounter, className}`; the host passes an outline-button class. Used by `encounter-actions.tsx`. | `EncounterActions` | `~/ohc.network/care_fe/src/pluginTypes.ts:36-39`; `~/ohc.network/care_fe/src/pages/Encounters/tabs/overview/summary-panel-actions.tab.tsx:93-101`; `~/ohc.network/care_fe/src/components/Encounter/EncounterCommandDialog.tsx:519-529` |
 | Add a primary quick action near the patient card. | `PatientInfoCardQuickActions` | `~/ohc.network/care_fe/src/pluginTypes.ts:41-44`; `~/ohc.network/care_fe/src/pages/Encounters/EncounterShow.tsx:238-248` |
-| Show link state at the top of the Encounter overview. | `EncounterOverviewTop` | `~/ohc.network/care_fe/src/pluginTypes.ts:93-97`; `~/ohc.network/care_fe/src/pages/Encounters/tabs/overview.tsx:54-60` |
+| Show link state at the top of the Encounter overview. Props `{encounter, patientId, encounterId}`. Used by `encounter-overview-top.tsx`. | `EncounterOverviewTop` | `~/ohc.network/care_fe/src/pluginTypes.ts:103-107`; `~/ohc.network/care_fe/src/pages/Encounters/tabs/overview.tsx:54-60` |
 | Show a consent and transfer log. | `encounterTabs` | `~/ohc.network/care_fe/src/pluginTypes.ts:212-215`; `~/ohc.network/care_fe/src/pages/Encounters/EncounterShow.tsx:80` |
 | Show the ADR-007 facility link form. | `FacilityHomeActions` | `~/ohc.network/care_fe/src/pluginTypes.ts:50-53`; `~/ohc.network/care_fe/src/components/Facility/FacilityHome.tsx:253-257` |
 

@@ -26,9 +26,30 @@ the script and delete them at the end. Examples of what was checked: create-with
 both identifiers and `instance_identifiers`; `PUT` with unrelated change preserves ABHA; duplicate
 txn 409; unknown txn 404; card without token 409. Write scratch scripts under the session files directory, not the repo.
 
-M2 steps 1-2 use `/tmp/abdm_m2_smoke.py`.
-Run it after `manage.py migrate abdm`.
-It checks facility setup round-trip, callback fail-closed behavior, callback idempotency, local RS256 JWKS verification, and bridge action rows.
+M2 uses `m2_smoke.py` in the session files directory (2026-09-15). Run it after `manage.py migrate abdm`:
+
+```sh
+.venv/bin/python manage.py shell < ~/.copilot/session-state/<session>/files/m2_smoke.py
+```
+
+It patches only `gateway.outbound.requests.request` (records every call, answers 202; answers the
+bridge-services read with a bridge id), `gateway.outbound.get_access_token`,
+`callbacks.views.verify_callback_signature`, the 2 Celery `.delay` calls (run inline), and
+`care.utils.sms.send_text_message`. Everything else is real: Care auth, the DB, the routes, the
+FHIR builders and the crypto. It drives 15 stages: facility PUT and bridge GET; HRP registration;
+Encounter save → link token → link → notify with the 3 result callbacks; duplicate callback;
+discovery (match and no match); link init → wrong OTP → right OTP; consent GRANTED and REVOKED
+(both path variants); health-information request → encrypted push → **HIU-side decrypt and MD5
+check** → notify TRANSFERRED; a wider date range refused (`ABDM-1063`); SMS deep link; the 403 on
+bridge registration; Scan and Share token `OPD1-001`. It cleans up every row it created and
+restores the facility extension. Expected last lines: `M2 SMOKE OK — outbound calls: 19 callbacks: 14`
+and `cleanup done`.
+
+FHIR bundles use `fhir_smoke.py` in the same directory. It builds the 3 record types from fixture
+CARE data, writes them to files and runs MCP `validate_fhir` on each
+(`python3 /tmp/mcp_tool.py validate_fhir '{"record_type":"<type>"}' --file <bundle>`; the helper
+script is in the session archive and takes 1 minute to recreate from `docs/01-sources.md`).
+Expected: `findings: null` for each type.
 
 Real-sandbox calls (`curl` to `dev.abdm.gov.in` / `abhasbx.abdm.gov.in`) need the session token —
 use `abdm.gateway.session.get_access_token()` from a shell, never paste the secret. Anything that
@@ -41,7 +62,12 @@ cd ~/ohc.network/care && set -a && . ./.env && set +a
 .venv/bin/python -m unittest discover -s /Users/rithviknishad/ohc.network/care-abdm-sbx/backend/tests -t /Users/rithviknishad/ohc.network/care-abdm-sbx/backend
 ```
 
-Observed 2026-09-10: 8 tests ran in 0.228 s. Result: OK.
+Observed 2026-09-10: 8 tests ran. Result: OK.
+Observed 2026-09-14: 14 tests ran. Result: OK (`test_share_rules.py` added).
+Observed 2026-09-15: 41 tests ran in 0.4 s. Result: OK (`test_hip_rules.py`, `test_hip_crypto.py`, `test_fhir_bundles.py` added).
+
+The tests run without Django. Pure rules must live in a module with no Django import
+(`abha/checksums.py`, `share/rules.py`, `facility/rules.py`, `hip/rules.py`, `hip/crypto.py`, `fhir/bundle.py`).
 
 ## Frontend
 
@@ -72,4 +98,17 @@ The agent cannot see the UI; ask the user for a screenshot and record what it sh
 
 - `GET /api/abdm/callbacks?limit=20` shows recent callback rows without raw body or headers.
 - `GET /api/abdm/callbacks/<callback_id>` shows the full callback row. Only a superuser can use it.
-- Use the detail probe to learn the real callback signature header.
+  Use it to learn the real callback signature header (findings E2) and the real bodies (E8, G1, H1, H3).
+- `GET /api/abdm/encounters/<id>/care-context` shows the link state and the last 10 gateway requests with their callbacks.
+- `GET /api/abdm/bridge` shows the live gateway view of the bridge; a wrong `ABDM_CALLBACK_BASE_URL` shows as a URL mismatch on the setup page.
+
+## Bruno parse check
+
+```sh
+cd /tmp && mkdir -p brucheck && cd brucheck && npm i @usebruno/lang >/dev/null && node -e '
+const fs=require("fs"),p=require("path"),{bruToJsonV2}=require("@usebruno/lang");
+function w(d){for(const f of fs.readdirSync(d)){const q=p.join(d,f);if(fs.statSync(q).isDirectory()){if(f!=="environments")w(q);continue}
+if(f.endsWith(".bru")&&f!=="collection.bru"&&f!=="folder.bru")bruToJsonV2(fs.readFileSync(q,"utf8"))}}w(process.argv[1]);console.log("ok")' ~/ohc.network/care-abdm-sbx/bruno
+```
+
+Observed 2026-09-15: 58 files parsed, 46 requests, and the request paths matched `urls.py` both ways.

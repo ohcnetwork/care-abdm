@@ -36,12 +36,21 @@ from abdm.signals import LinkError, link_patient_to_transaction
 
 class AadhaarOtpRequest(BaseModel):
     aadhaar_number: str = Field(min_length=12, max_length=12)
+    # CRT_ABHA_102: the desk must record that the person consented before any Aadhaar data leaves Care.
+    consent: bool = False
 
     @field_validator("aadhaar_number")
     @classmethod
     def _verhoeff(cls, v):
         if not is_valid_aadhaar(v):
             raise ValueError("Invalid Aadhaar number (checksum)")
+        return v
+
+    @field_validator("consent")
+    @classmethod
+    def _consent_given(cls, v):
+        if not v:
+            raise ValueError("The patient's consent is required before an ABHA can be created")
         return v
 
 

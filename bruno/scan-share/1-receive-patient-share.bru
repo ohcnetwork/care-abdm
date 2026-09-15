@@ -1,0 +1,53 @@
+meta {
+  name: 1. Gateway callback: patient-share/v3/share
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{careUrl}}/api/abdm/patient-share/v3/share
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{callbackToken}}
+  REQUEST-ID: {{requestId}}
+  TIMESTAMP: {{timestamp}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "intent": "PROFILE_SHARE",
+    "metaData": {
+      "hipId": "{{hipId}}",
+      "context": "OPD1",
+      "hprId": "testhpr@hpr.abdm"
+    },
+    "profile": {
+      "patient": {
+        "abhaNumber": "91-1234-5678-9012",
+        "abhaAddress": "johnkumar@sbx",
+        "name": "John Kumar",
+        "gender": "M",
+        "dob": "1990-01-15",
+        "mobile": "9876543210",
+        "kycPhoto": "{{base64_photo}}",
+        "address": {
+          "line": "123 Main Street",
+          "district": "Mumbai",
+          "state": "Maharashtra",
+          "pinCode": "400001"
+        }
+      }
+    }
+  }
+}
+
+docs {
+  Operation id `m1-receive-patient-share`. The gateway sends this; this request only imitates it.
+  The signature check fails closed: without a valid gateway JWT the plug answers 401.
+  With a valid signature the plug answers 202 and then sends the acknowledgement.
+  Body copied from /docs/hiecm/v3/api/m1/endpoints/m1-receive-patient-share.
+}

@@ -7,6 +7,8 @@ import { Suspense, lazy } from "react";
 //   PatientDetailsTabDemographyGeneralInfo  PatientDetailsTab/Demography.tsx:172
 //   PatientHomeActions                      PatientProfile.tsx:177
 //   PatientSearchActions                    PatientIndex.tsx:259
+//   EncounterActions                        summary-panel-actions.tab.tsx:95
+//   EncounterOverviewTop                    pages/Encounters/tabs/overview.tsx:56
 const AbdmFacilitySetupPage = lazy(
   () => import("@/components/abdm/facility-setup-page"),
 );
@@ -45,7 +47,13 @@ const manifest = {
     PatientSearchActions: lazy(
       () => import("@/components/abdm/patient-search-actions"),
     ),
+    EncounterActions: lazy(
+      () => import("@/components/abdm/encounter-actions"),
+    ),
+    EncounterOverviewTop: lazy(
+      () => import("@/components/abdm/encounter-overview-top"),
+    ),
   },
-};
+} as const;
 
 export default manifest;

@@ -1,4 +1,4 @@
-# 04 — Local dev setup (as of 2026-09-10, M2 steps 1-2)
+# 04 — Local dev setup (as of 2026-09-15, ADR-011)
 
 ## Backend
 
@@ -23,14 +23,24 @@
 - M2 callback signature env: `ABDM_CALLBACK_SIGNATURE_HEADER=Authorization`.
   The docs do not publish the header name.
   The code fails closed.
-- Apply the local migration after pull:
+- Migrations restarted at `0001_initial` on 2026-09-15. A database that carries the old `abdm_*`
+  tables must be reset once (local test data only):
+  `cd ~/ohc.network/care && set -a && . ./.env && set +a && .venv/bin/python manage.py shell -c "from django.db import connection; c=connection.cursor(); [c.execute(f'DROP TABLE IF EXISTS \"{t}\" CASCADE') for t in connection.introspection.table_names() if t.startswith('abdm_')]; c.execute(\"DELETE FROM django_migrations WHERE app='abdm'\")"`
+  then `.venv/bin/python manage.py migrate abdm`.
+- Apply migrations after every pull:
   `cd ~/ohc.network/care && set -a && . ./.env && set +a && .venv/bin/python manage.py migrate abdm`.
 - Run Care:
   `cd ~/ohc.network/care && set -a && . ./.env && set +a && .venv/bin/python manage.py runserver 0.0.0.0:8000`.
-- Run Celery for M2 callbacks:
+- Register the bridge (callback) URL after a deploy or a tunnel URL change. It is 1 per `clientId`:
+  `cd ~/ohc.network/care && set -a && . ./.env && set +a && .venv/bin/python manage.py abdm_register_bridge_url`
+  (`--dry-run` prints the URL only). The command also prints the live bridge state. A superuser can do
+  the same from the bridge card on `/facility/<id>/abdm/setup`. Run it before the HRP service registration.
+- Run Celery. Every callback handler and the Encounter auto-link run in the worker:
   `cd ~/ohc.network/care && ./scripts/celery-dev.sh`.
-- Probe: `GET /api/abdm/health`; `GET /api/abdm/gateway/status`.
-- M2 probe: `GET /api/abdm/callbacks?limit=20`; `GET /api/abdm/callbacks/<callback_id>`.
+- Probes: `GET /api/abdm/health`; `GET /api/abdm/gateway/status`; `GET /api/abdm/bridge` (live gateway view).
+- Callback log (superuser): `GET /api/abdm/callbacks?limit=20`; `GET /api/abdm/callbacks/<callback_id>`.
+- Encounter link state: `GET /api/abdm/encounters/<encounter_id>/care-context`.
+- Outside production the user-initiated link OTP is fixed: `123456` (Care core uses the same rule for login OTPs).
 
 ## Frontend
 
@@ -59,10 +69,11 @@
   Bruno 4 shows "Invalid workspace: workspace.yml not found" if you open a folder that has no `workspace.yml`.
 - It mirrors `backend/src/abdm/urls.py`.
   Change both files together.
-- Folders: `auth`, `probes`, `facility`, `abha-enrol`, `abha-login`, `transactions`,
-  `patient`, `callbacks`.
+- Folders: `auth`, `probes`, `bridge`, `facility`, `abha-enrol`, `abha-login`,
+  `transactions`, `patient`, `encounters`, `callbacks`, `scan-share`.
 - Select the `local` environment.
-  Set the secret variables `careUsername` and `carePassword`.
+  Set the secret variables `careUsername` and `carePassword`. `careToken` and `careRefreshToken`
+  are secret variables too, so a saved token never lands in the file.
 - Send `auth > 1. Login` first.
   The script saves `careToken` to the environment.
 - The OTP requests save `txnId`.

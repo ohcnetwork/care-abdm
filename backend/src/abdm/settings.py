@@ -37,6 +37,10 @@ DEFAULTS = {
     "CALLBACK_BASE_URL": "",
     "CALLBACK_SIGNATURE_HEADER": "Authorization",
     "REQUEST_TIMEOUT_SECONDS": 30,
+    # Scan and Share counter QR code. The docs say only that the QR code holds a URL with the
+    # HIP ID and a context (docs/findings.md). Placeholders: {hip_id} and {context}.
+    # Empty = the setup page shows no QR code and asks for the observed format.
+    "SHARE_QR_URL_TEMPLATE": "",
 }
 
 MANDATORY_SETTINGS = ("CLIENT_ID", "CLIENT_SECRET")

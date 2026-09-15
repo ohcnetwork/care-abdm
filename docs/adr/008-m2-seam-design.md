@@ -1,6 +1,6 @@
 # ADR-008 — M2 seam design
 
-Status: Accepted (Rithvik, 2026-09-10)
+Status: Accepted (Rithvik, 2026-09-10). Superseded in part by ADR-011 (2026-09-15): the data model, the Celery task list and the build order. Decisions 1–8 stand.
 Date: 2026-09-10
 
 ## Context
@@ -80,9 +80,12 @@ All rows require a Care user. Use the existing Care permission checks for the na
 
 | Care path | Method | Auth | Purpose | ABDM operation | Work mode |
 |---|---|---|---|---|---|
-| `/api/abdm/facilities/{facility_id}/abdm` | GET | Care user | Read facility ABDM state for ADR-007. | Gateway list/get bridge services | Sync read. |
+| `/api/abdm/instance/bridge` | GET | Care superuser | Read instance bridge setup, callback URL, snapshot, and last registration result. | none | Sync read. |
+| `/api/abdm/instance/bridge/register-url` | POST | Care superuser | Register `ABDM_CALLBACK_BASE_URL/api/abdm` as the bridge callback URL. | `gateway-update-bridge-url` | Sync gateway call, then snapshot refresh. |
+| `/api/abdm/instance/bridge/refresh` | POST | Care superuser | Refresh the authenticated bridge and services snapshot. | `gateway-list-bridge-services` | Sync gateway call. |
+| `/api/abdm/facilities/{facility_id}/abdm` | GET | Care user | Read facility ABDM state for ADR-007. | none | Sync read. |
 | `/api/abdm/facilities/{facility_id}/abdm` | PUT | Care facility admin | Save manual facility link fields. | none | Sync write to extension. |
-| `/api/abdm/facilities/{facility_id}/abdm/bridge-url` | POST | Care facility admin | Register or re-register callback URL. | `gateway-update-bridge-url` | Sync gateway call. |
+| (management command) `manage.py abdm_register_bridge_url` | — | Server admin | Register the instance-level callback URL through the same service as the admin page. | `gateway-update-bridge-url` | Sync gateway call, then snapshot refresh. |
 | `/api/abdm/facilities/{facility_id}/abdm/hrp-services` | POST | Care facility admin | Register or update HIP HRP service. | `gateway-register-bridge-services` | Sync gateway call. |
 | `/api/abdm/patients/{patient_id}/link-token` | POST | Care user with patient write | Generate or refresh the patient link token. | `m2-generate-link-token` | Celery, callback result. |
 | `/api/abdm/patients/{patient_id}/sms-link` | POST | Care user with patient write | Ask ABDM to send a deep-link SMS. | `m2-sms-deep-link-notify` | Celery, callback result. |
@@ -99,6 +102,7 @@ All rows require a Care user. Use the existing Care permission checks for the na
 |---|---|---|---|
 | `AbdmOutboundRequest` | One row for each call that Care sends to ABDM. | `request_id`, `operation_id`, `facility`, `patient`, `encounter`, `status`, `request_json`, `http_status`, `response_json`, `error_code`, `sent_at`, `completed_at` | unique `request_id`; index `operation_id,status`; index `facility,status`; index `patient,status`; index `encounter,status`. |
 | `AbdmCallback` | Raw callback log and dispatch state. | `path`, `request_id_header`, `timestamp_header`, `hip_id_header`, `signature_status`, `raw_body`, `parsed_json`, `response_request_id`, `transaction_id`, `idempotency_key`, `shape_status`, `processed_status`, `received_at` | unique `idempotency_key`; index `response_request_id`; index `transaction_id`; index `path,received_at`; index `signature_status`. |
+| `AbdmBridge` | Singleton for the authenticated bridge. | `bridge_id`, `bridge_name`, `registered_url`, `active`, `blocklisted`, `services_snapshot`, `gateway_snapshot`, `last_refreshed_at`, `last_registered_at`, `last_registration_request`, `last_registration_result`, `last_error` | unique `singleton_key`. |
 | `AbdmPatientLinkToken` | Secret link token per patient and facility. | `patient`, `facility`, `abha_address`, `abha_number`, `link_token`, `expires_at`, `status`, `last_request`, `last_error`, `created_at` | unique active row on `patient,facility,abha_address`; index `expires_at`; index `status`. |
 | `AbdmCareContext` | Lifecycle row for 1 Encounter as 1 care context. | `encounter`, `patient`, `facility`, `reference_number`, `display`, `hi_types`, `status`, `linked_at`, `last_link_request`, `last_notify_request`, `last_error` | unique `encounter`; unique `facility,reference_number`; index `patient,status`; index `facility,status`. |
 | `AbdmDiscoveryFlow` | State for PHR discovery and user link. | `transaction_id`, `callback`, `patient_match`, `abha_address`, `verified_identifiers`, `unverified_identifiers`, `candidate_contexts`, `status`, `link_reference_number`, `expires_at` | unique `transaction_id`; index `status`; index `link_reference_number`. |
@@ -139,33 +143,25 @@ Keep the field names that the docs use. Add plug fields only where the docs have
 {
   "facilityId": "IN07100XXXXX",
   "facilityName": "City Health HIP",
-  "url": "https://care-abdm-sbx.rithviknishad.dev/api/abdm",
   "HRP": [
     {
-      "bridgeId": "BRIDGE_HIP_001",
       "hipName": "City Health HIP",
       "type": "HIP",
       "active": true,
       "serviceId": "HIP_SERVICE_ID"
     }
   ],
-  "hip": {
-    "id": "HIP_SERVICE_ID",
-    "name": "City Health HIP",
-    "type": "HIP"
-  },
-  "bridge": {
-    "id": "bridge id from list",
-    "name": "bridge name from list",
-    "url": "callback URL from list",
-    "active": true,
-    "blocklisted": false
-  },
   "verified_at": "2026-09-10T12:00:00Z"
 }
 ```
 
-The docs do not say whether `X-HIP-ID` must equal `HRP.bridgeId`, `serviceId`, or `hip.id`. Use `hip.id` in plug code after Rithvik fills it. Verify it against the first successful M2 call.
+`hip_id` is read-only in the plug API.
+It is not stored in the extension.
+The plug derives it from `facility_id`.
+The docs team confirmed on 2026-09-14 that HIP ID equals HFR facility ID.
+
+ADR-010 moves `HRP.bridgeId`, bridge URL, and the gateway services list to
+`AbdmBridge`. `Facility.extensions["abdm"]` keeps only facility-level values.
 
 #### `Patient.extensions["abdm"]` additions
 
@@ -276,7 +272,7 @@ No care_fe slot is missing for Phase 3. A facility settings page slot does not e
 | Quick link action on patient card | `PatientInfoCardQuickActions` | `pluginTypes.ts:41-44`; `EncounterShow.tsx:238-248` | Primary button when selected encounter exists. |
 | Link status on encounter overview | `EncounterOverviewTop` | `pluginTypes.ts:93-97`; `pages/Encounters/tabs/overview.tsx:54-60` | Compact status card with care context reference and last error. |
 | Consent and transfer log tab | `encounterTabs` | `pluginTypes.ts:212-215`; `EncounterShow.tsx:80` | Tab that lists callbacks, consent state, health requests, and transfers. |
-| ADR-007 facility link form | `FacilityHomeActions` | `pluginTypes.ts:50-53`; `FacilityHome.tsx:253-257` | Form for `facilityId`, `facilityName`, `HRP`, `hip`, and `url`. |
+| ADR-007 facility link form | `FacilityHomeActions` plus `/facility/:facilityId/abdm/setup` | `pluginTypes.ts:50-53`; `FacilityHome.tsx:253-257`; ADR-009 | Form for `facilityId`, `facilityName`, `HRP`, and `hip`. |
 
 Minimal care_fe delta: none for Phase 3. Add a facility-settings slot later only if Rithvik wants the ADR-007 form away from Facility Home.
 
@@ -284,7 +280,7 @@ Minimal care_fe delta: none for Phase 3. Add a facility-settings slot later only
 
 Each step is a sandbox loop. A step ends only on observed output. The user runs servers, tunnel, OTP, and PHR app actions. The agent can run in-process checks, make ABDM docs-based calls through backend code, and inspect callback rows.
 
-1. **Facility and bridge proof.** Add the ADR-007 form and save `facilityId`, `facilityName`, `HRP`, `hip`, and `url`. USER keeps the tunnel up and supplies sandbox facility values. Agent verifies `gateway-update-bridge-url`, `gateway-register-bridge-services`, and gateway service lookup output.
+1. **Instance bridge and facility proof.** Add the ABDM admin page for bridge URL and bridge snapshot. Add the ADR-007 facility form and save `facilityId`, `facilityName`, `HRP`, and `hip`. USER keeps the tunnel up and supplies sandbox facility values. Agent verifies `gateway-update-bridge-url`, `gateway-list-bridge-services`, and `gateway-register-bridge-services`.
 2. **Callback receiver proof.** Add the generic receiver, raw callback table, JWKS fetch, and signature mode. USER keeps Care public on the tunnel. Agent verifies JWKS fetch and that a sandbox callback inserts `AbdmCallback` before dispatch.
 3. **Link token proof.** Add `generate_link_token`. USER registers or links a patient with ABHA. Agent sends `m2-generate-link-token`. Done when `/v3/hip/token/on-generate-token` lands and stores a token or a documented error.
 4. **HIP link proof.** Add `AbdmCareContext` and the encounter auto-link path. USER creates an encounter with a shareable record. Agent sends `m2-hip-link-care-context`. Done when `/v3/link/on_carecontext` reports success or an already-linked code.
@@ -303,7 +299,7 @@ Each step is a sandbox loop. A step ends only on observed output. The user runs 
 4. Care-context reference number = `Encounter.external_id`.
 5. Day-1 record types: OPConsultation, Prescription, DiagnosticReport, DischargeSummary, HealthDocumentRecord. Wellness, Immunization, and Invoice are recorded gaps. They are not blockers.
 6. Crypto: Python `cryptography` library in-process implements documented ECDH Curve25519, HKDF, and AES-GCM. Do not use an external service.
-7. ADR-007 facility form stores `hip.id`, `HRP.bridgeId`, and `serviceId`. `X-HIP-ID` = `hip.id` by default. A facility config switch can select another value.
+7. ADR-007 facility form stores `serviceId`, but it does not store `hip.id`. ADR-010 stores `HRP.bridgeId` in `AbdmBridge`. `X-HIP-ID` is the HFR facility ID. The docs team confirmed on 2026-09-14 that HIP ID equals HFR facility ID. The plug derives it from `facility_id` and ignores client-supplied `hip_id`.
 8. Callback signature verification fails closed from day 1 in every environment. The receiver stores the raw callback before verification. This lets the first real callback show the header name.
 
 ## Consequences

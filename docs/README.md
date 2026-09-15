@@ -17,7 +17,7 @@ Read in this order:
 | `06-verification.md` | How to prove a change without starting servers; Care core traps |
 | `findings.md` | Every gap in the ABDM docs, with the URL that should have answered it |
 | `adr/` | Architecture decision records. One decision per file, numbered |
-| `abdm-docs-mirror/` | Snapshot of the docs site pulled 2026-09-09 (`llms.txt`, `llms-full.txt`, per-page `.md`). Snapshot only — prefer the live site / MCP |
+| `abdm-docs-mirror/` | Snapshot of the docs site (`llms.txt`, `llms-full.txt`, `sitemap.xml`, `skills-index.json`, `agent-setup-prompt.md`, and `pages/<url path>.md` for every page under `docs/hiecm/v3` and `docs/whats-new`). `MANIFEST.json` records the fetch date. Rebuild with `python3 scripts/refresh-docs-mirror.py` (`--diff` reports changes only). Snapshot only — prefer the live site / MCP |
 
 Repo layout:
 
@@ -26,6 +26,7 @@ care-abdm-sbx/
   backend/          Django plug (pip-installable app for ohcnetwork/care)
   frontend/         MFE plug (Vite + module federation remote for ohcnetwork/care_fe)
   bruno/            Bruno collection for every plug route (mirrors backend/src/abdm/urls.py)
+  scripts/          refresh-docs-mirror.py — rebuilds docs/abdm-docs-mirror and .agent/skills from the live site
   docs/             this knowledge base
   .agent/skills/    the docs site's own agent skills (abdm-m1 … abdm-fhir), downloaded verbatim
   .env.local        sandbox credentials — gitignored, never copy into docs

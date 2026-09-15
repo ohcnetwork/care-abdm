@@ -102,26 +102,14 @@ class AbdmFacilityExtension(PlugExtension):
         "title": "ABDM",
         "type": "object",
         "properties": {
-            "hip_id": {"type": "string", "title": "HIP ID", "default": ""},
-            "bridge_id": {"type": "string", "title": "Bridge ID", "default": ""},
-            # The HRP register page does not list service_id.
-            # The service lookup page returns serviceId.
-            "service_id": {"type": "string", "title": "Service ID", "default": ""},
             "facility_id": {"type": "string", "title": "HFR facility ID", "default": ""},
             "facility_name": {"type": "string", "title": "Facility name", "default": ""},
             "hip_name": {"type": "string", "title": "HIP name", "default": ""},
-            "x_hip_id_source": {
-                "type": "string",
-                "title": "X-HIP-ID source",
-                "enum": ["hip_id", "bridge_id", "service_id"],
-                "default": "hip_id",
-            },
-            "bridge_url": {"type": "string", "title": "Bridge URL", "default": ""},
-            "bridge_url_registered_at": {
-                "type": "string",
-                "format": "date-time",
-                "title": "Bridge URL registered at",
-                "readOnly": True,
+            "counters": {
+                "type": "array",
+                "items": {"type": "string"},
+                "title": "Scan and Share counters",
+                "default": [],
                 "x-ui": {"render_blacklist": SERVER_OWNED},
             },
             "hrp_registered_at": {
@@ -140,7 +128,14 @@ class AbdmFacilityExtension(PlugExtension):
         },
         "additionalProperties": False,
     }
-    retrieve_schema = write_schema
+    read_schema = {
+        **write_schema,
+        "properties": {
+            **write_schema["properties"],
+            "hip_id": {"type": "string", "title": "HIP ID", "default": "", "readOnly": True},
+        },
+    }
+    retrieve_schema = read_schema
 
 
 ExtensionRegistry.register(AbdmFacilityExtension())

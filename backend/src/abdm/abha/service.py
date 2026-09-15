@@ -103,8 +103,16 @@ def ensure_x_token(txn: AbhaTransaction) -> str:
 
 
 def enrol_request_otp(aadhaar: str, user) -> dict:
+    """The view has already required `consent=true`; record it against the transaction (CRT_ABHA_102)."""
     res = client.request_aadhaar_otp(aadhaar)
-    _upsert(res["txnId"], AbhaTransaction.Kind.ENROL_AADHAAR, user)
+    _upsert(
+        res["txnId"],
+        AbhaTransaction.Kind.ENROL_AADHAAR,
+        user,
+        consent_recorded_at=timezone.now(),
+        consent_code=client.CONSENT["code"],
+        consent_version=client.CONSENT["version"],
+    )
     return res
 
 
@@ -257,6 +265,7 @@ def transaction_summary(txn: AbhaTransaction) -> dict:
         "profile": {k: v for k, v in txn.profile.items() if not k.startswith("_") and k != "accounts"},
         "patient": str(txn.patient.external_id) if txn.patient_id else None,
         "linkedAt": txn.linked_at,
+        "consentRecordedAt": txn.consent_recorded_at,
         "sessionAvailable": txn.session_available,
         "existingPatient": existing_patient_for(txn),
     }

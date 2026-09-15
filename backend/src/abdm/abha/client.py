@@ -239,11 +239,6 @@ def login_verify_otp(hint: LoginHint, otp_system: OtpSystem, txn_id: str, otp: s
     )
 
 
-def login_request_mobile_otp(mobile: str) -> dict:
-    """Journey 5 shorthand (kept for callers/tests that predate the generic form)."""
-    return login_request_otp("mobile", mobile, "abdm")
-
-
 def login_select_account(txn_id: str, t_token: str, abha_number: str) -> dict:
     """m1-login-select-account -> {token (X-token), expiresIn, refreshToken, refreshExpiresIn}.
     Docs: T-token carries a `Bearer ` prefix in every recorded request."""
@@ -272,17 +267,17 @@ def refresh_x_token(refresh_token: str) -> dict:
     """m1-token-refresh: GET /v3/profile/account/request/token, header R-token.
     -> {token, expiresIn, refreshToken, refreshExpiresIn}  (fields hypothesised from the
     select-account response; the page documents no 200 body — log the real one).
-    Docs disagree on whether R-token carries `Bearer `: the curl sends it bare, the header
-    table says prefixed. We try prefixed (consistent with X-token/T-token) and fall back to
-    bare on 401, recording which one worked in the log so findings.md can be updated."""
+    The page (re-read 2026-09-15) sends `R-token` bare. It is not yet confirmed against the
+    sandbox, so a 401 on the bare form retries with the `Bearer ` prefix that X-token and
+    T-token carry, and logs which form worked (docs/findings.md C8)."""
     try:
-        return _call(
-            "GET", "/v3/profile/account/request/token", headers=_headers({"R-token": f"Bearer {refresh_token}"})
-        )
+        return _call("GET", "/v3/profile/account/request/token", headers=_headers({"R-token": refresh_token}))
     except AbhaServiceError as exc:
         if exc.status_code != 401:
             raise
-        logger.info("abdm: R-token with Bearer prefix rejected (%s); retrying bare", exc.abdm_code())
-        body = _call("GET", "/v3/profile/account/request/token", headers=_headers({"R-token": refresh_token}))
-        logger.warning("abdm: R-token accepted WITHOUT Bearer prefix — update docs/findings.md")
+        logger.info("abdm: bare R-token rejected (%s); retrying with the Bearer prefix", exc.abdm_code())
+        body = _call(
+            "GET", "/v3/profile/account/request/token", headers=_headers({"R-token": f"Bearer {refresh_token}"})
+        )
+        logger.warning("abdm: R-token accepted only WITH the Bearer prefix — update docs/findings.md C8")
         return body

@@ -1,0 +1,19 @@
+meta {
+  name: 2. Register callback URL
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{careUrl}}/api/abdm/bridge/register-url
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  PATCHes the bridge URL at the gateway (`gateway-update-bridge-url`). Superuser only. Run it before the HRP registration.
+}

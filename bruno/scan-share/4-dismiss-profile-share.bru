@@ -1,0 +1,19 @@
+meta {
+  name: 4. Dismiss a share
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{careUrl}}/api/abdm/facilities/{{facilityId}}/abdm/profile-shares/{{shareId}}/dismiss
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  Removes the share from the inbox. The row stays in the database.
+}

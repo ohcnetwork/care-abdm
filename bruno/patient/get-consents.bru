@@ -1,0 +1,19 @@
+meta {
+  name: 5. Consents and data requests
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{careUrl}}/api/abdm/patients/{{patientId}}/abha/consents
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  Consent artefacts the gateway notified for this patient, and the health-information requests served under them.
+}

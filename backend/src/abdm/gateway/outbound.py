@@ -4,7 +4,8 @@ from typing import Any
 import requests
 from django.utils import timezone
 
-from abdm.gateway.session import gateway_headers, get_access_token
+from abdm.facility.service import hip_id_for
+from abdm.gateway.session import gateway_headers, get_access_token, new_request_id  # noqa: F401
 from abdm.models import AbdmOutboundRequest
 from abdm.settings import plugin_settings
 
@@ -100,14 +101,6 @@ def failure_detail(row: AbdmOutboundRequest) -> str:
     return f"{head} (REQUEST-ID {row.request_id})"
 
 
-def _hip_id(facility) -> str:
-    if facility is None:
-        return ""
-    ext = (facility.extensions or {}).get("abdm") or {}
-    source = ext.get("x_hip_id_source") or "hip_id"
-    return ext.get(source) or ext.get("hip_id") or ""
-
-
 def send(
     operation_id: str,
     url: str,
@@ -118,9 +111,15 @@ def send(
     patient=None,
     encounter=None,
     extra_headers: dict[str, str] | None = None,
+    request_id: str | None = None,
 ) -> AbdmOutboundRequest:
+    """Send 1 call to ABDM (or to an HIU data-push URL) and record it as an AbdmOutboundRequest.
+
+    `request_id` lets a caller reuse the REQUEST-ID it already put in the body (SMS deep link)."""
     headers = gateway_headers(get_access_token())
-    hip_id = _hip_id(facility)
+    if request_id:
+        headers["REQUEST-ID"] = request_id
+    hip_id = hip_id_for(facility)
     if hip_id:
         headers["X-HIP-ID"] = hip_id
     if extra_headers:

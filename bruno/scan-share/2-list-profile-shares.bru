@@ -1,0 +1,26 @@
+meta {
+  name: 2. Front desk inbox
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{careUrl}}/api/abdm/facilities/{{facilityId}}/abdm/profile-shares?include_dismissed=0&limit=50
+  body: none
+  auth: none
+}
+
+params:query {
+  include_dismissed: 0
+  limit: 50
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  Shares received in the last 24 hours for this facility, newest first.
+  `kycPhoto` is not in the list. Each row has `tokenNumber`, `status`, `patient` (when the ABHA
+  is already on a Care patient), and `txnId` for the registration prefill.
+}

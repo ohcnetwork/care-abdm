@@ -1,7 +1,7 @@
 # 01 — Sources: how to read the ABDM docs as an agent
 
-Base: `https://abdm-docs.dev.eka.care`. Catalogue version 2026.08.24, built
-2026-09-07 (from `/skills/index.json`).
+Base: `https://abdm-docs.dev.eka.care`. Catalogue version 2026.08.24; skills built
+2026-09-14 (from `/skills/index.json`). Mirror rebuilt 2026-09-15 (`docs/abdm-docs-mirror/MANIFEST.json`).
 
 ## Ways in, in order of preference
 
@@ -15,11 +15,17 @@ Base: `https://abdm-docs.dev.eka.care`. Catalogue version 2026.08.24, built
    `decode_error`, `list_fhir_profiles`, `get_fhir_profile`, `get_fhir_example`,
    `validate_fhir`.
    Use `get_operation` for every request body we write, and `validate_request`
-   before the first real call.
+   before the first real call. From a shell without an MCP client, a 30-line Python script can call
+   the server: `POST /mcp` with `initialize`, then `tools/call`; send
+   `Accept: application/json, text/event-stream` and echo the `Mcp-Session-Id` header. Responses
+   arrive as SSE `data:` lines. `validate_fhir` takes `bundle_json` as a string and returns
+   `findings: null` for a clean bundle.
 2. **Per-page markdown** — append `/index.md` to any docs URL
    (`…/docs/hiecm/v3/milestones/m2/index.md`). `.md` without `/index` 404s.
 3. **`/llms.txt`** (page map, 21 KB) and **`/llms-full.txt`** (everything, 1.3 MB).
-   Mirrored in `docs/abdm-docs-mirror/`.
+   Mirrored in `docs/abdm-docs-mirror/`, with every page as `pages/<url path>.md`
+   (`pages/hiecm/v3/api/m2/endpoints/m2-hip-link-care-context.md` ↔ `/docs/hiecm/v3/api/m2/endpoints/m2-hip-link-care-context`).
+   The `whats-new/` pages list the site's own change log; `2026-09-10` carries the "linked on callback" rule.
 4. **Skills** — `/skills/index.json` lists nine skills; each has `SKILL.md` +
    `references/{scaffold,integrate,debug,test}.md`. Downloaded verbatim to
    `.agent/skills/abdm-*/`. `integrate.md` = endpoint tables with hosts and
@@ -27,7 +33,10 @@ Base: `https://abdm-docs.dev.eka.care`. Catalogue version 2026.08.24, built
    `scaffold.md` = build-it-flow-by-flow loop that ends on an observed result.
 5. **Per-endpoint pages** — `/docs/hiecm/v3/api/<module>/endpoints/<operation-id>`.
    The sitemap lists 11 gateway, 44 M1, 20 M2, 14 M3, 2 M4 operations
-   (`docs/abdm-docs-mirror/sitemap.xml`).
+   (`docs/abdm-docs-mirror/sitemap.xml`). Some HIP-facing bodies live only on HIU-side pages:
+   the consent notification on `m3-on-consent-request-notify-hip`, the data-push body on
+   `m3-on-health-information-transfer`, the health-information request on
+   `m3-hiu-health-information-request` and `p2-as-record-on-share` (findings H1, H3, H4).
 6. **Interactive API reference** — `/reference/hiecm-{gateway,m1,m2,m3,m4}`.
    These are JS-rendered; use MCP `get_operation` instead.
 

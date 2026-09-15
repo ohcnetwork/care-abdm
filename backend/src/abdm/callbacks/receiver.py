@@ -8,6 +8,8 @@ from django.utils import timezone
 from abdm.models import AbdmCallback, AbdmOutboundRequest
 
 CALLBACK_OPERATION_BY_PATH = {
+    # M1 Scan and Share (SHARE_PATIENT_PROFILE_701). Handled by abdm/share/service.py.
+    "/patient-share/v3/share": "m1-receive-patient-share",
     "/v3/hip/token/on-generate-token": "m2-on-generate-token-result",
     "/v3/link/on_carecontext": "m2-on-carecontext-result",
     "/v3/links/context/on-notify": "m2-on-context-notify-result",
@@ -18,7 +20,11 @@ CALLBACK_OPERATION_BY_PATH = {
     "/v0.5/links/link/init": "m2-on-link-init",
     "/api/v3/hip/link/care-context/confirm": "m2-on-link-confirm",
     "/v0.5/links/link/confirm": "m2-on-link-confirm",
-    "/v0.5/consents/hip/notify": "m2-consent-hip-on-notify",
+    # The HIP consent notification. 2 paths in the docs: the M2 on-notify page names
+    # `/v0.5/consents/hip/notify`; the M3 page m3-on-consent-request-notify-hip names
+    # `/api/v3/consent/request/hip/notify`. Handled by abdm/hip/consent.py.
+    "/v0.5/consents/hip/notify": "m2-consent-hip-notify",
+    "/api/v3/consent/request/hip/notify": "m2-consent-hip-notify",
     "/api/v3/hip/health-information/request": "m2-on-health-information-request",
     "/v0.5/health-information/hip/request": "m2-on-health-information-request",
 }

@@ -1,3 +1,4 @@
+import FieldHelp, { type FieldHelpContent } from "@/components/abdm/field-help";
 import PluginComponent from "@/components/common/plugin-component";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -15,21 +16,24 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/use-translation";
 import careApi, {
+  type AbdmBridgeState,
   type AbdmFacilityConfig,
+  type AbdmFacilityConfigUpdate,
   type FacilityBridgeActionResponse,
 } from "@/lib/careApi";
 import { mutate, query } from "@/lib/request";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeft,
   CheckCircle2,
   CircleDashed,
   Hospital,
-  Link2,
-  Server,
+  QrCode,
+  Router,
+  X,
 } from "lucide-react";
-import { Link } from "raviger";
+import { QRCodeSVG } from "qrcode.react";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
 /**
@@ -50,32 +54,51 @@ import { useEffect, useMemo, useState } from "react";
  */
 
 const blankConfig: AbdmFacilityConfig = {
-  hip_id: "",
-  bridge_id: "",
-  service_id: "",
   facility_id: "",
   facility_name: "",
   hip_name: "",
-  x_hip_id_source: "hip_id",
-  bridge_url: "",
+  counters: [],
 };
+
+const FACILITY_ID_RE = /^IN[A-Za-z0-9]{10}$/;
+const FACILITY_NAME_RE = /^[A-Za-z0-9 \-_.(),/]+$/;
+const HIP_NAME_RE = /^[A-Za-z0-9 ]{1,15}$/;
+const editableConfigKeys = [
+  "facility_id",
+  "facility_name",
+  "hip_name",
+  "counters",
+] as const;
+
+/**
+ * The docs say only that the counter QR code holds a URL with the HIP ID and a
+ * context (docs/findings.md). The deployment gives the format through
+ * ABDM_SHARE_QR_URL_TEMPLATE; the page fills {hip_id} and {context}.
+ */
+function shareQrUrl(
+  template: string | undefined,
+  hipId: string,
+  context: string,
+): string | undefined {
+  if (!template || !hipId || !context) return undefined;
+  return template
+    .replace("{hip_id}", encodeURIComponent(hipId))
+    .replace("{context}", encodeURIComponent(context));
+}
 
 type TextField = keyof Pick<
   AbdmFacilityConfig,
-  | "hip_id"
-  | "bridge_id"
-  | "service_id"
-  | "facility_id"
-  | "facility_name"
-  | "hip_name"
-  | "bridge_url"
+  "facility_id" | "facility_name" | "hip_name"
 >;
 
-const X_HIP_ID_SOURCES = [
-  { value: "hip_id", labelKey: "abdm_hip_id" },
-  { value: "bridge_id", labelKey: "abdm_bridge_id" },
-  { value: "service_id", labelKey: "abdm_service_id" },
-] as const;
+function editablePayload(config: AbdmFacilityConfig): AbdmFacilityConfigUpdate {
+  return {
+    facility_id: config.facility_id,
+    facility_name: config.facility_name,
+    hip_name: config.hip_name,
+    counters: config.counters,
+  };
+}
 
 function errorMessage(error: unknown, fallback: string) {
   if (error && typeof error === "object" && "cause" in error) {
@@ -91,6 +114,11 @@ function Field({
   label,
   hint,
   placeholder,
+  help,
+  disabled,
+  value,
+  validationMessage,
+  trailing,
   config,
   onChange,
 }: {
@@ -98,23 +126,46 @@ function Field({
   label: string;
   hint?: string;
   placeholder?: string;
+  help: FieldHelpContent;
+  disabled?: boolean;
+  value?: string;
+  validationMessage?: string;
+  trailing?: ReactNode;
   config: AbdmFacilityConfig;
   onChange: (next: Partial<AbdmFacilityConfig>) => void;
 }) {
   return (
     <div className="grid gap-1.5">
-      <Label htmlFor={`abdm-${name}`}>{label}</Label>
+      <div className="flex min-h-5 items-center gap-1.5">
+        <Label htmlFor={`abdm-${name}`}>{label}</Label>
+        <FieldHelp {...help} />
+        {trailing}
+      </div>
       <Input
         id={`abdm-${name}`}
-        value={config[name] ?? ""}
+        value={value ?? config[name] ?? ""}
         placeholder={placeholder}
         autoComplete="off"
+        disabled={disabled}
         spellCheck={false}
         onChange={(e) => onChange({ [name]: e.target.value })}
       />
-      {hint && <p className="text-muted-foreground text-xs">{hint}</p>}
+      <p className="text-muted-foreground min-h-4 text-xs">{hint || "\u00A0"}</p>
+      <p className="text-destructive min-h-4 text-xs">{validationMessage || "\u00A0"}</p>
     </div>
   );
+}
+
+function labelHelp(
+  field: string,
+  t: (key: string) => string,
+): FieldHelpContent {
+  return {
+    title: t(`abdm_facility_help_${field}_title`),
+    what: t(`abdm_facility_help_${field}_what`),
+    how: t(`abdm_facility_help_${field}_how`),
+    example: t(`abdm_facility_help_${field}_example`),
+  };
 }
 
 /** Shows when an ABDM registration call last succeeded. */
@@ -186,7 +237,11 @@ export default function AbdmFacilitySetupPage({
     qc.setQueryData(["abdm", "facility", facilityId], data);
   };
 
-  const save = useMutation<AbdmFacilityConfig, unknown, AbdmFacilityConfig>({
+  const save = useMutation<
+    AbdmFacilityConfig,
+    unknown,
+    AbdmFacilityConfigUpdate
+  >({
     mutationFn: mutate(careApi.updateFacilityAbdm, {
       pathParams: { facilityId },
       silent: true,
@@ -195,20 +250,6 @@ export default function AbdmFacilitySetupPage({
     onSuccess: applyResult,
     onError: (error) =>
       setActionError(errorMessage(error, t("abdm_facility_save_failed"))),
-  });
-  const bridge = useMutation<
-    FacilityBridgeActionResponse,
-    unknown,
-    { url?: string | null }
-  >({
-    mutationFn: mutate(careApi.registerBridgeUrl, {
-      pathParams: { facilityId },
-      silent: true,
-    }),
-    onMutate: () => setActionError(undefined),
-    onSuccess: (data) => applyResult(data.config),
-    onError: (error) =>
-      setActionError(errorMessage(error, t("abdm_bridge_register_failed"))),
   });
   const hrp = useMutation<
     FacilityBridgeActionResponse,
@@ -225,15 +266,49 @@ export default function AbdmFacilitySetupPage({
       setActionError(errorMessage(error, t("abdm_hrp_register_failed"))),
   });
 
+  const bridge = useQuery<AbdmBridgeState>({
+    queryKey: ["abdm", "bridge"],
+    queryFn: query(careApi.bridge, { silent: true }),
+    retry: false,
+  });
+  const registerUrl = useMutation<AbdmBridgeState, unknown, Record<string, never>>({
+    mutationFn: mutate(careApi.bridgeRegisterUrl, { silent: true }),
+    onMutate: () => setActionError(undefined),
+    onSuccess: (data) => qc.setQueryData(["abdm", "bridge"], data),
+    onError: (error) =>
+      setActionError(errorMessage(error, t("abdm_bridge_register_failed"))),
+  });
+
   const saved = settings.data;
   const dirty = useMemo(() => {
     if (!saved) return false;
-    return (Object.keys(blankConfig) as (keyof AbdmFacilityConfig)[]).some(
-      (key) => (config[key] ?? "") !== (saved[key] ?? ""),
+    return editableConfigKeys.some(
+      (key) =>
+        JSON.stringify(config[key] ?? "") !== JSON.stringify(saved[key] ?? ""),
     );
   }, [config, saved]);
+  const facilityIdInvalid =
+    Boolean(config.facility_id) && !FACILITY_ID_RE.test(config.facility_id);
+  const facilityNameInvalid =
+    Boolean(config.facility_name) &&
+    !FACILITY_NAME_RE.test(config.facility_name);
+  const hipNameInvalid =
+    Boolean(config.hip_name) && !HIP_NAME_RE.test(config.hip_name);
+  const formInvalid = facilityIdInvalid || facilityNameInvalid || hipNameInvalid;
 
-  const busy = save.isPending || bridge.isPending || hrp.isPending;
+  const busy = save.isPending || hrp.isPending || registerUrl.isPending;
+  const [newCounter, setNewCounter] = useState("");
+  const counterValid = /^[A-Za-z0-9]{1,20}$/.test(newCounter);
+  const counterDuplicate = config.counters.some(
+    (c) => c.toLowerCase() === newCounter.toLowerCase(),
+  );
+  const addCounter = () => {
+    if (!counterValid || counterDuplicate) return;
+    update({ counters: [...config.counters, newCounter] });
+    setNewCounter("");
+  };
+  const qrHipId = config.facility_id;
+  const qrTemplate = settings.data?.share_qr_url_template;
   const update = (next: Partial<AbdmFacilityConfig>) =>
     setConfig((current) => ({ ...current, ...next }));
 
@@ -269,6 +344,11 @@ export default function AbdmFacilitySetupPage({
           </Badge>
         </div>
 
+        {/* ABDM docs state that M4 gives the facility ID and HIP role.
+            M2 needs those values before CARE can link records.
+            Sources:
+            https://abdm-docs.dev.eka.care/docs/hiecm/v3/milestones/m2/index.md
+            https://abdm-docs.dev.eka.care/docs/hiecm/v3/milestones/m4/index.md */}
         <p className="text-muted-foreground mt-3 max-w-2xl text-sm">
           {t("abdm_facility_setup_intro")}
         </p>
@@ -288,7 +368,10 @@ export default function AbdmFacilitySetupPage({
           )}
           {config.last_error && (
             <Alert variant="warning">
-              <AlertDescription>{config.last_error}</AlertDescription>
+              <AlertDescription className="grid gap-1">
+                <span className="font-medium">{t("abdm_last_error")}</span>
+                <span>{config.last_error}</span>
+              </AlertDescription>
             </Alert>
           )}
 
@@ -314,7 +397,13 @@ export default function AbdmFacilitySetupPage({
                     name="facility_id"
                     label={t("abdm_facility_hfr_id")}
                     hint={t("abdm_facility_hfr_id_help")}
-                    placeholder="IN0710000001"
+                    placeholder="IN1410000232"
+                    help={labelHelp("facility_id", t)}
+                    validationMessage={
+                      facilityIdInvalid
+                        ? t("abdm_facility_hfr_id_invalid")
+                        : undefined
+                    }
                     config={config}
                     onChange={update}
                   />
@@ -322,147 +411,258 @@ export default function AbdmFacilitySetupPage({
                     name="facility_name"
                     label={t("abdm_facility_name")}
                     hint={t("abdm_facility_name_help")}
+                    help={labelHelp("facility_name", t)}
+                    validationMessage={
+                      facilityNameInvalid
+                        ? t("abdm_facility_name_invalid")
+                        : undefined
+                    }
                     config={config}
                     onChange={update}
                   />
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Server className="text-muted-foreground size-4" />
-                    {t("abdm_section_hip_identity")}
-                  </CardTitle>
-                  <CardDescription>
-                    {t("abdm_section_hip_identity_help")}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Field
-                      name="hip_id"
-                      label={t("abdm_hip_id")}
-                      config={config}
-                      onChange={update}
-                    />
-                    <Field
-                      name="hip_name"
-                      label={t("abdm_hip_name")}
-                      config={config}
-                      onChange={update}
-                    />
-                    <Field
-                      name="bridge_id"
-                      label={t("abdm_bridge_id")}
-                      config={config}
-                      onChange={update}
-                    />
-                    <Field
-                      name="service_id"
-                      label={t("abdm_service_id")}
-                      config={config}
-                      onChange={update}
-                    />
-                  </div>
+                  <Field
+                    name="hip_name"
+                    label={t("abdm_hip_name")}
+                    hint={t("abdm_hip_name_help")}
+                    help={labelHelp("hip_name", t)}
+                    validationMessage={
+                      hipNameInvalid ? t("abdm_hip_name_invalid") : undefined
+                    }
+                    trailing={
+                      <span className="text-muted-foreground ml-auto w-12 text-right font-mono text-xs tabular-nums">
+                        {config.hip_name.length}/15
+                      </span>
+                    }
+                    config={config}
+                    onChange={update}
+                  />
                   <div className="grid gap-1.5">
-                    <Label id="abdm-x-hip-id-source-label">
-                      {t("abdm_x_hip_id_source")}
-                    </Label>
-                    <div
-                      role="radiogroup"
-                      aria-labelledby="abdm-x-hip-id-source-label"
-                      className="bg-muted-background flex w-fit gap-1 rounded-lg p-1"
-                    >
-                      {X_HIP_ID_SOURCES.map((option) => {
-                        const active = config.x_hip_id_source === option.value;
-                        return (
-                          <button
-                            key={option.value}
-                            type="button"
-                            role="radio"
-                            aria-checked={active}
-                            onClick={() =>
-                              update({ x_hip_id_source: option.value })
-                            }
-                            className={cn(
-                              "cursor-pointer rounded-md px-3 py-1.5 text-sm font-medium transition",
-                              active
-                                ? "bg-background text-foreground shadow-xs"
-                                : "text-muted-foreground hover:text-foreground",
-                            )}
-                          >
-                            {t(option.labelKey)}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <Label>{t("abdm_hip_id")}</Label>
+                    <p className="font-mono text-sm">
+                      {config.facility_id || "\u2014"}
+                    </p>
                     <p className="text-muted-foreground text-xs">
-                      {t("abdm_x_hip_id_source_help")}
+                      {t("abdm_hip_id_help")}
                     </p>
                   </div>
                 </CardContent>
+                <CardFooter className="flex flex-wrap items-center gap-3 border-t">
+                  <RegistrationStatus
+                    label={t("abdm_hrp_registered_at")}
+                    timestamp={config.hrp_registered_at}
+                    notRecorded={t("abdm_not_recorded")}
+                  />
+                  <div className="ml-auto flex items-center gap-2">
+                    {dirty && (
+                      <span className="text-muted-foreground text-xs">
+                        {t("abdm_save_before_register")}
+                      </span>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={busy || dirty || formInvalid || !config.facility_id}
+                      onClick={() => hrp.mutate({})}
+                    >
+                      {t("abdm_register_hrp_service")}
+                    </Button>
+                  </div>
+                </CardFooter>
               </Card>
 
+              {/* The bridge is 1 per clientId (docs /getting-started/sandbox). This card
+                  reads the gateway live; the button is for the instance administrator. */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Link2 className="text-muted-foreground size-4" />
-                    {t("abdm_section_registration")}
+                    <Router className="text-muted-foreground size-4" />
+                    {t("abdm_bridge")}
+                  </CardTitle>
+                  <CardDescription>{t("abdm_bridge_description")}</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-3 text-sm md:grid-cols-2">
+                  <div className="grid gap-1">
+                    <span className="text-muted-foreground text-xs">
+                      {t("abdm_callback_url")}
+                    </span>
+                    <span className="font-mono text-xs break-all">
+                      {bridge.data?.callback_url ?? "\u2014"}
+                    </span>
+                  </div>
+                  <div className="grid gap-1">
+                    <span className="text-muted-foreground text-xs">
+                      {t("abdm_registered_url")}
+                    </span>
+                    <span className="font-mono text-xs break-all">
+                      {bridge.data?.bridge?.url || "\u2014"}
+                    </span>
+                  </div>
+                  <div className="grid gap-1">
+                    <span className="text-muted-foreground text-xs">
+                      {t("abdm_bridge_id")}
+                    </span>
+                    <span className="font-mono text-xs">
+                      {bridge.data?.bridge?.id || "\u2014"}
+                    </span>
+                  </div>
+                  <div className="grid gap-1">
+                    <span className="text-muted-foreground text-xs">
+                      {t("abdm_bridge_services")}
+                    </span>
+                    <span className="text-xs">
+                      {bridge.isLoading
+                        ? "\u2026"
+                        : (bridge.data?.services.length ?? 0)}
+                    </span>
+                  </div>
+                  {(bridge.isError || bridge.data?.error) && (
+                    <p className="text-destructive text-xs md:col-span-2">
+                      {bridge.data?.error || t("abdm_bridge_load_failed")}
+                    </p>
+                  )}
+                </CardContent>
+                <CardFooter className="flex flex-wrap items-center gap-3 border-t">
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1.5 text-xs",
+                      bridge.data?.bridge?.url &&
+                        bridge.data.bridge.url === bridge.data.callback_url
+                        ? "text-green-800"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {bridge.data?.bridge?.url &&
+                    bridge.data.bridge.url === bridge.data.callback_url ? (
+                      <CheckCircle2 className="size-3.5" />
+                    ) : (
+                      <CircleDashed className="size-3.5" />
+                    )}
+                    {bridge.data?.bridge?.url &&
+                    bridge.data.bridge.url === bridge.data.callback_url
+                      ? t("abdm_bridge_registered")
+                      : t("abdm_bridge_not_registered")}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="ml-auto"
+                    disabled={busy}
+                    onClick={() => registerUrl.mutate({})}
+                  >
+                    {t("abdm_register_callback_url")}
+                  </Button>
+                </CardFooter>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <QrCode className="text-muted-foreground size-4" />
+                    {t("abdm_section_scan_share")}
                   </CardTitle>
                   <CardDescription>
-                    {t("abdm_section_registration_help")}
+                    {t("abdm_section_scan_share_help")}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-4">
-                  <Field
-                    name="bridge_url"
-                    label={t("abdm_bridge_url")}
-                    hint={t("abdm_bridge_url_help")}
-                    placeholder="https://care.example.org/api/abdm"
-                    config={config}
-                    onChange={update}
-                  />
                   <div className="grid gap-1.5">
-                    <RegistrationStatus
-                      label={t("abdm_bridge_registered_at")}
-                      timestamp={config.bridge_url_registered_at}
-                      notRecorded={t("abdm_not_recorded")}
-                    />
-                    <RegistrationStatus
-                      label={t("abdm_hrp_registered_at")}
-                      timestamp={config.hrp_registered_at}
-                      notRecorded={t("abdm_not_recorded")}
-                    />
+                    <Label htmlFor="abdm-new-counter">
+                      {t("abdm_counter_code")}
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="abdm-new-counter"
+                        value={newCounter}
+                        maxLength={20}
+                        placeholder="OPD1"
+                        onChange={(e) => setNewCounter(e.target.value.trim())}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addCounter();
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={!counterValid || counterDuplicate}
+                        onClick={addCounter}
+                      >
+                        {t("abdm_add_counter")}
+                      </Button>
+                    </div>
+                    <p className="text-muted-foreground text-xs">
+                      {t("abdm_counter_code_help")}
+                    </p>
                   </div>
-                </CardContent>
-                <CardFooter className="flex flex-wrap gap-2 border-t">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={busy || dirty}
-                    onClick={() =>
-                      bridge.mutate({ url: config.bridge_url || null })
-                    }
-                  >
-                    {t("abdm_register_bridge_url")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={busy || dirty}
-                    onClick={() => hrp.mutate({})}
-                  >
-                    {t("abdm_register_hrp_service")}
-                  </Button>
-                  {dirty && (
-                    <span className="text-muted-foreground self-center text-xs">
-                      {t("abdm_save_before_register")}
-                    </span>
+                  {!qrTemplate && (
+                    <Alert variant="warning">
+                      <AlertDescription>
+                        {t("abdm_share_qr_template_missing")}
+                      </AlertDescription>
+                    </Alert>
                   )}
-                </CardFooter>
+                  {config.counters.length === 0 ? (
+                    <p className="text-muted-foreground text-sm">
+                      {t("abdm_no_counters")}
+                    </p>
+                  ) : (
+                    <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {config.counters.map((code) => {
+                        const url = shareQrUrl(qrTemplate, qrHipId, code);
+                        return (
+                          <li
+                            key={code}
+                            className="flex flex-col items-center gap-2 rounded-lg border p-3"
+                          >
+                            <div className="flex w-full items-center justify-between">
+                              <span className="font-mono text-sm font-medium">
+                                {code}
+                              </span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label={t("abdm_remove_counter")}
+                                onClick={() =>
+                                  update({
+                                    counters: config.counters.filter(
+                                      (c) => c !== code,
+                                    ),
+                                  })
+                                }
+                              >
+                                <X className="size-4" />
+                              </Button>
+                            </div>
+                            {url ? (
+                              <>
+                                <QRCodeSVG
+                                  value={url}
+                                  size={160}
+                                  marginSize={1}
+                                  className="rounded bg-white p-1"
+                                />
+                                <span className="text-muted-foreground w-full truncate text-center font-mono text-[10px]">
+                                  {url}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">
+                                {qrHipId
+                                  ? t("abdm_qr_unavailable")
+                                  : t("abdm_qr_needs_hip_id")}
+                              </span>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </CardContent>
               </Card>
             </>
           )}
@@ -487,8 +687,8 @@ export default function AbdmFacilitySetupPage({
             <Button
               type="button"
               size="sm"
-              disabled={!dirty || busy}
-              onClick={() => save.mutate(config)}
+              disabled={!dirty || busy || formInvalid}
+              onClick={() => save.mutate(editablePayload(config))}
             >
               {t("abdm_save")}
             </Button>

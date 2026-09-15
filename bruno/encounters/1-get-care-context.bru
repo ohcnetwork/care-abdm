@@ -1,0 +1,19 @@
+meta {
+  name: 1. Get care context state
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{careUrl}}/api/abdm/encounters/{{encounterId}}/care-context
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  Link state, link token state, and the last 10 gateway requests with their callbacks.
+}

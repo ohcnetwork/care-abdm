@@ -1,27 +1,21 @@
+"""
+Route table for the `abdm` plug. Care mounts it at /api/abdm/ (care/config/urls.py:111-112).
+Mirrors: frontend/src/lib/careApi.ts and bruno/. Change all 3 together.
+"""
+
 from django.http import JsonResponse
 from django.urls import path
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
 
 from abdm.abha import views as abha
 from abdm.callbacks import views as callbacks
 from abdm.facility import views as facility_views
-from abdm.gateway.session import GatewaySessionError, get_access_token
+from abdm.gateway import views as gateway_views
+from abdm.hip import views as hip_views
+from abdm.share import views as share_views
 
 
 def healthy(request):
     return JsonResponse({"status": "ok", "plug": "abdm"})
-
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def gateway_status(request):
-    """Dev/ops probe: can this deployment obtain a gateway session? Token is never returned."""
-    try:
-        token = get_access_token()
-    except GatewaySessionError as e:
-        return JsonResponse({"ok": False, "status_code": e.status_code, "request_id": e.request_id}, status=502)
-    return JsonResponse({"ok": True, "token_prefix": token[:8]})
 
 
 def callback_route(route):
@@ -29,15 +23,26 @@ def callback_route(route):
 
 
 urlpatterns = [
+    # --- probes and instance setup (the bridge is 1 per clientId; ADR-010) ---
     path("health", healthy),
-    path("gateway/status", gateway_status),
-    # M2 step 1 — ADR-007 facility and bridge proof.
+    path("gateway/status", gateway_views.GatewayStatus.as_view()),
+    path("bridge", gateway_views.BridgeState.as_view()),
+    path("bridge/register-url", gateway_views.BridgeRegisterUrl.as_view()),
+    # --- facility setup (ADR-007): HFR facility ID, names, counters; HRP service registration ---
     path("facilities/<uuid:facility_id>/abdm", facility_views.FacilityAbdmConfig.as_view()),
-    path("facilities/<uuid:facility_id>/abdm/bridge-url", facility_views.FacilityBridgeUrl.as_view()),
     path("facilities/<uuid:facility_id>/abdm/hrp-services", facility_views.FacilityHrpServices.as_view()),
-    # M2 step 2 — callback log and probe.
+    # --- M1 Scan and Share: gateway callback + front desk inbox ---
+    callback_route("patient-share/v3/share"),
+    path("facilities/<uuid:facility_id>/abdm/profile-shares", share_views.ProfileShareList.as_view()),
+    path("facilities/<uuid:facility_id>/abdm/profile-shares/<uuid:share_id>", share_views.ProfileShareDetail.as_view()),
+    path(
+        "facilities/<uuid:facility_id>/abdm/profile-shares/<uuid:share_id>/dismiss",
+        share_views.ProfileShareDismiss.as_view(),
+    ),
+    # --- callback log (superuser) ---
     path("callbacks", callbacks.CallbackList.as_view()),
     path("callbacks/<uuid:callback_id>", callbacks.CallbackDetail.as_view()),
+    # --- M2 gateway callbacks. Every path variant the docs name is accepted (callbacks/receiver.py) ---
     callback_route("v3/hip/token/on-generate-token"),
     callback_route("v3/link/on_carecontext"),
     callback_route("v3/links/context/on-notify"),
@@ -49,22 +54,28 @@ urlpatterns = [
     callback_route("api/v3/hip/link/care-context/confirm"),
     callback_route("v0.5/links/link/confirm"),
     callback_route("v0.5/consents/hip/notify"),
+    callback_route("api/v3/consent/request/hip/notify"),
     callback_route("api/v3/hip/health-information/request"),
     callback_route("v0.5/health-information/hip/request"),
-    # M1 Journey 1 — ABHA creation by Aadhaar OTP
+    # --- M2 desk endpoints ---
+    path("encounters/<uuid:encounter_id>/care-context", hip_views.EncounterCareContext.as_view()),
+    path("encounters/<uuid:encounter_id>/care-context/link", hip_views.EncounterCareContextLink.as_view()),
+    path("patients/<uuid:patient_id>/abha/sms-link", hip_views.PatientSmsLink.as_view()),
+    path("patients/<uuid:patient_id>/abha/consents", hip_views.PatientConsents.as_view()),
+    # --- M1 Journey 1: ABHA creation by Aadhaar OTP ---
     path("abha/enrol/aadhaar/request-otp", abha.RequestAadhaarOtp.as_view()),
     path("abha/enrol/aadhaar/verify", abha.EnrolByAadhaar.as_view()),
     path("abha/enrol/mobile/request-otp", abha.RequestMobileOtp.as_view()),
     path("abha/enrol/mobile/verify", abha.VerifyMobileOtp.as_view()),
     path("abha/enrol/address/suggestions", abha.AddressSuggestions.as_view()),
     path("abha/enrol/address/claim", abha.ClaimAbhaAddress.as_view()),
-    # M1 — login to an existing ABHA. One entry point; body.hint ∈ mobile|abha-number|abha-address|aadhaar.
+    # --- M1: login to an existing ABHA. body.hint in mobile|abha-number|abha-address|aadhaar ---
     path("abha/login/request-otp", abha.LoginRequestOtp.as_view()),
     path("abha/login/verify", abha.LoginVerifyOtp.as_view()),
     path("abha/login/select-account", abha.LoginSelectAccount.as_view()),
-    # Completed transaction read-back (registration prefill after find-by-ABHA)
+    # --- completed transaction read-back (registration prefill) ---
     path("abha/transactions/<str:txn_id>", abha.TransactionDetail.as_view()),
-    # Patient-scoped (patient external_id)
+    # --- patient-scoped M1 ---
     path("patients/<uuid:patient_id>/abha", abha.PatientAbhaStatus.as_view()),
     path("patients/<uuid:patient_id>/abha/link", abha.PatientAbhaLink.as_view()),
     path("patients/<uuid:patient_id>/abha/card", abha.PatientAbhaCard.as_view()),

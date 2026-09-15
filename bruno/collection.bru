@@ -27,6 +27,9 @@ docs {
   | `hipId` | HIP identifier that the gateway sends as `X-HIP-ID` |
   | `callbackToken` | Signed JWT that the gateway sends in the callback `Authorization` header |
   | `linkRefNumber` | Link reference number from the link init step |
+  | `encounterId` | `external_id` of the Care encounter (= care context reference) |
+  | `consentId` | Consent artefact id from a consent notification |
+  | `hiuPublicKey`, `hiuNonce` | Base64 X25519 public key and 32-byte nonce of a test HIU |
 
   The pre-request script of this collection sets 2 more variables for each request:
   `requestId` is a new UUID, and `timestamp` is the time now in UTC with milliseconds.

@@ -12,17 +12,118 @@ export type AbdmRelayError = {
 };
 
 export type AbdmFacilityConfig = {
-  hip_id: string;
-  bridge_id: string;
-  service_id: string;
+  /** Read-only. The server derives this from facility_id (HIP ID = HFR facility ID). */
+  hip_id?: string;
   facility_id: string;
   facility_name: string;
   hip_name: string;
-  x_hip_id_source: "hip_id" | "bridge_id" | "service_id";
-  bridge_url: string;
-  bridge_url_registered_at?: string;
+  /** Scan and Share counter codes; each 1 to 20 letters or digits. */
+  counters: string[];
+  /** Read-only, from ABDM_SHARE_QR_URL_TEMPLATE. Placeholders {hip_id} and {context}. */
+  share_qr_url_template?: string;
   hrp_registered_at?: string;
   last_error?: string;
+};
+
+export type AbdmFacilityConfigUpdate = Omit<
+  AbdmFacilityConfig,
+  "hip_id" | "share_qr_url_template" | "hrp_registered_at" | "last_error"
+>;
+
+/** GET /api/abdm/bridge: the derived callback URL plus the live gateway view (1 bridge per clientId). */
+export type AbdmBridgeState = {
+  callback_url: string;
+  bridge: {
+    id: string;
+    name: string;
+    url: string;
+    active: boolean | null;
+    blocklisted: boolean | null;
+  } | null;
+  services: unknown[];
+  error: string;
+  registration?: { url: string; status_code: number; request_id: string };
+};
+
+// --- M2: care contexts, consents, data requests ---
+
+export type AbdmOutboundSummary = {
+  requestId: string;
+  operationId: string;
+  status: "sent" | "succeeded" | "failed";
+  httpStatus: number | null;
+  errorCode: string;
+  sentAt: string | null;
+  callbacks: {
+    path: string;
+    signatureStatus: string;
+    processedStatus: string;
+    receivedAt: string;
+  }[];
+};
+
+export type AbdmCareContextStatus =
+  | "pending"
+  | "link_requested"
+  | "linked"
+  | "failed";
+
+/** GET /api/abdm/encounters/{encounterId}/care-context */
+export type AbdmCareContextState = {
+  facilityConfigured: boolean;
+  patientAbhaAddress: string;
+  patientAbhaNumber: string;
+  linkToken: {
+    status: "requested" | "active" | "failed";
+    expiresAt: string | null;
+    errorCode: string;
+  } | null;
+  careContext: {
+    referenceNumber: string;
+    display: string;
+    hiTypes: string[];
+    status: AbdmCareContextStatus;
+    linkedVia: "hip" | "user" | "";
+    linkedAt: string | null;
+    notifiedAt: string | null;
+    errorCode: string;
+    errorMessage: string;
+  } | null;
+  activity: AbdmOutboundSummary[];
+};
+
+export type AbdmConsentSummary = {
+  id: string;
+  consentId: string;
+  status: "GRANTED" | "REVOKED" | "EXPIRED";
+  hiuId: string;
+  hiuName: string;
+  purposeCode: string;
+  hiTypes: string[];
+  careContextReferences: string[];
+  dateFrom: string | null;
+  dateTo: string | null;
+  dataEraseAt: string | null;
+  notifiedAt: string | null;
+  facility: string | null;
+};
+
+export type AbdmDataRequestSummary = {
+  id: string;
+  transactionId: string;
+  consentId: string;
+  status: "received" | "acknowledged" | "transferred" | "failed";
+  receivedAt: string;
+  deadlineAt: string;
+  pushedAt: string | null;
+  entries: {
+    careContextReference: string;
+    hiType: string;
+    hiStatus: "OK" | "ERRORED";
+    description: string;
+  }[];
+  errorCode: string;
+  errorMessage: string;
 };
 
 export type FacilityBridgeActionResponse = {
@@ -42,8 +143,40 @@ export type AbdmCallbackSummary = {
   response_request_id: string;
   transaction_id: string;
   signature_status: "missing" | "ok" | "failed";
-  processed_status: "received" | "queued" | "unhandled" | "failed";
+  processed_status: "received" | "queued" | "unhandled" | "handled" | "failed";
   received_at: string;
+};
+
+/** One Scan and Share event (GET facilities/{id}/abdm/profile-shares). */
+export type AbdmProfileShare = {
+  id: string;
+  status: "received" | "acknowledged" | "ack_failed" | "rejected";
+  context: string;
+  tokenNumber: string;
+  abhaNumber: string;
+  abhaAddress: string;
+  profile: {
+    name?: string;
+    gender?: string;
+    dob?: string;
+    mobile?: string;
+    address?: {
+      line?: string;
+      district?: string;
+      state?: string;
+      pinCode?: string;
+    };
+  };
+  hasPhoto: boolean;
+  patient: string | null;
+  patientName: string | null;
+  txnId: string | null;
+  errorCode: string;
+  errorMessage: string;
+  receivedAt: string;
+  acknowledgedAt: string | null;
+  dismissedAt: string | null;
+  kycPhoto?: string;
 };
 
 export type AbdmCallbackDetail = AbdmCallbackSummary & {
@@ -227,7 +360,18 @@ const routes = apiRoutes({
       request_id?: string;
     },
   },
-  // --- M2 step 1: facility and bridge proof ---
+  // --- instance bridge (1 per clientId) and facility setup ---
+  bridge: {
+    path: "/api/abdm/bridge",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmBridgeState,
+  },
+  bridgeRegisterUrl: {
+    path: "/api/abdm/bridge/register-url",
+    method: HttpMethod.POST,
+    TRequest: {} as Record<string, never>,
+    TResponse: {} as AbdmBridgeState,
+  },
   facilityAbdm: {
     path: "/api/abdm/facilities/{facilityId}/abdm",
     method: HttpMethod.GET,
@@ -236,14 +380,8 @@ const routes = apiRoutes({
   updateFacilityAbdm: {
     path: "/api/abdm/facilities/{facilityId}/abdm",
     method: HttpMethod.PUT,
-    TRequest: {} as AbdmFacilityConfig,
+    TRequest: {} as AbdmFacilityConfigUpdate,
     TResponse: {} as AbdmFacilityConfig,
-  },
-  registerBridgeUrl: {
-    path: "/api/abdm/facilities/{facilityId}/abdm/bridge-url",
-    method: HttpMethod.POST,
-    TRequest: {} as { url?: string | null },
-    TResponse: {} as FacilityBridgeActionResponse,
   },
   registerHrpService: {
     path: "/api/abdm/facilities/{facilityId}/abdm/hrp-services",
@@ -251,14 +389,22 @@ const routes = apiRoutes({
     TRequest: {} as Record<string, never>,
     TResponse: {} as FacilityBridgeActionResponse,
   },
-  facilityBridgeServices: {
-    path: "/api/abdm/facilities/{facilityId}/abdm/hrp-services",
+  // --- M1 Scan and Share: front desk inbox ---
+  profileShares: {
+    path: "/api/abdm/facilities/{facilityId}/abdm/profile-shares",
     method: HttpMethod.GET,
-    TResponse: {} as {
-      status_code: number;
-      request_id: string;
-      response: Record<string, unknown>;
-    },
+    TResponse: {} as { results: AbdmProfileShare[] },
+  },
+  profileShare: {
+    path: "/api/abdm/facilities/{facilityId}/abdm/profile-shares/{shareId}",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmProfileShare,
+  },
+  dismissProfileShare: {
+    path: "/api/abdm/facilities/{facilityId}/abdm/profile-shares/{shareId}/dismiss",
+    method: HttpMethod.POST,
+    TRequest: {} as Record<string, never>,
+    TResponse: {} as AbdmProfileShare,
   },
   // --- M2 step 2: callback probe ---
   callbacks: {
@@ -271,11 +417,37 @@ const routes = apiRoutes({
     method: HttpMethod.GET,
     TResponse: {} as AbdmCallbackDetail,
   },
+  // --- M2: encounter care context, SMS deep link, consents ---
+  encounterCareContext: {
+    path: "/api/abdm/encounters/{encounterId}/care-context",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmCareContextState,
+  },
+  encounterCareContextLink: {
+    path: "/api/abdm/encounters/{encounterId}/care-context/link",
+    method: HttpMethod.POST,
+    TRequest: {} as Record<string, never>,
+    TResponse: {} as AbdmCareContextState,
+  },
+  patientSmsLink: {
+    path: "/api/abdm/patients/{patientId}/abha/sms-link",
+    method: HttpMethod.POST,
+    TRequest: {} as { facility_id: string },
+    TResponse: {} as AbdmOutboundSummary,
+  },
+  patientConsents: {
+    path: "/api/abdm/patients/{patientId}/abha/consents",
+    method: HttpMethod.GET,
+    TResponse: {} as {
+      consents: AbdmConsentSummary[];
+      dataRequests: AbdmDataRequestSummary[];
+    },
+  },
   // --- M1 Journey 1: ABHA creation by Aadhaar OTP ---
   requestAadhaarOtp: {
     path: "/api/abdm/abha/enrol/aadhaar/request-otp",
     method: HttpMethod.POST,
-    TRequest: {} as { aadhaar_number: string },
+    TRequest: {} as { aadhaar_number: string; consent: boolean },
     TResponse: {} as { txnId: string; message: string },
   },
   enrolByAadhaar: {

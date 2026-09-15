@@ -17,19 +17,17 @@ headers {
 
 body:json {
   {
-    "hip_id": "",
-    "bridge_id": "",
-    "service_id": "",
     "facility_id": "",
     "facility_name": "",
     "hip_name": "",
-    "x_hip_id_source": "hip_id",
-    "bridge_url": ""
+    "counters": ["OPD1", "Pharmacy"]
   }
 }
 
 docs {
   Write the facility ABDM config. Send the full object. Empty strings clear a field.
-  `x_hip_id_source` selects the value that the plug sends as `X-HIP-ID`.
-  Use one of `hip_id`, `bridge_id`, or `service_id`.
+  The server ignores hip_id in the body. GET returns hip_id derived from facility_id.
+  The bridge is instance-level: see the `bridge` folder.
+  `counters` lists the Scan and Share counter codes. Each code has 1 to 20 letters or digits.
+  A code must not be the facility ID, the HIP ID, or the HIP name.
 }

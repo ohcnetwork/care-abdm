@@ -1,0 +1,11 @@
+meta {
+  name: scan-share
+  seq: 8
+}
+
+docs {
+  Scan and Share (SHARE_PATIENT_PROFILE_701).
+  The gateway posts the shared profile to the bridge URL. The plug answers 202,
+  assigns a token number, and sends `m1-on-share-acknowledgement` to the gateway.
+  The front desk reads the inbox with the Care permission `can_create_patient`.
+}

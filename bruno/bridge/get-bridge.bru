@@ -1,0 +1,20 @@
+meta {
+  name: 1. Get bridge state
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{careUrl}}/api/abdm/bridge
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  Reads `callback_url` (from ABDM_CALLBACK_BASE_URL) and the live gateway view: bridge id, url, active, services.
+  Operation id `gateway-list-bridge-services`.
+}

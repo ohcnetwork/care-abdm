@@ -9,7 +9,9 @@ a patient half-linked to an ABHA is worse than a clean retry.
 
 import logging
 
+from care.emr.models.encounter import Encounter
 from care.emr.models.patient import Patient
+from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
@@ -83,3 +85,23 @@ def link_abha_from_txn(sender, instance: Patient, **kwargs):
         Patient.objects.filter(pk=instance.pk).update(extensions=ext)
         return
     link_patient_to_transaction(instance, txn)
+
+
+# --- M2: Encounter -> care context (ADR-008 decision 1: auto-link at create and on status change)
+
+ENCOUNTER_SYNC_FIELDS = {"status", "encounter_class", "period"}
+
+
+@receiver(post_save, sender=Encounter)
+def sync_encounter_care_context(sender, instance: Encounter, created: bool, update_fields=None, **kwargs):
+    """Queue the HIP-initiated link after the Encounter commits. Saves that touch only cache
+    fields (care/emr/models/encounter.py::sync_organization_cache) are skipped."""
+    if update_fields is not None and not (set(update_fields) & ENCOUNTER_SYNC_FIELDS):
+        return
+    from abdm.facility.service import hip_id_for
+
+    if not hip_id_for(instance.facility):
+        return
+    from abdm.tasks import sync_encounter
+
+    transaction.on_commit(lambda: sync_encounter.delay(instance.id))

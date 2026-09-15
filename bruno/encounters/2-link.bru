@@ -1,0 +1,20 @@
+meta {
+  name: 2. Link care context
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{careUrl}}/api/abdm/encounters/{{encounterId}}/care-context/link
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  Runs the HIP-initiated link now: link token (`m2-generate-link-token`) when none is active, then
+  `m2-hip-link-care-context`. For a linked context it sends `m2-link-care-context-notify` when the record types changed.
+}

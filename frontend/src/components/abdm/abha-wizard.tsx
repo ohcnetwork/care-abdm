@@ -1,5 +1,6 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -245,6 +246,7 @@ export default function AbhaWizard({
   // create journey
   const [createStep, setCreateStep] = useState<CreateStep>("aadhaar");
   const [aadhaar, setAadhaar] = useState("");
+  const [consent, setConsent] = useState(false);
   const [mobile, setMobile] = useState(defaultMobile);
   const [otp, setOtp] = useState("");
   const [txnId, setTxnId] = useState("");
@@ -274,6 +276,7 @@ export default function AbhaWizard({
     setLoginId(initialHint === "mobile" ? defaultMobile : "");
     setOtpSystem(defaultOtpSystem(initialHint));
     setAadhaar("");
+    setConsent(false);
     setMobile(defaultMobile);
     setOtp("");
     setTxnId("");
@@ -671,9 +674,20 @@ export default function AbhaWizard({
                 {t("abdm_mobile_hint")}
               </p>
             </div>
-            <p className="text-muted-foreground text-xs">
-              {t("abdm_consent_note")}
-            </p>
+            <label
+              htmlFor="abdm-consent"
+              className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm"
+            >
+              <Checkbox
+                id="abdm-consent"
+                checked={consent}
+                onCheckedChange={(v) => setConsent(v === true)}
+                className="mt-0.5"
+              />
+              <span className="text-muted-foreground text-xs leading-relaxed">
+                {t("abdm_consent_note")}
+              </span>
+            </label>
           </div>
         )}
 
@@ -701,7 +715,7 @@ export default function AbhaWizard({
                   disabled={busy}
                   onResend={() =>
                     createStep === "otp"
-                      ? requestOtp.mutate({ aadhaar_number: aadhaar })
+                      ? requestOtp.mutate({ aadhaar_number: aadhaar, consent })
                       : requestMobileOtp.mutate({ txn_id: txnId, mobile })
                   }
                 />
@@ -974,8 +988,12 @@ export default function AbhaWizard({
           {mode === "create" && createStep === "aadhaar" && (
             <Button
               type="button"
-              disabled={busy || aadhaar.length !== 12 || !mobileValid}
-              onClick={() => requestOtp.mutate({ aadhaar_number: aadhaar })}
+              disabled={
+                busy || aadhaar.length !== 12 || !mobileValid || !consent
+              }
+              onClick={() =>
+                requestOtp.mutate({ aadhaar_number: aadhaar, consent })
+              }
             >
               {t("abdm_send_otp")}
             </Button>

@@ -1,7 +1,7 @@
 from care.facility.models import Facility
 from care.security.authorization import AuthorizationController
 from django.shortcuts import get_object_or_404
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
@@ -9,23 +9,15 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from abdm.facility import service
-from abdm.gateway.bridge import BridgeError
-from abdm.gateway.hrp import HrpRegistrationError
+from abdm.gateway.bridge import HrpRegistrationError
+from abdm.settings import plugin_settings
 
 
 class FacilityAbdmConfigBody(BaseModel):
-    hip_id: str = ""
-    bridge_id: str = ""
-    service_id: str = ""
     facility_id: str = ""
     facility_name: str = ""
     hip_name: str = ""
-    x_hip_id_source: str = Field(default="hip_id")
-    bridge_url: str = ""
-
-
-class BridgeUrlBody(BaseModel):
-    url: str | None = None
+    counters: list[str] = []
 
 
 def _facility(facility_id):
@@ -36,6 +28,11 @@ def _can_update(request, facility):
     # Care checks this permission in care/emr/api/viewsets/facility.py.
     if not AuthorizationController.call("can_update_facility_obj", request.user, facility):
         raise PermissionDenied("You do not have permission to update this facility.")
+
+
+def _with_share_settings(config: dict) -> dict:
+    """Read-only deployment values the setup page needs. Not stored in the extension."""
+    return {**config, "share_qr_url_template": plugin_settings.SHARE_QR_URL_TEMPLATE}
 
 
 def _parse(model, data):
@@ -51,41 +48,22 @@ class FacilityAbdmConfig(APIView):
     def get(self, request, facility_id):
         facility = _facility(facility_id)
         _can_update(request, facility)
-        return Response(service.get_config(facility))
+        return Response(_with_share_settings(service.get_config(facility)))
 
     def put(self, request, facility_id):
         facility = _facility(facility_id)
         _can_update(request, facility)
         data = _parse(FacilityAbdmConfigBody, request.data)
         try:
-            return Response(service.save_config(facility, data.model_dump()))
+            return Response(_with_share_settings(service.save_config(facility, data.model_dump())))
         except ValueError as exc:
             raise ValidationError({"errors": str(exc)}) from exc
 
 
-class FacilityBridgeUrl(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, facility_id):
-        facility = _facility(facility_id)
-        _can_update(request, facility)
-        data = _parse(BridgeUrlBody, request.data or {})
-        try:
-            return Response(service.register_bridge_url(facility, data.url))
-        except BridgeError as exc:
-            raise ValidationError({"errors": str(exc)}) from exc
-
-
 class FacilityHrpServices(APIView):
-    permission_classes = [IsAuthenticated]
+    """POST registers this facility as an HIP service on the instance bridge."""
 
-    def get(self, request, facility_id):
-        facility = _facility(facility_id)
-        _can_update(request, facility)
-        try:
-            return Response(service.read_bridge_services(facility))
-        except HrpRegistrationError as exc:
-            raise ValidationError({"errors": str(exc)}) from exc
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, facility_id):
         facility = _facility(facility_id)

@@ -2,10 +2,11 @@ import AbhaWizard, {
   type AbhaWizardResult,
   formatAbhaNumber,
 } from "@/components/abdm/abha-wizard";
+import ProfileShareInbox from "@/components/abdm/profile-share-inbox";
 import PluginComponent from "@/components/common/plugin-component";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/hooks/use-translation";
-import { IdCard, UserPlus, UserRound } from "lucide-react";
+import { IdCard, QrCode, UserPlus, UserRound } from "lucide-react";
 import { navigate } from "raviger";
 import { useState } from "react";
 
@@ -21,6 +22,9 @@ import { useState } from "react";
  *    `?abdm_txn=<txnId>` (consumed by patient-registration-form.tsx).
  * The ABHA number is never typed into Care's own search box: it is verified by
  * ABDM before we trust it, and identifiers are only written server-side.
+ *
+ * "Shared profiles" opens the Scan and Share inbox (profile-share-inbox.tsx):
+ * profiles that people shared by scanning a counter QR code in the PHR app.
  */
 export default function AbdmPatientSearchActions({
   facilityId,
@@ -29,13 +33,15 @@ export default function AbdmPatientSearchActions({
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const [inboxOpen, setInboxOpen] = useState(false);
 
   const openPatient = (id: string) =>
     navigate(`/facility/${facilityId}/patient/${id}`);
-  const register = (r: AbhaWizardResult) =>
+  const registerTxn = (txnId: string) =>
     navigate(
-      `/facility/${facilityId}/patient/create?abdm_txn=${encodeURIComponent(r.txnId)}`,
+      `/facility/${facilityId}/patient/create?abdm_txn=${encodeURIComponent(txnId)}`,
     );
+  const register = (r: AbhaWizardResult) => registerTxn(r.txnId);
 
   return (
     <PluginComponent>
@@ -43,6 +49,21 @@ export default function AbdmPatientSearchActions({
         <IdCard />
         {t("abdm_find_by_abha")}
       </Button>
+      <Button
+        type="button"
+        variant="tertiary"
+        onClick={() => setInboxOpen(true)}
+      >
+        <QrCode />
+        {t("abdm_shared_profiles")}
+      </Button>
+      <ProfileShareInbox
+        facilityId={facilityId}
+        open={inboxOpen}
+        onOpenChange={setInboxOpen}
+        onOpenPatient={openPatient}
+        onRegister={registerTxn}
+      />
       <AbhaWizard
         open={open}
         onOpenChange={setOpen}

@@ -55,7 +55,7 @@ HIE-CM work is four milestones spelling CARE
 | M1 | Create | ABHA identity: create/verify a patient's ABHA, session token, profile, card |
 | M2 | Attach | Link the facility's records (care contexts) to an ABHA address; answer discovery; push records on consented request |
 | M3 | Retrieve | Act as HIU: request consent and fetch records held elsewhere |
-| M4 | Enrol | Facility ID (HFR) and professional registration (HPR). Certifies last but **blocks M2** |
+| M4 | Enrol | Facility ID (HFR) and professional registration (HPR). Optional since 2026-09-15: a facility registered by hand on the NHPR portal needs no M4 build; M2 still needs the facility ID and a linked HIP bridge |
 
 CARE is a multi-tenant HMIS: one instance holds many facilities, so every ABDM facility-scoped thing (HFR ID, HIP role, bridge) is per Care facility, and identity (ABHA) is per patient across the instance. The docs' facility row applies per tenant facility. The docs say M1 and M4 are required, M2 is
 "the bulk of your build", M3 only if the facility also reads records it did
@@ -66,6 +66,7 @@ Key facts that shape the architecture (all from `/docs/hiecm/v3/milestones/m1`,
 
 - Sandbox credentials are in `.env.local` (git-ignored; `.env.example` shows keys). Dev callback ingress = tunnel to local Care (ADR-005).
 - Nothing runs until the gateway session call returns an access token.
+- One bridge URL serves every facility of the integration; `X-HIP-ID` (= HFR facility ID) names the facility on each call and callback (docs update 2026-09-15).
 - Two tokens: gateway token in `Authorization`, user (ABHA holder) token in
   `X-token`. Not interchangeable.
 - Aadhaar numbers, mobile numbers, OTPs, passwords travel RSA-encrypted with

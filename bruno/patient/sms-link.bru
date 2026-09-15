@@ -1,0 +1,26 @@
+meta {
+  name: 4. SMS deep link
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{careUrl}}/api/abdm/patients/{{patientId}}/abha/sms-link
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "facility_id": "{{facilityId}}"
+  }
+}
+
+docs {
+  `m2-sms-deep-link-notify`: ABDM sends the patient an SMS with a link to the ABHA app. For a patient with a mobile number and no ABHA.
+}

@@ -1,0 +1,23 @@
+meta {
+  name: 3. Read one share (with photo)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{careUrl}}/api/abdm/facilities/{{facilityId}}/abdm/profile-shares/{{shareId}}?photo=1
+  body: none
+  auth: none
+}
+
+params:query {
+  photo: 1
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  One share. `photo=1` adds `kycPhoto` (base64) to the response.
+}

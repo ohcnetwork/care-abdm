@@ -20,20 +20,36 @@ headers {
 
 body:json {
   {
-    "notification": {
-      "consentDetail": {},
-      "consentId": "<CONSENT_ID>",
-      "signature": "<SIGNATURE>"
-    }
+    "status": "GRANTED",
+    "consentId": "{{consentId}}",
+    "consentDetail": {
+      "schemaVersion": "v3",
+      "consentId": "{{consentId}}",
+      "createdAt": "{{timestamp}}",
+      "patient": { "id": "{{abhaAddress}}" },
+      "careContexts": [
+        { "patientReference": "{{abhaAddress}}", "careContextReference": "{{encounterId}}" }
+      ],
+      "purpose": { "text": "Care Management", "code": "CAREMGT", "refUri": "www.abc.com" },
+      "hip": { "id": "{{hipId}}", "name": "HIP", "type": "HIP" },
+      "hiu": { "id": "HIU_ID", "name": "HIU", "type": "HIU" },
+      "consentManager": { "id": "sbx" },
+      "requester": { "name": "Dr X", "identifier": { "value": "REG1", "type": "MH1001", "system": "https://www.sample.com" } },
+      "hiTypes": ["Prescription", "OPConsultation"],
+      "permission": {
+        "accessMode": "VIEW",
+        "dateRange": { "from": "2020-01-01T00:00:00.000Z", "to": "2030-01-01T00:00:00.000Z" },
+        "dataEraseAt": "2030-01-01T00:00:00.000Z",
+        "frequency": { "unit": "HOUR", "value": 1, "repeats": 0 }
+      }
+    },
+    "signature": "<SIGNATURE>",
+    "grantAcknowledgement": false
   }
 }
 
 docs {
-  Inbound consent artefact for the HIP. Operation id `m2-consent-hip-on-notify`.
-
-  The docs give no schema for this callback (see `docs/findings.md`, 2026-09-10). The prose names the
-  consent detail, the care contexts, the HI types, the date range, and the signature.
-  The body in this request is a placeholder. Replace it with a real sandbox body.
-
-  Path: `/api/abdm/v0.5/consents/hip/notify`.
+  Inbound consent notification for the HIP. Operation id `m2-consent-hip-notify`.
+  Body from /docs/hiecm/v3/api/m3/endpoints/m3-on-consent-request-notify-hip (the M2 pages publish no body).
+  The plug stores the consent and answers `m2-consent-hip-on-notify`.
 }
