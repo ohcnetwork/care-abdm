@@ -18,12 +18,11 @@ import uuid
 
 from care.emr.models.encounter import Encounter
 from care.emr.models.patient import Patient
-from care.facility.models import Facility
 from django.conf import settings
 from django.utils import timezone
 
 from abdm.care_seams import AbhaAddressIdentifier, AbhaNumberIdentifier
-from abdm.facility.service import get_config
+from abdm.facility.service import facility_for_hip_id, get_config
 from abdm.gateway import outbound
 from abdm.gateway.session import utc_timestamp
 from abdm.hip import rules
@@ -40,11 +39,8 @@ FIXED_OTP_OUTSIDE_PRODUCTION = "123456"
 
 
 def facility_for_callback(callback: AbdmCallback):
-    """The facility the gateway named in X-HIP-ID (= HFR facility ID)."""
-    hip_id = callback.hip_id_header
-    if not hip_id:
-        return None
-    return Facility.objects.filter(extensions__abdm__facility_id=hip_id).first()
+    """The facility the gateway named in X-HIP-ID (HFR facility ID or the gateway service id)."""
+    return facility_for_hip_id(callback.hip_id_header)
 
 
 def find_patient(abha_address: str, abha_number: str) -> Patient | None:

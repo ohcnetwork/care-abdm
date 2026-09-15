@@ -14,9 +14,9 @@ import json
 import logging
 
 from care.emr.models.encounter import Encounter
-from care.facility.models import Facility
 from django.utils import timezone
 
+from abdm.facility.service import facility_for_hip_id
 from abdm.fhir import BundleError, available_hi_types, build_bundle
 from abdm.gateway import outbound
 from abdm.gateway.session import utc_timestamp
@@ -39,8 +39,7 @@ class TransferError(Exception):
 def _facility(callback: AbdmCallback, consent: AbdmConsent | None):
     if consent is not None and consent.facility_id:
         return consent.facility
-    hip_id = callback.hip_id_header
-    return Facility.objects.filter(extensions__abdm__facility_id=hip_id).first() if hip_id else None
+    return facility_for_hip_id(callback.hip_id_header)
 
 
 def _validate(row: AbdmDataRequest, consent: AbdmConsent | None) -> None:

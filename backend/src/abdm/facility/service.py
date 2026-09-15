@@ -29,6 +29,20 @@ def hip_id_for(facility) -> str:
     return get_config(facility)["hip_id"]
 
 
+def facility_for_hip_id(hip_id: str):
+    """The Care facility behind an inbound `X-HIP-ID` or `metaData.hipId`.
+
+    The docs team says HIP ID = HFR facility ID (`IN1410000232`). The gateway's own service id
+    for that facility is `IN1410000232_1` (observed 2026-09-15, findings B18). Both forms match."""
+    from care.facility.models import Facility
+
+    value = str(hip_id or "").strip()
+    if not value:
+        return None
+    candidates = {value, value.rsplit("_", 1)[0]}
+    return Facility.objects.filter(extensions__abdm__facility_id__in=list(candidates)).first()
+
+
 def is_configured(facility) -> bool:
     """True when the facility can act as an HIP: it has an HFR facility ID."""
     return bool(hip_id_for(facility))

@@ -15,10 +15,10 @@ The artefact signature has no published algorithm, so it is stored and not verif
 
 import logging
 
-from care.facility.models import Facility
 from django.utils import timezone
 
 from abdm.care_seams import AbhaAddressIdentifier
+from abdm.facility.service import facility_for_hip_id
 from abdm.gateway import outbound
 from abdm.hip import rules
 from abdm.models import AbdmCallback, AbdmConsent
@@ -33,7 +33,7 @@ def handle_consent_notify(callback: AbdmCallback) -> dict:
     if not data["consent_id"]:
         raise ValueError("Consent notification has no consentId")
     hip_id = data["hip_id"] or callback.hip_id_header
-    facility = Facility.objects.filter(extensions__abdm__facility_id=hip_id).first() if hip_id else None
+    facility = facility_for_hip_id(hip_id)
     patient = AbhaAddressIdentifier.find_patient(data["abha_address"].lower()) if data["abha_address"] else None
     status = data["status"] if data["status"] in AbdmConsent.Status.values else ""
     consent, _ = AbdmConsent.objects.update_or_create(

@@ -15,7 +15,6 @@ The counter list lives in the facility extension (facility/service.py::get_count
 
 import logging
 
-from care.facility.models import Facility
 from django.db import transaction
 from django.utils import timezone
 
@@ -38,16 +37,6 @@ class ShareError(Exception):
         super().__init__(message)
         self.code = code
         self.message = message
-
-
-def facility_for_hip_id(hip_id: str):
-    """Match `metaData.hipId` to the HFR facility ID.
-
-    The docs team confirmed that HIP ID and HFR facility ID are the same value.
-    """
-    if not hip_id:
-        return None
-    return Facility.objects.filter(extensions__abdm__facility_id=hip_id).first()
 
 
 def _patient_block(parsed: dict) -> dict:
@@ -134,7 +123,7 @@ def handle_profile_share(callback: AbdmCallback) -> AbdmProfileShare:
     try:
         if parsed.get("intent") != "PROFILE_SHARE":
             raise ShareError("HIP_UNSUPPORTED_INTENT", "Only PROFILE_SHARE is supported")
-        facility = facility_for_hip_id(hip_id)
+        facility = facility_service.facility_for_hip_id(hip_id)
         if facility is None:
             raise ShareError(
                 "HIP_UNKNOWN",
