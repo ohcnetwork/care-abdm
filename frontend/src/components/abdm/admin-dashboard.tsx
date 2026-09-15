@@ -399,6 +399,7 @@ export default function AbdmAdminDashboard() {
                         <TableRow>
                           <TableHead>{t("abdm_admin_received_at")}</TableHead>
                           <TableHead>{t("abdm_admin_operation")}</TableHead>
+                          <TableHead>{t("abdm_request_id")}</TableHead>
                           <TableHead>{t("abdm_admin_signature")}</TableHead>
                           <TableHead>{t("abdm_admin_processed")}</TableHead>
                         </TableRow>
@@ -411,6 +412,22 @@ export default function AbdmAdminDashboard() {
                             </TableCell>
                             <TableCell className="font-mono text-xs">
                               {row.operation_id || row.path}
+                            </TableCell>
+                            <TableCell className="font-mono text-[11px]">
+                              <div className="grid gap-0.5">
+                                <span title={row.request_id_header}>
+                                  {row.request_id_header.slice(0, 13) || "\u2014"}
+                                </span>
+                                {row.response_request_id && (
+                                  <span
+                                    className="text-muted-foreground"
+                                    title={row.response_request_id}
+                                  >
+                                    {"\u21A9 "}
+                                    {row.response_request_id.slice(0, 8)}
+                                  </span>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell>
                               <div className="grid gap-0.5">
