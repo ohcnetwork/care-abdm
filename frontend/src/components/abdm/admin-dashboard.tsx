@@ -413,16 +413,24 @@ export default function AbdmAdminDashboard() {
                               {row.operation_id || row.path}
                             </TableCell>
                             <TableCell>
-                              <Badge
-                                variant={
-                                  row.signature_status === "ok"
-                                    ? "success"
-                                    : "destructive"
-                                }
-                                size="sm"
-                              >
-                                {row.signature_status}
-                              </Badge>
+                              <div className="grid gap-0.5">
+                                <Badge
+                                  variant={
+                                    row.signature_status === "ok"
+                                      ? "success"
+                                      : "destructive"
+                                  }
+                                  size="sm"
+                                >
+                                  {row.signature_status}
+                                  {row.signature_header && ` · ${row.signature_header}`}
+                                </Badge>
+                                {row.signature_error && (
+                                  <span className="text-muted-foreground max-w-xs truncate text-[11px]">
+                                    {row.signature_error}
+                                  </span>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell>
                               <Badge

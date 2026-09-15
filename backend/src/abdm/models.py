@@ -126,6 +126,10 @@ class AbdmCallback(BaseModel):
     signature_status = models.CharField(
         max_length=16, choices=SignatureStatus.choices, default=SignatureStatus.MISSING, db_index=True
     )
+    # The header that carried the verified token (the docs do not publish it) and the last reason
+    # a verification did not pass. Both are evidence for docs/findings.md E2.
+    signature_header = models.CharField(max_length=64, blank=True, default="")
+    signature_error = models.CharField(max_length=256, blank=True, default="")
     raw_body = models.TextField(blank=True, default="")
     parsed_json = models.JSONField(default=dict, blank=True)
     response_request_id = models.CharField(max_length=128, blank=True, default="", db_index=True)

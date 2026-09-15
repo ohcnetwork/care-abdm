@@ -158,6 +158,10 @@ export type AbdmCallbackSummary = {
   response_request_id: string;
   transaction_id: string;
   signature_status: "missing" | "ok" | "failed";
+  /** The header that carried the verified token, once a real callback has been verified. */
+  signature_header: string;
+  /** Why the last verification did not pass; empty on success. */
+  signature_error: string;
   processed_status: "received" | "queued" | "unhandled" | "handled" | "failed";
   received_at: string;
 };

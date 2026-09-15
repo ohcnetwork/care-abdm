@@ -10,18 +10,18 @@ Read this before touching code. Every module has one job; keep it that way.
 | `settings.py` | Reads `ABDM_*` env into `plugin_settings` (pattern from `care_token_display`) | Names carry no environment marker; sandbox and production differ by value only |
 | `care_seams.py` | Registers with Care: `Patient.extensions["abdm"]`, `Facility.extensions["abdm"]` (`facility_id`, `facility_name`, `hip_name`, `counters`, `hrp_registered_at`, `last_error`), and the 2 `auto_maintained` identifier configs (`abdm/abha-number`, `abdm/abha-address`) | Extension fields carry `x-ui.render_blacklist`; host forms never render them |
 | `models.py` | M1: `AbhaTransaction`, `AbdmProfileShare`. Audit: `AbdmOutboundRequest`, `AbdmCallback`. M2: `AbdmLinkToken`, `AbdmCareContext`, `AbdmLinkSession`, `AbdmConsent`, `AbdmDataRequest` | Secrets (X-token, link token, OTP hash) stay here, never in an extension. Ciphertext is never stored |
-| `migrations/0001_initial.py` | The whole schema (restarted 2026-09-15) | Must match `models.py` |
+| `migrations/` | `0001_initial` (schema restarted 2026-09-15), `0002` adds `AbdmCallback.signature_header` and `signature_error` | Must match `models.py` |
 | `signals.py` | `post_save(Patient)`: consume `extensions.abdm.txn_id` → identifiers (M1). `post_save(Encounter)`: queue `tasks.sync_encounter` after commit when the facility is set up and the save touched `status`, `encounter_class` or `period` | `link_patient_to_transaction` is the single writer of ABHA identifiers |
 | `tasks.py` | `dispatch_callback` routes a verified callback by operation id through `CALLBACK_HANDLERS`; `sync_encounter` runs the HIP-initiated link | A Celery worker must run for M2 and for Scan and Share |
 | `urls.py` | Route table; ends with a catch-all POST route that stores a callback to any unnamed path. Mirrors: `frontend/src/lib/careApi.ts`, `bruno/` | Change all 3 together |
 | `gateway/session.py` | Gateway session token, Redis-cached, 60 s margin | The token never leaves the server |
 | `gateway/outbound.py` | `send()`: every call to ABDM or to an HIU push URL; adds `REQUEST-ID`, `TIMESTAMP`, `X-CM-ID`, `Authorization`, `X-HIP-ID` (from the facility); records `AbdmOutboundRequest`; reads all 3 error envelopes | A 2xx with an `{"error": {...}}` body is a failure |
-| `gateway/certs.py` | Gateway JWKS, cached 6 h | No bearer token on the certs call |
+| `gateway/certs.py` | Gateway JWKS, cached 6 h, fetched with the gateway bearer token (the sandbox answers 401 without it) | Raises `GatewayCertsError`; the receiver turns it into a 503 |
 | `gateway/bridge.py` | Callback URL derivation, `PATCH bridge/url`, live `GET bridge-services` (caches the bridge id 1 h), HRP service registration on `ABDM_HSP_URL` | The gateway is the source of truth for bridge state; nothing is snapshotted |
 | `gateway/views.py` | `GET gateway/status`, `GET bridge` (staff), `POST bridge/register-url` and `GET admin/overview` (superuser: gateway status, live bridge and services, HIP facilities) | Probes never return tokens |
 | `callbacks/receiver.py` | Stores each callback before verification; idempotency key; path → operation id map (every path variant the docs name) | Never dispatch an unverified callback |
-| `callbacks/signature.py` | RS256 JWT against the gateway JWKS; header from `ABDM_CALLBACK_SIGNATURE_HEADER` | Fails closed in every environment |
-| `callbacks/views.py` | Generic callback view (`AllowAny`, `202 {}` after verification) plus the superuser callback log | The list hides raw body and headers |
+| `callbacks/signature.py` | JWT against the gateway JWKS: configured header first, then any JWT-shaped header; algorithm from the matching JWK (RS256 or RS512); returns the header name | Fails closed in every environment |
+| `callbacks/views.py` | Generic callback view (`AllowAny`): store, verify, `202 {}`; 401 on a bad signature, 503 when the verifier cannot run; never raises (Care's `ATOMIC_REQUESTS` would roll the row back). Plus the superuser callback log | The row always survives; `signature_header` and `signature_error` are the evidence |
 | `facility/rules.py` | Pure format rules for HFR ID, facility name, HIP name | No Django import |
 | `facility/service.py` | Reads and writes `Facility.extensions["abdm"]`; `hip_id_for()` derives HIP ID = HFR facility ID; `register_hrp_service()` | `hip_id_for()` is the single source of HIP ID |
 | `facility/views.py` | `GET/PUT facilities/<id>/abdm`, `POST .../hrp-services` | Gate `can_update_facility_obj` |

@@ -42,7 +42,7 @@ discovery (match and no match); link init → wrong OTP → right OTP; consent G
 (both path variants); health-information request → encrypted push → **HIU-side decrypt and MD5
 check** → notify TRANSFERRED; a wider date range refused (`ABDM-1063`); SMS deep link; the 403 on
 bridge registration; Scan and Share token `OPD1-001`. It snapshots every plug table first and deletes only the rows it created (a 2026-09-15 version
-deleted all outbound and callback rows; do not use it), then restores the facility extension. Expected last lines: `M2 SMOKE OK — outbound calls: 21 callbacks: 15`
+deleted all outbound and callback rows; do not use it), then restores the facility extension. Expected last lines: `M2 SMOKE OK — outbound calls: 21 callbacks: 18`
 and `cleanup done`.
 
 FHIR bundles use `fhir_smoke.py` in the same directory. It builds the 3 record types from fixture
@@ -65,6 +65,7 @@ cd ~/ohc.network/care && set -a && . ./.env && set +a
 Observed 2026-09-10: 8 tests ran. Result: OK.
 Observed 2026-09-14: 14 tests ran. Result: OK (`test_share_rules.py` added).
 Observed 2026-09-15: 41 tests ran in 0.4 s. Result: OK (`test_hip_rules.py`, `test_hip_crypto.py`, `test_fhir_bundles.py` added).
+Observed 2026-09-15 (later): 46 tests. Result: OK (`test_callback_signature.py` rewritten: RS512, header auto-detect, unknown kid, HS256 refused).
 
 The tests run without Django. Pure rules must live in a module with no Django import
 (`abha/checksums.py`, `share/rules.py`, `facility/rules.py`, `hip/rules.py`, `hip/crypto.py`, `fhir/bundle.py`).
@@ -83,15 +84,8 @@ Definition of done for the MFE is `remoteEntry.js` fetchable over HTTP with
 The agent cannot see the UI; ask the user for a screenshot and record what it showed in
 `03-roadmap.md`.
 
-## Fork crash check (macOS)
-
-`diag_fork.py` (session files) forks from `manage.py shell` and runs the `sync_encounter` task body
-step by step in the child with `faulthandler` on, with the gateway call stubbed. Run it plain to see the
-crash line, then with `PGGSSENCMODE=disable no_proxy='*'` to see `child: DONE without crash`.
-
 ## Care core traps found so far (details in `findings.md` and the kiran skill caveats)
 
-- Celery prefork children segfault on macOS when libpq (GSSAPI) or `_scproxy` initialise after `fork()`. See `04-dev-setup.md`.
 - `PatientIdentifier` rows are invisible until `patient.build_instance_identifiers()` is persisted.
 - `auto_maintained` identifiers are dropped from create payloads.
 - Extension schema fields need `x-ui.render_blacklist` or the host renders them as form inputs.

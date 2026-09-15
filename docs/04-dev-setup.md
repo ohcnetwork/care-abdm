@@ -35,16 +35,8 @@
   `cd ~/ohc.network/care && set -a && . ./.env && set +a && .venv/bin/python manage.py abdm_register_bridge_url`
   (`--dry-run` prints the URL only). The command also prints the live bridge state. A superuser can do
   the same from `/admin/abdm` (admin sidebar → ABDM). Run it before the HRP service registration.
-- Run Celery. Every callback handler and the Encounter auto-link run in the worker.
-  **macOS trap (found 2026-09-15):** the prefork pool child dies with `SIGSEGV` on this machine the
-  moment a task opens a DB connection (`psycopg_c.pq`, libpq linked against nix `krb5`: GSSAPI init is
-  not fork-safe) and again on the first HTTPS call (`urllib.request.proxy_bypass_macosx_sysconf`,
-  the SystemConfiguration framework is not fork-safe). The worker logs only
-  `Process 'ForkPoolWorker-N' exited with 'signal 11 (SIGSEGV)'`. Start the worker with:
-  `cd ~/ohc.network/care && PGGSSENCMODE=disable no_proxy='*' OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES ./scripts/celery-dev.sh`
-  (or add `--pool=solo` to the celery command for a single-process worker). Reproduced and proven with
-  `diag_fork.py` in the session files: without the variables the child crashed at step 2 and step 6;
-  with them it finished all 7 steps. This affects every Care task on macOS, not only the plug.
+- Run Celery. Every callback handler and the Encounter auto-link run in the worker:
+  `cd ~/ohc.network/care && ./scripts/celery-dev.sh`.
 - Probes: `GET /api/abdm/health`; `GET /api/abdm/gateway/status`; `GET /api/abdm/bridge` (live gateway view); `GET /api/abdm/admin/overview` (superuser; backs `/admin/abdm`).
 - Callback log (superuser): `GET /api/abdm/callbacks?limit=20`; `GET /api/abdm/callbacks/<callback_id>`.
 - Encounter link state: `GET /api/abdm/encounters/<encounter_id>/care-context`.
