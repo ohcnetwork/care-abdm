@@ -46,6 +46,7 @@ Base URL for every source: `https://abdm-docs.dev.eka.care/docs/hiecm/v3/`.
 | B14 | 2026-09-10 | Open | `gateway-get-gateway-certs` shows a placeholder JWKS. No captured sandbox response. | `api/gateway/endpoints/gateway-get-gateway-certs` |
 | B15 | 2026-09-14 | Open | HFR search by `facilityId` exists but the path is not published, so an HMIS cannot prefill the registered facility name. The user must type the exact HFR name. | `api/m4/undocumented` |
 | B16 | 2026-09-14 | Open | The docs do not say whether `facilityName` or `hipName` may contain spaces. The bridge-linkage table allows `-_.(),/` in the name and "no special characters" in the HIP name. The plug allows spaces in both. | `api/m4/undocumented` |
+| B18 | 2026-09-15 | Open | The real `gateway-list-bridge-services` service row is `{"id": "IN1410000232_1", "name": "FACILITY WITH P", "types": ["HIP", "HIU"], "active": true}`. The docs give `serviceId`, `isHip`, `isHiu`, `registerTime` (on `gateway-get-bridge-service-by-id`) and a placeholder list. Two observations for the docs: the service id is `<HFR facility ID>_<n>`, and a service registered with `type: "HIP"` came back with both `HIP` and `HIU`. | `api/gateway/endpoints/gateway-list-bridge-services`, `gateway-get-bridge-service-by-id` |
 | B17 | 2026-09-15 | Positive | M4 is optional: "a product that registers its facilities [on the NHPR portal] by hand never builds M4". M2 still needs a facility ID and a linked HIP bridge. This settles the plug's ADR-007 "workaround" as the sanctioned route. | `milestones/m4` |
 
 ## C. M1 — ABHA identity

@@ -41,8 +41,8 @@ Encounter save → link token → link → notify with the 3 result callbacks; d
 discovery (match and no match); link init → wrong OTP → right OTP; consent GRANTED and REVOKED
 (both path variants); health-information request → encrypted push → **HIU-side decrypt and MD5
 check** → notify TRANSFERRED; a wider date range refused (`ABDM-1063`); SMS deep link; the 403 on
-bridge registration; Scan and Share token `OPD1-001`. It cleans up every row it created and
-restores the facility extension. Expected last lines: `M2 SMOKE OK — outbound calls: 21 callbacks: 14`
+bridge registration; Scan and Share token `OPD1-001`. It snapshots every plug table first and deletes only the rows it created (a 2026-09-15 version
+deleted all outbound and callback rows; do not use it), then restores the facility extension. Expected last lines: `M2 SMOKE OK — outbound calls: 21 callbacks: 15`
 and `cleanup done`.
 
 FHIR bundles use `fhir_smoke.py` in the same directory. It builds the 3 record types from fixture

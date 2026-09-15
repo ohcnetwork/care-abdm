@@ -13,7 +13,7 @@ Read this before touching code. Every module has one job; keep it that way.
 | `migrations/0001_initial.py` | The whole schema (restarted 2026-09-15) | Must match `models.py` |
 | `signals.py` | `post_save(Patient)`: consume `extensions.abdm.txn_id` → identifiers (M1). `post_save(Encounter)`: queue `tasks.sync_encounter` after commit when the facility is set up and the save touched `status`, `encounter_class` or `period` | `link_patient_to_transaction` is the single writer of ABHA identifiers |
 | `tasks.py` | `dispatch_callback` routes a verified callback by operation id through `CALLBACK_HANDLERS`; `sync_encounter` runs the HIP-initiated link | A Celery worker must run for M2 and for Scan and Share |
-| `urls.py` | Route table. Mirrors: `frontend/src/lib/careApi.ts`, `bruno/` | Change all 3 together |
+| `urls.py` | Route table; ends with a catch-all POST route that stores a callback to any unnamed path. Mirrors: `frontend/src/lib/careApi.ts`, `bruno/` | Change all 3 together |
 | `gateway/session.py` | Gateway session token, Redis-cached, 60 s margin | The token never leaves the server |
 | `gateway/outbound.py` | `send()`: every call to ABDM or to an HIU push URL; adds `REQUEST-ID`, `TIMESTAMP`, `X-CM-ID`, `Authorization`, `X-HIP-ID` (from the facility); records `AbdmOutboundRequest`; reads all 3 error envelopes | A 2xx with an `{"error": {...}}` body is a failure |
 | `gateway/certs.py` | Gateway JWKS, cached 6 h | No bearer token on the certs call |

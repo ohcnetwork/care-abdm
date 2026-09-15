@@ -50,10 +50,10 @@
 - i18n namespace: `care_abdm_fe`.
   It must equal PlugConfig `meta.name`.
 - Build and serve:
-  `npm run build && npx vite preview --port 4174`.
-- The MFE serves `/assets/remoteEntry.js`.
+  `npm run build && npx vite preview --port <port>` (Rithvik serves it through `portless`; observed on 4664 on 2026-09-15).
+- The MFE serves `/assets/remoteEntry.js`. Every build changes the chunk hashes: hard-refresh the host after a build, or the console shows 404s for the old `/assets/*.js` names.
 - Care DB plug config:
-  `PlugConfig(slug="abdm", meta={url, name: "care_abdm_fe", plug: "abdm"})`.
+  `PlugConfig(slug="abdm", meta={url, name: "care_abdm_fe", plug: "abdm"})`. `meta.url` must be the port the preview runs on.
 - care_fe host:
   `cd ~/ohc.network/care_fe && npx vite --port 4000`.
 - Point `REACT_CARE_API_URL` at `http://localhost:8000`.

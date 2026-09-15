@@ -4,7 +4,7 @@ Mirrors: frontend/src/lib/careApi.ts and bruno/. Change all 3 together.
 """
 
 from django.http import JsonResponse
-from django.urls import path
+from django.urls import path, re_path
 
 from abdm.abha import views as abha
 from abdm.callbacks import views as callbacks
@@ -80,4 +80,8 @@ urlpatterns = [
     path("patients/<uuid:patient_id>/abha", abha.PatientAbhaStatus.as_view()),
     path("patients/<uuid:patient_id>/abha/link", abha.PatientAbhaLink.as_view()),
     path("patients/<uuid:patient_id>/abha/card", abha.PatientAbhaCard.as_view()),
+    # Catch-all, last on purpose: a gateway POST to a path the docs did not name is stored as a
+    # callback row (operation id empty, processed_status `unhandled`) instead of a Care 404 that
+    # leaves no trace. The docs conflict on callback paths (findings E3).
+    re_path(r"^(?P<path>.+)$", callbacks.GenericCallbackView.as_view()),
 ]

@@ -69,20 +69,25 @@ function text(value: unknown, yes: string, no: string) {
   return JSON.stringify(value);
 }
 
-/** gateway-get-bridge-service-by-id names these fields; the list page shows only a placeholder. */
+/**
+ * Sandbox shape observed 2026-09-15 (findings B18): `{id, name, types: ["HIP","HIU"], active}`.
+ * The docs page gateway-get-bridge-service-by-id names `serviceId`, `isHip`, `isHiu`,
+ * `registerTime` instead; both shapes are read.
+ */
 function serviceRows(services: unknown[]) {
   return services.map((service, index) => {
     const row =
       service && typeof service === "object"
         ? (service as Record<string, unknown>)
         : { name: service };
+    const types = Array.isArray(row.types)
+      ? row.types.map(String)
+      : [row.isHip ? "HIP" : "", row.isHiu ? "HIU" : ""].filter(Boolean);
     return {
-      key: `${row.serviceId ?? row.id ?? index}`,
-      serviceId: row.serviceId,
+      key: `${row.id ?? row.serviceId ?? index}`,
+      serviceId: row.id ?? row.serviceId,
       name: row.name ?? row.hipName ?? row.facilityName,
-      type: [row.isHip ? "HIP" : "", row.isHiu ? "HIU" : ""]
-        .filter(Boolean)
-        .join(", "),
+      type: types.join(", "),
       active: row.active,
       registered: row.registerTime ?? row.dateCreated,
     };
