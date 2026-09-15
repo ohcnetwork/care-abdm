@@ -100,6 +100,7 @@ Base URL for every source: `https://abdm-docs.dev.eka.care/docs/hiecm/v3/`.
 | F3 | 2026-09-15 | Positive | "A care context is linked when the callback says so, not when the call returns" (whats-new 2026-09-10). The plug keys `linked` on `/v3/link/on_carecontext`. | `whats-new/2026-09-10`, `api/m2/endpoints/m2-on-carecontext-result` |
 | F4 | 2026-09-15 | Open | `m2-on-carecontext-result` keeps `status` as free text ("one observed value, `invalid   [invalid request]`"). No success value is named. The plug treats "no `error` block" as success and `ABDM-1056` (already linked) as success. | `api/m2/endpoints/m2-on-carecontext-result`, `api/m2/errors` |
 | F5 | 2026-09-10 | Open | `m2-generate-link-token` types `abhaNumber` as integer; `m2-hip-link-care-context` types it as string. | both pages |
+| F6 | 2026-09-15 | Open | `ABDM-1092 Duplicate Link token request` fires with a **fresh `REQUEST-ID`**, so the docs' action "New request id" does not apply. Observed 2026-09-15 for 1 ABHA address at 1 HIP: requests at 17:30, 17:36, 17:51 and 18:12 IST were accepted (202); 7 requests from 18:15 to 18:18 were refused with 1092. The key is the ABHA address + HIP with an open request, and the window is undocumented (the 17:51 and 18:12 requests were 21 minutes apart and both accepted). The page should say what "duplicate" means for this call and how long a request stays open. | `api/m2/errors`, `api/m2/endpoints/m2-generate-link-token` |
 
 ## G. M2 — discovery and user-initiated linking
 

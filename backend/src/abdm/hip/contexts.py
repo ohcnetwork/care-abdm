@@ -19,7 +19,7 @@ from care.emr.models.patient import Patient
 from django.utils import timezone
 
 from abdm.care_seams import AbhaAddressIdentifier, AbhaNumberIdentifier
-from abdm.facility.service import get_config, hip_id_for
+from abdm.facility.service import facility_for_hip_id, get_config, hip_id_for
 from abdm.fhir import available_hi_types
 from abdm.gateway import outbound
 from abdm.gateway.session import utc_timestamp
@@ -35,6 +35,10 @@ SMS_URL = "/api/hiecm/hip/v3/link/patient/links/sms/notify2"
 
 # m2-errors: "ABDM-1056 This care contexts has been already linked" -> treat as success.
 ALREADY_LINKED_CODES = {"ABDM-1056"}
+# m2-errors: "ABDM-1092 Duplicate Link token request". Observed 2026-09-15 with a fresh REQUEST-ID:
+# the gateway still holds the earlier request for this ABHA at this HIP open, and its callback
+# is the answer. The docs' remedy "New request id" does not apply (findings F6).
+DUPLICATE_TOKEN_REQUEST = "ABDM-1092"
 
 
 class LinkingError(Exception):
@@ -122,12 +126,21 @@ def ensure_link_token(patient: Patient, facility) -> AbdmLinkToken:
     body = rules.generate_token_body(address, number, patient.name, patient.gender, year)
     request = outbound.send("m2-generate-link-token", GENERATE_TOKEN_URL, body, facility=facility, patient=patient)
     row.abha_address = address
-    row.request = request
     if request.status == request.Status.SUCCEEDED:
+        row.request = request
         row.status = row.Status.REQUESTED
         row.error_code = ""
         row.error_message = ""
+    elif request.error_code == DUPLICATE_TOKEN_REQUEST:
+        # Keep the earlier request: the callback echoes its REQUEST-ID, not this one.
+        row.status = row.Status.REQUESTED
+        row.error_code = DUPLICATE_TOKEN_REQUEST
+        row.error_message = (
+            "The gateway still holds an open link-token request for this patient at this facility. "
+            "Waiting for its callback; a new request is refused until then."
+        )
     else:
+        row.request = request
         row.status = row.Status.FAILED
         row.error_code = request.error_code[:64]
         row.error_message = outbound.failure_detail(request)[:512]
@@ -167,12 +180,13 @@ def _token_for_callback(callback: AbdmCallback) -> AbdmLinkToken:
         outbound_row = AbdmOutboundRequest.objects.filter(request_id=callback.response_request_id).first()
     row = AbdmLinkToken.objects.filter(request=outbound_row).first() if outbound_row else None
     if row is None:
-        # Fall back to the ABHA address in the body; the gateway may answer with a new request id.
+        # Fall back to the ABHA address in the body: the gateway may echo an earlier request id, and
+        # the row may have moved on (failed on ABDM-1092, or re-requested) since that request.
         address = str((callback.parsed_json or {}).get("abhaAddress") or "").lower()
-        hip_id = callback.hip_id_header
-        rows = AbdmLinkToken.objects.filter(abha_address__iexact=address, status=AbdmLinkToken.Status.REQUESTED)
-        if hip_id:
-            rows = rows.filter(facility__extensions__abdm__facility_id=hip_id)
+        rows = AbdmLinkToken.objects.filter(abha_address__iexact=address)
+        facility = facility_for_hip_id(callback.hip_id_header)
+        if facility is not None:
+            rows = rows.filter(facility=facility)
         row = rows.order_by("-modified_date").first()
     if row is None:
         raise LinkingError(f"No link-token request matches callback {callback.external_id}")
@@ -213,8 +227,8 @@ def request_link(context: AbdmCareContext) -> AbdmCareContext:
     if not token.usable:
         # Token requested; handle_generate_token_result() continues from here.
         context.status = context.Status.PENDING
-        context.error_code = ""
-        context.error_message = "Waiting for the link token"
+        context.error_code = token.error_code if token.error_code == DUPLICATE_TOKEN_REQUEST else ""
+        context.error_message = token.error_message or "Waiting for the link token"
         context.save(update_fields=["status", "error_code", "error_message", "modified_date"])
         return context
     address, number = patient_abha(context.patient)
