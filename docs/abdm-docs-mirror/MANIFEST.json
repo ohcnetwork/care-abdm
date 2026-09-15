@@ -1,0 +1,26 @@
+{
+  "source": "https://abdm-docs.dev.eka.care",
+  "fetched_at": "2026-09-15T05:34:13Z",
+  "catalogue_version": "2026.08.24",
+  "skills_built": "2026-09-14",
+  "page_prefixes": [
+    "/docs/hiecm/v3",
+    "/docs/whats-new"
+  ],
+  "pages": 382,
+  "pages_written": 382,
+  "pages_failed": [],
+  "skills": [
+    "abdm-m1",
+    "abdm-m2",
+    "abdm-m3",
+    "abdm-m4",
+    "abdm-p1",
+    "abdm-p2",
+    "abdm-p3",
+    "abdm-phr-services",
+    "abdm-fhir"
+  ],
+  "skill_files_written": 42,
+  "skill_files_failed": []
+}

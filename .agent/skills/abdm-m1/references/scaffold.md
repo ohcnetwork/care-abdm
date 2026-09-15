@@ -269,6 +269,104 @@ The document is not accepted. NHA's collection only exercises a driving
 licence, so treat other document types as unproven until you have run
 them.
 
+### Create an ABHA using Aadhaar demographic authentication (`hiecm.flow.m1-create-abha-demographic-auth`)
+
+**Before you start**
+
+- A working gateway session token. See
+  the gateway session (hiecm.concept.gateway-session).
+- The public certificate, because the Aadhaar number is encrypted before
+  it is sent. See fetch the public certificate (hiecm.endpoint.m1-get-public-certificate).
+- The person's name exactly as Aadhaar holds it, their date of birth and
+  their gender. A near miss on any of them is a refusal, not a warning.
+- Their consent, recorded the same way the other enrolment routes record it.
+
+**Act: the calls in this flow, in order**
+
+#### Create an ABHA from a verified Aadhaar OTP (`hiecm.endpoint.m1-enrolment-by-aadhaar`)
+
+```bash
+curl -X POST 'https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/enrol/byAadhaar' \
+  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
+  -H 'REQUEST-ID: <FRESH_UUID>' \
+  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
+  -H 'BENEFIT_NAME: <BENEFIT_SCHEME_NAME>' \
+  -H 'X-token: <X_TOKEN_FROM_LOGIN_VERIFY>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "authData": {
+    "authMethods": [
+      "otp"
+    ],
+    "otp": {
+      "txnId": "<TXN_ID>",
+      "otpValue": "<OTPVALUE>",
+      "mobile": "<MOBILE>"
+    }
+  },
+  "consent": {
+    "code": "abha-enrollment",
+    "version": "1.4"
+  }
+}'
+```
+
+#### Encrypt a value with NHA's public key (`hiecm.endpoint.m1-encrypt-value`)
+
+```bash
+curl -X POST 'https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/encrypt' \
+  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
+  -H 'REQUEST-ID: <FRESH_UUID>' \
+  -H 'TIMESTAMP: <UTC_ISO_8601_WITH_MILLISECONDS_AND_Z>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "data": "<PLAINTEXT_TO_ENCRYPT>"
+}'
+```
+
+#### Get RSA Public Certificate (`hiecm.endpoint.m1-get-public-certificate`)
+
+```bash
+curl -X GET 'https://abhasbx.abdm.gov.in/abha/api/v3/profile/public/certificate' \
+  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
+  -H 'REQUEST-ID: <FRESH_UUID>' \
+  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
+  -H 'X-CM-ID: sbx'
+```
+
+#### Read the signed in person's ABHA profile (`hiecm.endpoint.m1-profile-get-account`)
+
+```bash
+curl -X GET 'https://abhasbx.abdm.gov.in/abha/api/v3/profile/account' \
+  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
+  -H 'REQUEST-ID: <FRESH_UUID>' \
+  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
+  -H 'X-token: <X_TOKEN_FROM_LOGIN_VERIFY>'
+```
+
+**Exit condition (Observe until this is true)**
+
+The enrolment response carries an ABHA number and a profile, and
+reading the profile (hiecm.endpoint.m1-profile-get-account) with the
+token from that response returns the same account rather than a 401.
+
+The profile already carries an ABHA address, which is what tells you the
+default was generated and that this was the demographic route rather than
+one that still owes an address.
+
+**If it goes wrong**
+
+- The demographics do not match Aadhaar. The specification names
+  `INVALID_DEMOGRAPHIC_DETAILS`. Which field failed is not published, so
+  your screen has to ask the person to check all of them.
+- The parsing reads no token, because the code looked under `tokens` and
+  the value is at the top level.
+- The person is surprised by an unreadable ABHA address, because the
+  default was generated and nobody offered them a choice.
+
+Nothing in this flow has been run against the sandbox from this
+repository, so treat the step order as documented rather than proven.
+
 ### Create an ABHA using Aadhaar face authentication (`hiecm.flow.m1-create-abha-face-auth`)
 
 **Before you start**
@@ -381,6 +479,101 @@ than retrying the same block.
 The person completes face authentication and nothing happens in your
 application. Nothing pushes that result to you, so you must continue the
 flow yourself once they confirm.
+
+### Create a child ABHA under a parent's account (`hiecm.flow.m1-create-child-abha`)
+
+**Before you start**
+
+- A working gateway session token. See
+  the gateway session (hiecm.concept.gateway-session).
+- The parent logged in, because the create call runs against the parent's
+  authenticated session rather than the child's. See
+  login by mobile number (hiecm.flow.m1-login-by-mobile).
+- The parent's ABHA number or ABHA address, which identifies them on the
+  create call.
+- The parent aged 18 or over. Below that the enrolment is refused.
+- The child's first name, last name, day, month and year of birth, and
+  gender.
+
+**Act: the calls in this flow, in order**
+
+#### Create an ABHA from a verified Aadhaar OTP (`hiecm.endpoint.m1-enrolment-by-aadhaar`)
+
+```bash
+curl -X POST 'https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/enrol/byAadhaar' \
+  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
+  -H 'REQUEST-ID: <FRESH_UUID>' \
+  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
+  -H 'BENEFIT_NAME: <BENEFIT_SCHEME_NAME>' \
+  -H 'X-token: <X_TOKEN_FROM_LOGIN_VERIFY>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "authData": {
+    "authMethods": [
+      "otp"
+    ],
+    "otp": {
+      "txnId": "<TXN_ID>",
+      "otpValue": "<OTPVALUE>",
+      "mobile": "<MOBILE>"
+    }
+  },
+  "consent": {
+    "code": "abha-enrollment",
+    "version": "1.4"
+  }
+}'
+```
+
+#### List the child ABHA accounts linked to this account (`hiecm.endpoint.m1-enrolment-list-children`)
+
+```bash
+curl -X GET 'https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/profile/children' \
+  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
+  -H 'REQUEST-ID: <FRESH_UUID>' \
+  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
+  -H 'X-token: <X_TOKEN_FROM_LOGIN_VERIFY>'
+```
+
+#### Update fields on an ABHA profile (`hiecm.endpoint.m1-profile-update-account`)
+
+```bash
+curl -X PATCH 'https://abhasbx.abdm.gov.in/abha/api/v3/profile/account' \
+  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
+  -H 'REQUEST-ID: <FRESH_UUID>' \
+  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
+  -H 'BENEFIT_NAME: <BENEFIT_SCHEME_NAME>' \
+  -H 'X-token: <X_TOKEN_FROM_LOGIN_VERIFY>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "abhaNumber": "<ABHA_NUMBER>",
+  "name": "<NAME>",
+  "dob": "<DATE_OF_BIRTH>",
+  "gender": "M"
+}'
+```
+
+**Exit condition (Observe until this is true)**
+
+The create response carries the child's ABHA number, and listing the
+children on the parent's account returns that child with the count raised
+by one. The listing is the proof, because the create response on its own
+does not tell you the account was attached to the right parent.
+
+**If it goes wrong**
+
+- The parent is under 18. The specification names this refusal, and it is
+  a rule about the parent rather than the child, which is not obvious from
+  the screen the operator is looking at.
+- The account has already enrolled as many children as it may. The
+  specification names a child enrolment limit per ABHA, so an account that
+  worked five times can refuse the sixth.
+- The parent is not authenticated, or their token has expired. The create
+  call runs against the parent's session, so this reads as an
+  authorisation failure rather than as a validation one.
+
+Nothing in this flow has been run against the sandbox from this
+repository, so treat the step order as documented rather than proven.
 
 ### Find somebody's ABHA when they do not know it (`hiecm.flow.m1-find-abha`)
 

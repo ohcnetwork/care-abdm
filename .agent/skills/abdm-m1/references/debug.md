@@ -233,6 +233,18 @@ No code at all. The key names the field you got wrong. Several bad fields produc
 
 Treat every key except `timestamp` as a field name. These always arrive as HTTP 400.
 
+Two of these read almost the same and mean opposite halves of the same step.
+
+| Body | What failed | What to change |
+|---|---|---|
+| `{"loginId": "Invalid LoginId"}` | The service could not decrypt the value | The key or the padding. Observed with the wrong padding on 2026-09-09 |
+| `{"loginId": "LoginId is invalid"}` | It decrypted, then the plaintext failed a format rule | The plaintext shape. Observed with an ABHA number sent as 14 bare digits on 2026-09-11 |
+
+The second is the one that costs an afternoon, because the value really was
+encrypted and really was the right number. An ABHA number keeps its dashes,
+`NN-NNNN-NNNN-NNNN`. The plaintext shape for every encrypted field is in
+[encryption](/docs/hiecm/v3/concepts/encryption).
+
 ### Shape 4: the API gateway error
 
 ```json

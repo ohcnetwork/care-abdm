@@ -94,7 +94,7 @@ The calls themselves: where they live, what they need in their headers, and one 
 | `REQUEST-ID` | A fresh UUID that you generate for this request. The callback that answers it carries the same value, so this… |
 | `TIMESTAMP` | The current time in ISO 8601, UTC, with milliseconds and a `Z` suffix, from a synchronised clock. The sandbox… |
 | `X-CM-ID` | Which consent manager you are talking to. `sbx` on the sandbox and `abdm` in production. A dedicated error co… |
-| `X-HIP-ID` | Identifier of the Health Information Provider the request or callback belongs to. |
+| `X-HIP-ID` | Identifier of the Health Information Provider the request or callback belongs to. This is per facility, and i… |
 | `X-Link-Token` | Short-lived link token generated via POST /hiecm/v3/token/generate-token |
 ## A request, in full
 

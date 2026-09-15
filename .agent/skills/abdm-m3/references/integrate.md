@@ -79,7 +79,7 @@ The calls themselves: where they live, what they need in their headers, and one 
 | `REQUEST-ID` | A fresh UUID that you generate for this request. The callback that answers it carries the same value. In M3 a… |
 | `TIMESTAMP` | The current time in ISO 8601 UTC, with milliseconds and the `Z` suffix. The gateway rejects a request whose t… |
 | `X-CM-ID` | Which consent manager you are talking to. `sbx` on the sandbox and `abdm` in production. |
-| `X-HIU-ID` | Identifier of the health information user the request or callback is intended for. |
+| `X-HIU-ID` | Identifier of the health information user the request or callback is intended for. This is per facility, and … |
 ## A request, in full
 
 ```bash

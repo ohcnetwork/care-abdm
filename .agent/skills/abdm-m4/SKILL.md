@@ -5,7 +5,7 @@ description: Use when building, debugging or testing ABDM Milestone 4, the NHPR:
 
 # ABDM M4, facility and professional registries
 
-Generated from the ABDM Developer Portal on 2026-09-07, catalogue version 2026.08.24. Every fact below comes from a page in that portal, which is the place to look when this file does not carry enough.
+Generated from the ABDM Developer Portal on 2026-09-14, catalogue version 2026.08.24. Every fact below comes from a page in that portal, which is the place to look when this file does not carry enough.
 
 This file is a snapshot. Re-download it from https://abdm-docs.dev.eka.care/skills/abdm-m4/SKILL.md when it is older than the work you are doing.
 If the abdm-docs MCP server is connected, trust its answers over this file: it serves the current catalogue and stamps every response with its catalogue_version, which you can compare against the version above.
@@ -23,7 +23,7 @@ Open one when the work calls for it. This file is the map, not the material.
 
 - Nothing here has been run against the ABDM sandbox. Treat request and response shapes as unconfirmed, and check a response before you rely on its shape.
 - Neither registry moves a health record. M4 establishes who the professional is and what the facility is, so every record flow has a verified provider behind it.
-- M4 blocks M2 and M3 in production. Without a facility in the HFR and a bridge linked to it, you cannot share as a HIP or fetch as an HIU.
+- M2 and M3 need a facility in the HFR and a bridge linked to it before records flow in production. M4 is the API route to that. Registering the facility by hand on the NHPR portal is the other route, and a product that takes it never builds M4.
 - The HPR comes first. Onboarding a facility needs an HPR token, which needs a person who already holds an HPID.
 - Creating an HPID returns an `hprToken`. Keep it: the register professional call carries it in its payload.
 - A facility ID is `IN` followed by 10 characters. An HPID is 14 digits.

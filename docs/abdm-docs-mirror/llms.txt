@@ -47,6 +47,7 @@ Add `.md` to any link below to get that page as markdown. Individual API operati
 - [PHR app](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/participants/phr): The citizen facing app: what identifies it, the three milestones it builds, and why it is where consent happens.
 - [PHR applications](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/phr): What a personal health record app does in ABDM, the screens it needs, and the modules you have to build.
 - [Get started](https://abdm-docs.dev.eka.care/docs/hiecm/v3/getting-started): Connect your application to India's health data network, from sandbox credentials to your first call to going live.
+- [Build it well](https://abdm-docs.dev.eka.care/docs/hiecm/v3/getting-started/build-it-well): What to validate before you call, what to do with each error, what is safe to retry, and what the person at the counter sees while it happens.
 - [Build with AI](https://abdm-docs.dev.eka.care/docs/hiecm/v3/getting-started/build-with-ai): Set a coding agent up to build your ABDM integration, from a one-file skill to live retrieval over MCP.
 - [Quickstart](https://abdm-docs.dev.eka.care/docs/hiecm/v3/getting-started/first-fifteen-minutes): Create a gateway session and then create your first ABHA, live from this page, with your own sandbox credentials.
 - [Glossary](https://abdm-docs.dev.eka.care/docs/hiecm/v3/getting-started/glossary): The ABDM terms used across this documentation, and the HIE-CM ones, defined once.
@@ -57,7 +58,7 @@ Add `.md` to any link below to get that page as markdown. Individual API operati
 - [M1 Create: ABHA identity](https://abdm-docs.dev.eka.care/docs/hiecm/v3/milestones/m1): What Milestone 1 gives you, what you need before your first call, and the order to build it in.
 - [M2 Attach: linking and sharing](https://abdm-docs.dev.eka.care/docs/hiecm/v3/milestones/m2): What Milestone 2 gives you, the prerequisites that block it, the record types you can link, and the order to build it in.
 - [M3 Retrieve: consent and fetching](https://abdm-docs.dev.eka.care/docs/hiecm/v3/milestones/m3): What Milestone 3 gives you, who asks the patient for consent, what you store, and the order to build it in.
-- [M4 Enrol: facilities and professionals](https://abdm-docs.dev.eka.care/docs/hiecm/v3/milestones/m4): What Milestone 4 covers, who needs it, how the two registries connect, and why it blocks going live.
+- [M4 Enrol: facilities and professionals](https://abdm-docs.dev.eka.care/docs/hiecm/v3/milestones/m4): What Milestone 4 covers, who needs it, how the two registries connect, and when to build it rather than use the NHPR portal.
 - [P1 Identity and profile](https://abdm-docs.dev.eka.care/docs/hiecm/v3/milestones/p1): The patient side of M1: how a person registers in your PHR app, logs in four ways, and holds their own profile and ABHA card.
 - [P2 Linking and records](https://abdm-docs.dev.eka.care/docs/hiecm/v3/milestones/p2): The patient side of M2: how a PHR app finds records held elsewhere, links them to an ABHA address, and shares a profile at a facility.
 - [P3 Consent and notifications](https://abdm-docs.dev.eka.care/docs/hiecm/v3/milestones/p3): The patient side of M3: subscriptions, auto approval, granting and revoking consent, and fetching the records a grant covers.
@@ -121,6 +122,7 @@ Add `.md` to any link below to get that page as markdown. Individual API operati
 - [1 September 2026](https://abdm-docs.dev.eka.care/docs/whats-new/2026-09-01): What changed in these pages on 1 September 2026.
 - [2 September 2026](https://abdm-docs.dev.eka.care/docs/whats-new/2026-09-02): What changed in these pages on 2 September 2026.
 - [3 September 2026](https://abdm-docs.dev.eka.care/docs/whats-new/2026-09-03): What changed in these pages on 3 September 2026.
+- [10 September 2026](https://abdm-docs.dev.eka.care/docs/whats-new/2026-09-10): What changed in these pages on 10 September 2026.
 
 ## Optional
 

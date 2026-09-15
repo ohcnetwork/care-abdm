@@ -5,7 +5,7 @@ description: Use when producing or checking FHIR for ABDM: building NRCES compli
 
 # ABDM FHIR
 
-Generated from the ABDM Developer Portal on 2026-09-07, catalogue version 2026.08.24.
+Generated from the ABDM Developer Portal on 2026-09-14, catalogue version 2026.08.24.
 
 This file is a snapshot. Re-download it from https://abdm-docs.dev.eka.care/skills/abdm-fhir/SKILL.md when it is older than the work you are doing.
 
