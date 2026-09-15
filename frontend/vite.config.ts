@@ -31,9 +31,9 @@ export default defineConfig({
     target: "esnext",
     minify: true,
     cssCodeSplit: false,
-    modulePreload: {
-      polyfill: false,
-    },
+    // A federated remote must not emit <link rel=modulepreload>: the hints resolve against the
+    // host origin and 404 there (observed as ~25 console errors per page on 2026-09-15).
+    modulePreload: false,
     rollupOptions: {
       external: [],
       input: {

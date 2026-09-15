@@ -36,7 +36,6 @@ import {
   Router,
   Server,
 } from "lucide-react";
-import { Link } from "raviger";
 import { useState } from "react";
 
 /**
@@ -362,13 +361,14 @@ export default function AbdmAdminDashboard() {
                               {formatDate(row.hrp_registered_at)}
                             </TableCell>
                             <TableCell className="text-right">
-                              <Link
+                              {/* Full page load on purpose: a client-side move from /admin to an
+                                  app route crashes the host's PinPageDialog (hooks order). */}
+                              <a
                                 href={`/facility/${row.id}/abdm/setup`}
-                                basePath="/"
                                 className="text-primary text-xs underline-offset-4 hover:underline"
                               >
                                 {t("abdm_open_setup")}
-                              </Link>
+                              </a>
                             </TableCell>
                           </TableRow>
                         ))}

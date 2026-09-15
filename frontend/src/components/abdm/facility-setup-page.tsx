@@ -32,7 +32,6 @@ import {
   X,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { Link } from "raviger";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -452,13 +451,12 @@ export default function AbdmFacilitySetupPage({
                       bridge.data.bridge.url === bridge.data.callback_url
                         ? t("abdm_bridge_registered")
                         : t("abdm_bridge_not_registered")}
-                      <Link
+                      <a
                         href="/admin/abdm"
-                        basePath="/"
                         className="text-primary underline-offset-4 hover:underline"
                       >
                         {t("abdm_bridge_admin_link")}
-                      </Link>
+                      </a>
                     </span>
                   </div>
                   <div className="ml-auto flex items-center gap-2">

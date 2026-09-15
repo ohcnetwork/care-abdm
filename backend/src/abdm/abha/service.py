@@ -44,6 +44,10 @@ def _capture_token(txn: AbhaTransaction, tokens: dict | None) -> None:
     expires_in = tokens.get("expiresIn")
     txn.x_token_expires_at = now + timedelta(seconds=int(expires_in)) if expires_in else None
     # A refresh response may omit refreshToken (docs don't say); keep the previous one in that case.
+    if not tokens.get("refreshToken"):
+        # Observed 2026-09-15: a login transaction held no refresh token, so the card could not be
+        # fetched after the X-token expired. This line tells us whether ABDM omitted it.
+        logger.info("abdm: token response for txn %s has no refreshToken; keys=%s", txn.txn_id, sorted(tokens.keys()))
     if tokens.get("refreshToken"):
         txn.refresh_token = tokens["refreshToken"]
         refresh_in = tokens.get("refreshExpiresIn")

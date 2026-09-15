@@ -7,6 +7,7 @@ from care.emr.models.encounter import Encounter
 from care.emr.models.patient import Patient
 from care.facility.models import Facility
 from care.security.authorization import AuthorizationController
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
@@ -60,7 +61,15 @@ def care_context_state(encounter: Encounter) -> dict:
     context = AbdmCareContext.objects.filter(encounter=encounter).first()
     address, number = contexts.patient_abha(encounter.patient)
     token = AbdmLinkToken.objects.filter(patient=encounter.patient, facility=encounter.facility).first()
-    activity = AbdmOutboundRequest.objects.filter(encounter=encounter).order_by("-sent_at")[:10]
+    # Token and SMS requests are per patient and facility, not per encounter; the desk still needs to see them.
+    activity = AbdmOutboundRequest.objects.filter(
+        Q(encounter=encounter)
+        | Q(
+            patient=encounter.patient,
+            facility=encounter.facility,
+            operation_id__in=["m2-generate-link-token", "m2-sms-deep-link-notify"],
+        )
+    ).order_by("-sent_at")[:10]
     return {
         "facilityConfigured": bool(hip_id_for(encounter.facility)),
         "patientAbhaAddress": address,
