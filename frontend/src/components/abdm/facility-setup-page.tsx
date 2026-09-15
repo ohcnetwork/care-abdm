@@ -29,10 +29,10 @@ import {
   CircleDashed,
   Hospital,
   QrCode,
-  Router,
   X,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import { Link } from "raviger";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -271,13 +271,6 @@ export default function AbdmFacilitySetupPage({
     queryFn: query(careApi.bridge, { silent: true }),
     retry: false,
   });
-  const registerUrl = useMutation<AbdmBridgeState, unknown, Record<string, never>>({
-    mutationFn: mutate(careApi.bridgeRegisterUrl, { silent: true }),
-    onMutate: () => setActionError(undefined),
-    onSuccess: (data) => qc.setQueryData(["abdm", "bridge"], data),
-    onError: (error) =>
-      setActionError(errorMessage(error, t("abdm_bridge_register_failed"))),
-  });
 
   const saved = settings.data;
   const dirty = useMemo(() => {
@@ -296,7 +289,7 @@ export default function AbdmFacilitySetupPage({
     Boolean(config.hip_name) && !HIP_NAME_RE.test(config.hip_name);
   const formInvalid = facilityIdInvalid || facilityNameInvalid || hipNameInvalid;
 
-  const busy = save.isPending || hrp.isPending || registerUrl.isPending;
+  const busy = save.isPending || hrp.isPending;
   const [newCounter, setNewCounter] = useState("");
   const counterValid = /^[A-Za-z0-9]{1,20}$/.test(newCounter);
   const counterDuplicate = config.counters.some(
@@ -447,11 +440,27 @@ export default function AbdmFacilitySetupPage({
                   </div>
                 </CardContent>
                 <CardFooter className="flex flex-wrap items-center gap-3 border-t">
-                  <RegistrationStatus
-                    label={t("abdm_hrp_registered_at")}
-                    timestamp={config.hrp_registered_at}
-                    notRecorded={t("abdm_not_recorded")}
-                  />
+                  <div className="grid gap-1">
+                    <RegistrationStatus
+                      label={t("abdm_hrp_registered_at")}
+                      timestamp={config.hrp_registered_at}
+                      notRecorded={t("abdm_not_recorded")}
+                    />
+                    {/* The bridge is instance level; HRP registration needs it first. */}
+                    <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+                      {bridge.data?.bridge?.url &&
+                      bridge.data.bridge.url === bridge.data.callback_url
+                        ? t("abdm_bridge_registered")
+                        : t("abdm_bridge_not_registered")}
+                      <Link
+                        href="/admin/abdm"
+                        basePath="/"
+                        className="text-primary underline-offset-4 hover:underline"
+                      >
+                        {t("abdm_bridge_admin_link")}
+                      </Link>
+                    </span>
+                  </div>
                   <div className="ml-auto flex items-center gap-2">
                     {dirty && (
                       <span className="text-muted-foreground text-xs">
@@ -471,90 +480,6 @@ export default function AbdmFacilitySetupPage({
                 </CardFooter>
               </Card>
 
-              {/* The bridge is 1 per clientId (docs /getting-started/sandbox). This card
-                  reads the gateway live; the button is for the instance administrator. */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Router className="text-muted-foreground size-4" />
-                    {t("abdm_bridge")}
-                  </CardTitle>
-                  <CardDescription>{t("abdm_bridge_description")}</CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-3 text-sm md:grid-cols-2">
-                  <div className="grid gap-1">
-                    <span className="text-muted-foreground text-xs">
-                      {t("abdm_callback_url")}
-                    </span>
-                    <span className="font-mono text-xs break-all">
-                      {bridge.data?.callback_url ?? "\u2014"}
-                    </span>
-                  </div>
-                  <div className="grid gap-1">
-                    <span className="text-muted-foreground text-xs">
-                      {t("abdm_registered_url")}
-                    </span>
-                    <span className="font-mono text-xs break-all">
-                      {bridge.data?.bridge?.url || "\u2014"}
-                    </span>
-                  </div>
-                  <div className="grid gap-1">
-                    <span className="text-muted-foreground text-xs">
-                      {t("abdm_bridge_id")}
-                    </span>
-                    <span className="font-mono text-xs">
-                      {bridge.data?.bridge?.id || "\u2014"}
-                    </span>
-                  </div>
-                  <div className="grid gap-1">
-                    <span className="text-muted-foreground text-xs">
-                      {t("abdm_bridge_services")}
-                    </span>
-                    <span className="text-xs">
-                      {bridge.isLoading
-                        ? "\u2026"
-                        : (bridge.data?.services.length ?? 0)}
-                    </span>
-                  </div>
-                  {(bridge.isError || bridge.data?.error) && (
-                    <p className="text-destructive text-xs md:col-span-2">
-                      {bridge.data?.error || t("abdm_bridge_load_failed")}
-                    </p>
-                  )}
-                </CardContent>
-                <CardFooter className="flex flex-wrap items-center gap-3 border-t">
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1.5 text-xs",
-                      bridge.data?.bridge?.url &&
-                        bridge.data.bridge.url === bridge.data.callback_url
-                        ? "text-green-800"
-                        : "text-muted-foreground",
-                    )}
-                  >
-                    {bridge.data?.bridge?.url &&
-                    bridge.data.bridge.url === bridge.data.callback_url ? (
-                      <CheckCircle2 className="size-3.5" />
-                    ) : (
-                      <CircleDashed className="size-3.5" />
-                    )}
-                    {bridge.data?.bridge?.url &&
-                    bridge.data.bridge.url === bridge.data.callback_url
-                      ? t("abdm_bridge_registered")
-                      : t("abdm_bridge_not_registered")}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="ml-auto"
-                    disabled={busy}
-                    onClick={() => registerUrl.mutate({})}
-                  >
-                    {t("abdm_register_callback_url")}
-                  </Button>
-                </CardFooter>
-              </Card>
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">

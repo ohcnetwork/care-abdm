@@ -45,6 +45,21 @@ export type AbdmBridgeState = {
   registration?: { url: string; status_code: number; request_id: string };
 };
 
+/** GET /api/abdm/admin/overview (superuser): the bridge state plus the gateway session and the HIP facilities. */
+export type AbdmAdminOverview = AbdmBridgeState & {
+  gateway: { ok: boolean; token_prefix?: string; status_code?: number; request_id?: string };
+  facilities: {
+    id: string;
+    name: string;
+    facility_id: string;
+    facility_name: string;
+    hip_name: string;
+    counters: string[];
+    hrp_registered_at: string | null;
+    last_error: string;
+  }[];
+};
+
 // --- M2: care contexts, consents, data requests ---
 
 export type AbdmOutboundSummary = {
@@ -371,6 +386,11 @@ const routes = apiRoutes({
     method: HttpMethod.POST,
     TRequest: {} as Record<string, never>,
     TResponse: {} as AbdmBridgeState,
+  },
+  adminOverview: {
+    path: "/api/abdm/admin/overview",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmAdminOverview,
   },
   facilityAbdm: {
     path: "/api/abdm/facilities/{facilityId}/abdm",

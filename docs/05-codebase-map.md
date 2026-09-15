@@ -18,7 +18,7 @@ Read this before touching code. Every module has one job; keep it that way.
 | `gateway/outbound.py` | `send()`: every call to ABDM or to an HIU push URL; adds `REQUEST-ID`, `TIMESTAMP`, `X-CM-ID`, `Authorization`, `X-HIP-ID` (from the facility); records `AbdmOutboundRequest`; reads all 3 error envelopes | A 2xx with an `{"error": {...}}` body is a failure |
 | `gateway/certs.py` | Gateway JWKS, cached 6 h | No bearer token on the certs call |
 | `gateway/bridge.py` | Callback URL derivation, `PATCH bridge/url`, live `GET bridge-services` (caches the bridge id 1 h), HRP service registration on `ABDM_HSP_URL` | The gateway is the source of truth for bridge state; nothing is snapshotted |
-| `gateway/views.py` | `GET gateway/status`, `GET bridge`, `POST bridge/register-url` (superuser) | Probes never return tokens |
+| `gateway/views.py` | `GET gateway/status`, `GET bridge` (staff), `POST bridge/register-url` and `GET admin/overview` (superuser: gateway status, live bridge and services, HIP facilities) | Probes never return tokens |
 | `callbacks/receiver.py` | Stores each callback before verification; idempotency key; path → operation id map (every path variant the docs name) | Never dispatch an unverified callback |
 | `callbacks/signature.py` | RS256 JWT against the gateway JWKS; header from `ABDM_CALLBACK_SIGNATURE_HEADER` | Fails closed in every environment |
 | `callbacks/views.py` | Generic callback view (`AllowAny`, `202 {}` after verification) plus the superuser callback log | The list hides raw body and headers |
@@ -47,13 +47,14 @@ Why `post_save` and not a post-create callback: core drops `auto_maintained` ide
 
 | File | Job |
 |---|---|
-| `manifest.tsx` | Route `/facility/:facilityId/abdm/setup`; slots `FacilityHomeActions`, `PatientRegistrationForm`, `PatientDetailsTabDemographyGeneralInfo`, `PatientHomeActions`, `PatientSearchActions`, `EncounterActions`, `EncounterOverviewTop` |
+| `manifest.tsx` | Routes `/facility/:facilityId/abdm/setup` and `/admin/abdm` (+ `adminNavItems` entry "ABDM"); slots `FacilityHomeActions`, `PatientRegistrationForm`, `PatientDetailsTabDemographyGeneralInfo`, `PatientHomeActions`, `PatientSearchActions`, `EncounterActions`, `EncounterOverviewTop` |
 | `lib/request.ts` | Host-aware fetch (auth header, `CARE_API_URL`); `apiRoutes`; `fetchBlob` for the card |
 | `lib/careApi.ts` | Every plug route + TS types. Mirrors `backend/src/abdm/urls.py` |
 | `components/abdm/abha-wizard.tsx` | The M1 dialog: Create (Aadhaar OTP → mobile OTP → address) or Link (mobile / ABHA number / ABHA address / Aadhaar) |
 | `components/abdm/field-help.tsx` | ABDM-docs-sourced help icon for manual fields |
 | `components/abdm/facility-home-actions.tsx` | Slot: one dropdown row that links to the setup page (ADR-009) |
-| `components/abdm/facility-setup-page.tsx` | 3 cards: facility identity + HRP registration; bridge (live state, superuser register button); Scan and Share counters with QR codes |
+| `components/abdm/admin-dashboard.tsx` | `/admin/abdm`: gateway session badge, bridge card (callback URL vs registered URL, register button), live bridge services table, HIP facilities table with links to their setup pages, last 20 callbacks. All values read live |
+| `components/abdm/facility-setup-page.tsx` | 2 cards: facility identity + HRP registration (with a 1-line bridge status that links to `/admin/abdm`); Scan and Share counters with QR codes |
 | `components/abdm/patient-registration-form.tsx` | Slot: runs the wizard, sets `extensions.abdm.txn_id`, prefills demographics; consumes `?abdm_txn=` |
 | `components/abdm/patient-abha-panel.tsx` | Slot on the Demography tab: status, copy, link, card |
 | `components/abdm/patient-home-actions.tsx` | Sidebar chip |
@@ -67,7 +68,7 @@ Why `post_save` and not a post-create callback: core drops `auto_maintained` ide
 
 ## Bruno collection — `bruno/`
 
-Folders: `auth`, `probes`, `bridge`, `facility`, `abha-enrol`, `abha-login`, `transactions`, `patient`, `encounters`, `callbacks`, `scan-share`. 46 requests; every route in `urls.py` has one. Secrets and personal data are secret variables.
+Folders: `auth`, `probes`, `bridge`, `facility`, `abha-enrol`, `abha-login`, `transactions`, `patient`, `encounters`, `callbacks`, `scan-share`. 47 requests; every route in `urls.py` has one. Secrets and personal data are secret variables.
 
 ## Data flow — HIP-initiated link (M2 journey 1)
 

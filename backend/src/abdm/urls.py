@@ -28,6 +28,7 @@ urlpatterns = [
     path("gateway/status", gateway_views.GatewayStatus.as_view()),
     path("bridge", gateway_views.BridgeState.as_view()),
     path("bridge/register-url", gateway_views.BridgeRegisterUrl.as_view()),
+    path("admin/overview", gateway_views.AdminOverview.as_view()),
     # --- facility setup (ADR-007): HFR facility ID, names, counters; HRP service registration ---
     path("facilities/<uuid:facility_id>/abdm", facility_views.FacilityAbdmConfig.as_view()),
     path("facilities/<uuid:facility_id>/abdm/hrp-services", facility_views.FacilityHrpServices.as_view()),

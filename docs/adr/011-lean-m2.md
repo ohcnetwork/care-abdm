@@ -26,7 +26,9 @@ less code. The docs update of the same day fixed 3 facts that shape the design:
 1. **The gateway is the source of truth for bridge state.** No `AbdmBridge` table. `gateway/bridge.py`
    reads `GET /api/hiecm/gateway/v3/bridge-services` live and caches only the bridge id (1 hour).
    Bridge URL registration is `manage.py abdm_register_bridge_url` or `POST /api/abdm/bridge/register-url`
-   (superuser). The facility setup page shows the live bridge state; there is no admin page.
+   (superuser). The instance dashboard `/admin/abdm` (Rithvik, 2026-09-15: "it is for the whole CARE
+   instance") shows the gateway session, the bridge, its services, the HIP facilities and the recent
+   callbacks, all read live. The facility setup page shows only a 1-line bridge status.
 2. **One table per ABDM object the HIP must remember**, all in `abdm/models.py`:
 
    | Table | 1 row per | Why a table |
@@ -57,7 +59,7 @@ less code. The docs update of the same day fixed 3 facts that shape the design:
 
 ## Consequences
 
-- 5 new tables instead of 8; 2 Celery tasks instead of 10; no admin page, nav item or snapshot table.
-- The setup page keeps 3 cards: facility identity + HRP registration, bridge (read-only + register), Scan and Share counters.
+- 5 new tables instead of 8; 2 Celery tasks instead of 10; no snapshot table. The admin page is a live view, not a store.
+- The setup page keeps 2 cards: facility identity + HRP registration, Scan and Share counters. The bridge lives on `/admin/abdm`.
 - Notify-on-new-records fires on Encounter status change or on the desk action, not on every clinical write. Recorded as a limitation in `03-roadmap.md`.
 - Every docs gap met on the way is a row in `findings.md` sections E–I.

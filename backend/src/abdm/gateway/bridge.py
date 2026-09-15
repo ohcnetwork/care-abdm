@@ -93,9 +93,11 @@ def bridge_id() -> str:
 
 
 def bridge_state() -> dict:
-    """What the setup page shows: the derived callback URL plus the live gateway view."""
-    state = {"callback_url": callback_url(), "bridge": None, "services": [], "error": ""}
+    """What the admin and setup pages show: the derived callback URL plus the live gateway view.
+    Never raises: a missing ABDM_CALLBACK_BASE_URL or a gateway failure lands in `error`."""
+    state = {"callback_url": "", "bridge": None, "services": [], "error": ""}
     try:
+        state["callback_url"] = callback_url()
         live = bridge_services()
     except BridgeError as exc:
         state["error"] = str(exc)

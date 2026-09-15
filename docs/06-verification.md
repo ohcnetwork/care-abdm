@@ -42,7 +42,7 @@ discovery (match and no match); link init → wrong OTP → right OTP; consent G
 (both path variants); health-information request → encrypted push → **HIU-side decrypt and MD5
 check** → notify TRANSFERRED; a wider date range refused (`ABDM-1063`); SMS deep link; the 403 on
 bridge registration; Scan and Share token `OPD1-001`. It cleans up every row it created and
-restores the facility extension. Expected last lines: `M2 SMOKE OK — outbound calls: 19 callbacks: 14`
+restores the facility extension. Expected last lines: `M2 SMOKE OK — outbound calls: 21 callbacks: 14`
 and `cleanup done`.
 
 FHIR bundles use `fhir_smoke.py` in the same directory. It builds the 3 record types from fixture
@@ -111,4 +111,4 @@ function w(d){for(const f of fs.readdirSync(d)){const q=p.join(d,f);if(fs.statSy
 if(f.endsWith(".bru")&&f!=="collection.bru"&&f!=="folder.bru")bruToJsonV2(fs.readFileSync(q,"utf8"))}}w(process.argv[1]);console.log("ok")' ~/ohc.network/care-abdm-sbx/bruno
 ```
 
-Observed 2026-09-15: 58 files parsed, 46 requests, and the request paths matched `urls.py` both ways.
+Observed 2026-09-15: 59 files parsed, 47 requests, and the request paths matched `urls.py` both ways.

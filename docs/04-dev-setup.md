@@ -34,10 +34,10 @@
 - Register the bridge (callback) URL after a deploy or a tunnel URL change. It is 1 per `clientId`:
   `cd ~/ohc.network/care && set -a && . ./.env && set +a && .venv/bin/python manage.py abdm_register_bridge_url`
   (`--dry-run` prints the URL only). The command also prints the live bridge state. A superuser can do
-  the same from the bridge card on `/facility/<id>/abdm/setup`. Run it before the HRP service registration.
+  the same from `/admin/abdm` (admin sidebar → ABDM). Run it before the HRP service registration.
 - Run Celery. Every callback handler and the Encounter auto-link run in the worker:
   `cd ~/ohc.network/care && ./scripts/celery-dev.sh`.
-- Probes: `GET /api/abdm/health`; `GET /api/abdm/gateway/status`; `GET /api/abdm/bridge` (live gateway view).
+- Probes: `GET /api/abdm/health`; `GET /api/abdm/gateway/status`; `GET /api/abdm/bridge` (live gateway view); `GET /api/abdm/admin/overview` (superuser; backs `/admin/abdm`).
 - Callback log (superuser): `GET /api/abdm/callbacks?limit=20`; `GET /api/abdm/callbacks/<callback_id>`.
 - Encounter link state: `GET /api/abdm/encounters/<encounter_id>/care-context`.
 - Outside production the user-initiated link OTP is fixed: `123456` (Care core uses the same rule for login OTPs).

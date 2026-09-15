@@ -149,7 +149,7 @@ No model named `Immunization` or `Procedure` was found under `care/emr/models/` 
 | The host renders `FacilityHomeActions` inside the "Configurations" dropdown popup. The popup is a transformed ancestor, so a `position: fixed` panel in that subtree anchors to the popup and not to the viewport. | `~/ohc.network/care_fe/src/components/Facility/FacilityHome.tsx:236-257` |
 | `GET /api/v1/facility/{facilityId}/` returns the facility. The setup page reads the name from it. | `~/ohc.network/care_fe/src/types/facility/facilityApi.ts:34-38` |
 
-### Admin routes and nav (read 2026-09-14; not used since ADR-011 removed the admin page)
+### Admin routes and nav (read 2026-09-14; used by `/admin/abdm`)
 
 | Host fact | Source |
 |---|---|

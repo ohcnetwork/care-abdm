@@ -144,5 +144,5 @@ Base URL for every source: `https://abdm-docs.dev.eka.care/docs/hiecm/v3/`.
 - 2026-09-10 — Find by ABHA does not use core's `?identifier=` search. ABDM verifies the ABHA by OTP before Care looks it up.
 - 2026-09-10 — Care-context reference number = `Encounter.external_id`; display = `<OPD|IPD|class> records for <day>`; discovery matches on verified ABHA address or number only (ADR-008 decisions 2-4).
 - 2026-09-14 — `X-HIP-ID` is always the HFR facility ID; the plug derives it and ignores any client-supplied HIP ID.
-- 2026-09-15 — The bridge id is read live from the gateway and cached; no snapshot table (ADR-011).
+- 2026-09-15 — The bridge id is read live from the gateway and cached; no snapshot table (ADR-011). The bridge UI is instance-level at `/admin/abdm`, not on a facility page (Rithvik).
 - 2026-09-15 — Day-1 record types: OPConsultation, Prescription, HealthDocumentRecord (ADR-011).

@@ -1,4 +1,5 @@
 import { Suspense, lazy } from "react";
+import { Network } from "lucide-react";
 
 // Slot names must match care_fe/src/pluginTypes.ts `SupportedPluginComponents`
 // (read 2026-09-09). Host mount points:
@@ -11,6 +12,9 @@ import { Suspense, lazy } from "react";
 //   EncounterOverviewTop                    pages/Encounters/tabs/overview.tsx:56
 const AbdmFacilitySetupPage = lazy(
   () => import("@/components/abdm/facility-setup-page"),
+);
+const AbdmAdminDashboard = lazy(
+  () => import("@/components/abdm/admin-dashboard"),
 );
 
 const manifest = {
@@ -30,7 +34,21 @@ const manifest = {
         <AbdmFacilitySetupPage facilityId={facilityId} />
       </Suspense>
     ),
+    // Instance level: the bridge is 1 per clientId. The host appends plug
+    // adminNavItems after its own admin links (admin-nav.tsx:104).
+    "/admin/abdm": () => (
+      <Suspense fallback={null}>
+        <AbdmAdminDashboard />
+      </Suspense>
+    ),
   },
+  adminNavItems: [
+    {
+      name: "ABDM",
+      url: "/admin/abdm",
+      icon: <Network />,
+    },
+  ],
   components: {
     FacilityHomeActions: lazy(
       () => import("@/components/abdm/facility-home-actions"),
