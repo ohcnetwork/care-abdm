@@ -83,8 +83,15 @@ Definition of done for the MFE is `remoteEntry.js` fetchable over HTTP with
 The agent cannot see the UI; ask the user for a screenshot and record what it showed in
 `03-roadmap.md`.
 
+## Fork crash check (macOS)
+
+`diag_fork.py` (session files) forks from `manage.py shell` and runs the `sync_encounter` task body
+step by step in the child with `faulthandler` on, with the gateway call stubbed. Run it plain to see the
+crash line, then with `PGGSSENCMODE=disable no_proxy='*'` to see `child: DONE without crash`.
+
 ## Care core traps found so far (details in `findings.md` and the kiran skill caveats)
 
+- Celery prefork children segfault on macOS when libpq (GSSAPI) or `_scproxy` initialise after `fork()`. See `04-dev-setup.md`.
 - `PatientIdentifier` rows are invisible until `patient.build_instance_identifiers()` is persisted.
 - `auto_maintained` identifiers are dropped from create payloads.
 - Extension schema fields need `x-ui.render_blacklist` or the host renders them as form inputs.

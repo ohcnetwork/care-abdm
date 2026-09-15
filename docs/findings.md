@@ -138,6 +138,7 @@ Base URL for every source: `https://abdm-docs.dev.eka.care/docs/hiecm/v3/`.
 | J2 | 2026-09-09 | Handled | Auto-maintained identifier configs are dropped from create payloads, so the ABHA cannot arrive as an identifier from the form. Hence `extensions.abdm.txn_id` → `post_save`. | `care/emr/api/viewsets/patient.py:138` |
 | J3 | 2026-09-14 | Handled | The desk inbox and the ABHA wizard use `can_create_patient`, which is organisation-scoped, not facility-scoped. | `care/security/authorization/patient.py:87` |
 | J4 | 2026-09-15 | Handled | `Encounter.save()` runs for cache-only updates (`sync_organization_cache`). The plug's `post_save` skips saves whose `update_fields` touch neither `status`, `encounter_class` nor `period`. | `care/emr/models/encounter.py` |
+| J6 | 2026-09-15 | Handled (env) | On macOS the Celery prefork child segfaults at the first DB connection (libpq + nix `krb5` GSSAPI) and at the first HTTPS call (`urllib` `_scproxy`). The task that first showed it was `abdm.tasks.sync_encounter`, but every Care task is affected. Worker env: `PGGSSENCMODE=disable no_proxy='*'`. | `04-dev-setup.md` |
 | J5 | 2026-09-15 | Handled | Care sends a fixed OTP outside production (`care/emr/api/otp_viewsets/login.py`). The plug uses the same rule for the user-initiated link OTP (`123456` when `IS_PRODUCTION` is false). | `care/emr/api/otp_viewsets/login.py:98` |
 
 ## K. Product decisions recorded here (durable)
