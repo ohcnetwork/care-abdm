@@ -32,7 +32,10 @@ class CareContextRulesTests(unittest.TestCase):
 
     def test_generate_token_body_types_abha_number_as_integer(self):
         body = rules.generate_token_body("k@sbx", "91-1234-5678-9012", "K", "male", 1990)
-        self.assertEqual(body, {"abhaAddress": "k@sbx", "name": "K", "gender": "M", "yearOfBirth": 1990, "abhaNumber": 91123456789012})
+        self.assertEqual(
+            body,
+            {"abhaAddress": "k@sbx", "name": "K", "gender": "M", "yearOfBirth": 1990, "abhaNumber": 91123456789012},
+        )
         self.assertNotIn("abhaNumber", rules.generate_token_body("k@sbx", "", "K", "male", 1990))
 
     def test_link_body_types_abha_number_as_string_and_counts_contexts(self):
@@ -45,11 +48,15 @@ class CareContextRulesTests(unittest.TestCase):
 
 class DiscoveryRulesTests(unittest.TestCase):
     def test_abha_candidates_reads_patient_id_and_verified_identifiers(self):
-        address, number = rules.abha_candidates({"id": "kiran@sbx", "verifiedIdentifiers": [{"type": "ABHA_NUMBER", "value": "91-1234-5678-9012"}]})
+        address, number = rules.abha_candidates(
+            {"id": "kiran@sbx", "verifiedIdentifiers": [{"type": "ABHA_NUMBER", "value": "91-1234-5678-9012"}]}
+        )
         self.assertEqual((address, number), ("kiran@sbx", "91123456789012"))
 
     def test_abha_candidates_ignores_unverified_and_demographics(self):
-        address, number = rules.abha_candidates({"id": "MRN-1", "name": "Kiran", "unverifiedIdentifiers": [{"type": "MR", "value": "MRN-1"}]})
+        address, number = rules.abha_candidates(
+            {"id": "MRN-1", "name": "Kiran", "unverifiedIdentifiers": [{"type": "MR", "value": "MRN-1"}]}
+        )
         self.assertEqual((address, number), ("", ""))
 
     def test_otp_hash_roundtrip_and_mask(self):
@@ -75,7 +82,15 @@ class TransferRulesTests(unittest.TestCase):
         self.assertTrue(rules.within(a, b, None, None))
 
     def test_parse_hi_request_reads_nested_and_top_level_transaction_id(self):
-        body = {"transactionId": "t1", "hiRequest": {"consent": {"id": "c1"}, "dateRange": {"from": "2026-01-01T00:00:00.000Z", "to": "2026-02-01T00:00:00.000Z"}, "dataPushUrl": "https://hiu/push", "keyMaterial": {"curve": "Curve25519"}}}
+        body = {
+            "transactionId": "t1",
+            "hiRequest": {
+                "consent": {"id": "c1"},
+                "dateRange": {"from": "2026-01-01T00:00:00.000Z", "to": "2026-02-01T00:00:00.000Z"},
+                "dataPushUrl": "https://hiu/push",
+                "keyMaterial": {"curve": "Curve25519"},
+            },
+        }
         data = rules.parse_hi_request(body)
         self.assertEqual(data["transaction_id"], "t1")
         self.assertEqual(data["consent_id"], "c1")
@@ -94,7 +109,10 @@ class TransferRulesTests(unittest.TestCase):
                 "hip": {"id": "IN0001"},
                 "hiu": {"id": "HIU1", "name": "HIU"},
                 "purpose": {"code": "CAREMGT"},
-                "permission": {"dateRange": {"from": "2026-01-01T00:00:00.000Z", "to": "2026-02-01T00:00:00.000Z"}, "dataEraseAt": "2027-01-01T00:00:00.000Z"},
+                "permission": {
+                    "dateRange": {"from": "2026-01-01T00:00:00.000Z", "to": "2026-02-01T00:00:00.000Z"},
+                    "dataEraseAt": "2027-01-01T00:00:00.000Z",
+                },
             },
             "signature": "sig",
         }
@@ -106,7 +124,35 @@ class TransferRulesTests(unittest.TestCase):
 
     def test_data_flow_notify_body_fails_when_any_entry_errored(self):
         ok = rules.data_flow_notify_body("c", "t", "now", "IN1", [{"careContextReference": "V1", "hiStatus": "OK"}])
-        bad = rules.data_flow_notify_body("c", "t", "now", "IN1", [{"careContextReference": "V1", "hiStatus": "ERRORED"}])
+        bad = rules.data_flow_notify_body(
+            "c", "t", "now", "IN1", [{"careContextReference": "V1", "hiStatus": "ERRORED"}]
+        )
         self.assertEqual(ok["notification"]["statusNotification"]["sessionStatus"], "TRANSFERRED")
         self.assertEqual(bad["notification"]["statusNotification"]["sessionStatus"], "FAILED")
-        self.assertEqual(rules.data_flow_notify_body("c", "t", "now", "IN1", [])["notification"]["statusNotification"]["sessionStatus"], "FAILED")
+        self.assertEqual(
+            rules.data_flow_notify_body("c", "t", "now", "IN1", [])["notification"]["statusNotification"][
+                "sessionStatus"
+            ],
+            "FAILED",
+        )
+
+
+class ErrorCodeTests(unittest.TestCase):
+    def test_error_code_trailing_punctuation_is_stripped(self):
+        # Observed 2026-09-17 on an on-generate-token error callback: {"code": "ABDM-1027: ", ...}
+        self.assertEqual(rules.normalize_error_code("ABDM-1027: "), "ABDM-1027")
+        self.assertEqual(rules.normalize_error_code(" ABDM-1056 "), "ABDM-1056")
+        self.assertEqual(rules.normalize_error_code(None), "")
+
+    def test_link_token_claims_and_expiry_are_read_from_the_jwt(self):
+        now = datetime(2026, 9, 17, 7, 10, tzinfo=UTC)
+        iat = int(datetime(2026, 9, 17, 7, 2, 47, tzinfo=UTC).timestamp())
+        payload = (
+            base64.urlsafe_b64encode(json.dumps({"iat": iat, "exp": iat + 15768000}).encode()).decode().rstrip("=")
+        )
+        token = f"eyJhbGciOiJSUzUxMiJ9.{payload}.sig"
+        # The token is valid 6 months (concepts/linking). ADR-012 removed the freshness rule:
+        # a link sent 96 ms after a token arrived failed the same way as 1 sent 8 minutes after.
+        self.assertEqual(rules.jwt_claims(token)["exp"], iat + 15768000)
+        self.assertEqual(rules.link_token_expiry(token, now), datetime.fromtimestamp(iat + 15768000, UTC))
+        self.assertEqual(rules.link_token_expiry("opaque", now), now + rules.LINK_TOKEN_VALIDITY)

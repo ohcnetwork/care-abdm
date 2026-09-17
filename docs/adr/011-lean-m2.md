@@ -63,3 +63,19 @@ less code. The docs update of the same day fixed 3 facts that shape the design:
 - The setup page keeps 2 cards: facility identity + HRP registration, Scan and Share counters. The bridge lives on `/admin/abdm`.
 - Notify-on-new-records fires on Encounter status change or on the desk action, not on every clinical write. Recorded as a limitation in `03-roadmap.md`.
 - Every docs gap met on the way is a row in `findings.md` sections E–I.
+
+## Amendments (2026-09-17, first real gateway callbacks)
+
+1. **HIP ID comes from the gateway, not from the HFR id.** ADR-008 decision 7 ("HIP ID = HFR
+   facility ID") is withdrawn: the sandbox routes callbacks on the service id the registry issued at
+   HRP registration (`IN1410000232_1`), and a call sent with the bare HFR id is accepted and never
+   answered (findings E1). `facility/service.py::sync_hip_id()` stores the id read from
+   `gateway-list-bridge-services`; a facility with no service is not configured for M2.
+2. **A link token is used only within 5 minutes of issue.** The docs conflict (six months versus
+   "immediately before the linking call", findings F1); the sandbox refused an 8-minute-old token
+   (E11). `hip/contexts.py::ensure_link_token()` regenerates a stale token and the link goes out from
+   the callback that delivers the new one. The six-month row stays as the audit record.
+3. **Callback paths carry an `/api` prefix** the docs omit (E3). `callbacks/paths.py` normalises;
+   `urls.py` keeps one catch-all route for every callback.
+4. **Error codes are compared through `rules.normalize_error_code()`** because the gateway sends
+   `"ABDM-1027: "` with trailing punctuation (E14).

@@ -131,6 +131,40 @@ The original call returns a non 401 response. For the benefit name case,
 NHA's own collection uses the exact registered name, such as
 `healthid api`.
 
+### ABDM-1107, invalid combinations of scopes (`hiecm.error.abdm-1107`)
+
+**Observed as**
+
+`scope` is an array, and the operations care about the combination rather than
+about any one value in it. This code means the combination you sent is not one
+this operation accepts, or is not the one the transaction was opened with.
+
+```response
+{"error": {"code": "ABDM-1107", "message": "Invalid combinations of scopes"}}
+```
+
+Observed on the sandbox on 2026-09-14: an enrolment OTP request sent
+`["abha-enrol"]` and returned 200, and the verification that followed reused
+`["abha-enrol"]` and was refused with this code.
+
+**Fix**
+
+- You reused one scope across a whole journey. Read the scope off the example
+  for the operation you are calling, not off the one before it.
+- You are on the enrolment path and meant to be on the login path. Aadhaar is a
+  login identifier as well as an enrolment one, and the scope is the first
+  place the two diverge. A patient who already holds an ABHA belongs on the
+  login path, and sending them down enrolment creates a second ABHA number that
+  nothing merges. See designing the ABHA journey.
+- The transaction was opened for something else. `txnId` carries the scope it
+  was created with, so a transaction cannot be reused across journeys.
+
+**Exit condition: the original call now succeeds**
+
+The call the refusal came from returns its own success body instead: a login
+verification returns `authResult: "success"` with a token and an accounts
+array, and an enrolment verification continues the enrolment.
+
 ### ABDM-1407, the person's account is switched off (`hiecm.error.abdm-1407`)
 
 **Observed as**
@@ -183,9 +217,11 @@ The profile call returns the account you expected, and the identifiers in the re
 
 ## Every recorded code
 
-### Four error shapes, not one
+### Six error shapes, not one
 
-Do not write a parser that expects a single shape.
+Do not write a parser that expects a single shape. Four come from the ABHA
+service and its gateway. The fifth is an empty body. The sixth comes from
+the registries and hides its real code one level down.
 
 ### Shape 1: the wrapped ABDM error
 
@@ -199,6 +235,12 @@ Do not write a parser that expects a single shape.
 ```
 
 The code lives at `error.code`. This comes from the ABHA service's own business logic.
+
+Do not compare that code with string equality. It is not always a clean
+token: a failed session call returned `{"error":{"code":"ABDM-9999: ",
+"message":"Invalid user credentials"}}`, with a trailing colon and space
+inside the code. Trim it and match on the `ABDM-nnnn` prefix, or the branch
+you wrote for that code never runs.
 
 ### Shape 2: the flat ABDM error
 
@@ -233,16 +275,35 @@ No code at all. The key names the field you got wrong. Several bad fields produc
 
 Treat every key except `timestamp` as a field name. These always arrive as HTTP 400.
 
-Two of these read almost the same and mean opposite halves of the same step.
+Two of these read almost the same. Only one of them tells you anything.
 
-| Body | What failed | What to change |
-|---|---|---|
-| `{"loginId": "Invalid LoginId"}` | The service could not decrypt the value | The key or the padding. Observed with the wrong padding on 2026-09-09 |
-| `{"loginId": "LoginId is invalid"}` | It decrypted, then the plaintext failed a format rule | The plaintext shape. Observed with an ABHA number sent as 14 bare digits on 2026-09-11 |
+| Body | What it tells you |
+|---|---|
+| `{"loginId": "LoginId is invalid"}` | It decrypted. The plaintext failed a format rule |
+| `{"loginId": "Invalid LoginId"}` | On the enrolment endpoint, nothing at all |
 
-The second is the one that costs an afternoon, because the value really was
+The first is the one that costs an afternoon, because the value really was
 encrypted and really was the right number. An ABHA number keeps its dashes,
-`NN-NNNN-NNNN-NNNN`. The plaintext shape for every encrypted field is in
+`NN-NNNN-NNNN-NNNN`.
+
+The second carries no diagnostic value on `/v3/enrollment/request/otp`. That
+endpoint returns it for plaintext, for an empty string, for base64 that is
+not ciphertext, and for a correctly encrypted value alike. A padding matrix
+run against it returns the same refusal for every row, the correct row
+included, which is how a wrong padding survives a test that looks thorough.
+
+Test encryption against `POST /v3/profile/login/request/otp` with
+`loginHint: "mobile"` instead, and with a number that is registered against
+an ABHA account. The 200 is the signal: a right padding returns it with a
+`txnId`, a wrong one returns `Invalid Mobile Number`.
+
+The number has to be a real one. A correctly encrypted `9999999999` returns
+that same `Invalid Mobile Number`, because the value decrypted fine and
+named nobody. With an unregistered number this endpoint is as uninformative
+as the enrolment one.
+
+The algorithm is published: read `encryptionAlgorithm` from the certificate
+response. The plaintext shape for every encrypted field is in
 [encryption](/docs/hiecm/v3/concepts/encryption).
 
 ### Shape 4: the API gateway error
@@ -256,6 +317,38 @@ encrypted and really was the right number. An ABHA number keeps its dashes,
 ```
 
 A numeric code, not an `ABDM-` code, plus a `description` field the other shapes lack. This comes from the API gateway in front of the ABHA service, before your request reaches the business logic. It almost always means the `Authorization` header is wrong or expired.
+
+`900901` is a bad token. `900902` is no token at all, observed on the NHPR
+host. Match the family, not the single code.
+
+### Shape 5: the empty body
+
+An HTTP 401 with a zero length body and no JSON at all, observed on
+`/v3/phr/web/login/profile/abha-profile` when no user token was sent. There
+is nothing to parse and nothing to match. Code that assumes every failure
+carries a body throws here, on a response that means something simple.
+
+### Shape 6: the registry error, with the real code nested
+
+```json
+{
+    "code": "HIS-422",
+    "message": "Unable to process the current request due to some wrong data entered.",
+    "details": [
+        {"message": "You are not allowed to access this API", "code": "HIS-403", "attribute": null}
+    ]
+}
+```
+
+The registries return a `HIS-` family rather than `ABDM-`, and the top level
+code is not the cause. `HIS-422` and its message say the data was wrong. The
+real reason is in `details[0]`: `HIS-403`, not permitted. The HTTP status
+disagrees with the nested code too, arriving as 422 for what is an
+authorisation failure.
+
+Read `details[0].code` before the top level one on any `HIS-` response, and
+show `details[0].message` to whoever is debugging. Acting on the outer code
+sends you to check your payload for a problem that is not there.
 
 ### Codes
 

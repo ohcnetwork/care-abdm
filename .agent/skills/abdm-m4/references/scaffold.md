@@ -21,10 +21,13 @@ Four things must already be true, each checkable:
   this flow carries it in `Authorization`.
 - You can redirect the professional to a URL and bring them back. The
   Aadhaar step happens in a browser, not in your API client.
-- You can encrypt a value with NHA's public certificate. See
-  encrypting an identifier (hiecm.concept.input-encryption). The mobile
-  number, the email address and the password all travel encrypted, and
-  the certificate is fetched from `/v4/int/api/v1/auth/cert`.
+- You can encrypt a value with the NHPR certificate, fetched from
+  `/v4/int/api/v1/auth/cert`. The mobile number, the email address and
+  the password all travel encrypted. The padding here is
+  `RSA/ECB/PKCS1Padding`, which belongs to this registry: M1 uses
+  RSA-OAEP with SHA-1 under a different certificate, so an M1 code path
+  reused here encrypts with the wrong scheme and the wrong key. See
+  encrypting an identifier (hiecm.concept.input-encryption).
 - You know which category and subcategory the professional falls in, as
   codes rather than names. Fetch them from the HPR master data calls
   rather than hard coding them: the subcategory codes create HPID uses

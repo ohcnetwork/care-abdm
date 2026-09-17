@@ -17,7 +17,9 @@ import re
 import secrets
 from datetime import UTC, datetime, timedelta
 
-LINK_TOKEN_VALIDITY = timedelta(days=180)  # docs: "six months"
+from abdm import errors
+
+LINK_TOKEN_VALIDITY = timedelta(days=180)  # docs: "six months" (confirmed: the JWT `exp` is iat + 182.5 days)
 DATA_PUSH_WINDOW = timedelta(minutes=20)  # docs: "20 minutes from the start of the request"
 OTP_VALIDITY = timedelta(minutes=10)  # plug choice: the docs do not give a value
 OTP_MAX_ATTEMPTS = 3  # plug choice
@@ -52,23 +54,41 @@ def abha_number_digits(value: str | None) -> str:
     return re.sub(r"\D", "", value or "")
 
 
-def jwt_expiry(token: str) -> datetime | None:
-    """Read `exp` from a JWT without verifying it. The docs say to validate the link token
-    "with a tool such as JWT.io", so the token is a JWT; the claim set is not published."""
+def jwt_claims(token: str) -> dict:
+    """The claim set of a JWT, read without verification (empty when the value is not a JWT).
+    Observed link-token claims (2026-09-17): hipId, abhaNumber, transactionId, abhaAddress, sub, iat, exp."""
     parts = (token or "").split(".")
     if len(parts) != 3:
-        return None
+        return {}
     try:
         payload = parts[1] + "=" * (-len(parts[1]) % 4)
         claims = json.loads(base64.urlsafe_b64decode(payload))
-        exp = claims.get("exp")
-        return datetime.fromtimestamp(int(exp), tz=UTC) if exp else None
     except (ValueError, TypeError, json.JSONDecodeError):
+        return {}
+    return claims if isinstance(claims, dict) else {}
+
+
+def _jwt_time(token: str, claim: str) -> datetime | None:
+    value = jwt_claims(token).get(claim)
+    try:
+        return datetime.fromtimestamp(int(value), tz=UTC) if value else None
+    except (ValueError, TypeError, OverflowError):
         return None
+
+
+def jwt_expiry(token: str) -> datetime | None:
+    return _jwt_time(token, "exp")
 
 
 def link_token_expiry(token: str, now: datetime) -> datetime:
     return jwt_expiry(token) or (now + LINK_TOKEN_VALIDITY)
+
+
+def normalize_error_code(value) -> str:
+    """`"ABDM-1027: "` -> `"ABDM-1027"`. The docs warn that codes arrive with trailing punctuation
+    and whitespace; observed 2026-09-17 on an on-generate-token error callback. Compare codes only
+    through this function."""
+    return errors.normalize_code(value)
 
 
 def mask_mobile(mobile: str | None) -> str:

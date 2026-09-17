@@ -125,10 +125,7 @@ def handle_profile_share(callback: AbdmCallback) -> AbdmProfileShare:
             raise ShareError("HIP_UNSUPPORTED_INTENT", "Only PROFILE_SHARE is supported")
         facility = facility_service.facility_for_hip_id(hip_id)
         if facility is None:
-            raise ShareError(
-                "HIP_UNKNOWN",
-                f"No facility is configured for HIP ID {hip_id}. It must equal the HFR facility ID.",
-            )
+            raise ShareError("HIP_UNKNOWN", f"No facility on this CARE instance is registered as HIP {hip_id}.")
         share.facility = facility
         counters = facility_service.get_counters(facility)
         if counters and context.lower() not in {c.lower() for c in counters}:

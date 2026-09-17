@@ -88,6 +88,11 @@ class AbdmOutboundRequest(BaseModel):
     request_json = models.JSONField(default=dict, blank=True)
     http_status = models.PositiveIntegerField(null=True, blank=True)
     response_json = models.JSONField(default=dict, blank=True)
+    # The response headers of a refusal. ABDM answers some refusals with an empty body and no
+    # content type (findings E11), so the body alone names no cause. The headers name the stage
+    # that refused: the API manager sends `WWW-Authenticate` and its own `Server` value. Kept for
+    # failures only, because a success carries nothing a reader needs.
+    response_headers = models.JSONField(default=dict, blank=True)
     error_code = models.CharField(max_length=128, blank=True, default="")
     sent_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)

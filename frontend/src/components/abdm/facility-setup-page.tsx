@@ -299,7 +299,8 @@ export default function AbdmFacilitySetupPage({
     update({ counters: [...config.counters, newCounter] });
     setNewCounter("");
   };
-  const qrHipId = config.facility_id;
+  // The QR carries the HIP ID the gateway routes on: the service id it issued, once known.
+  const qrHipId = config.hip_id || config.facility_id;
   const qrTemplate = settings.data?.share_qr_url_template;
   const update = (next: Partial<AbdmFacilityConfig>) =>
     setConfig((current) => ({ ...current, ...next }));
@@ -336,8 +337,8 @@ export default function AbdmFacilitySetupPage({
           </Badge>
         </div>
 
-        {/* ABDM docs state that M4 gives the facility ID and HIP role.
-            M2 needs those values before CARE can link records.
+        {/* The facility ID comes from the facility's HFR record (registered by hand on the NHPR
+            portal, docs update 2026-09-15); record sharing (M2) needs it and a registered HIP service.
             Sources:
             https://abdm-docs.dev.eka.care/docs/hiecm/v3/milestones/m2/index.md
             https://abdm-docs.dev.eka.care/docs/hiecm/v3/milestones/m4/index.md */}
@@ -428,11 +429,16 @@ export default function AbdmFacilitySetupPage({
                     config={config}
                     onChange={update}
                   />
+                  {/* Read-only: the gateway issues the HIP ID when the HRP service is registered. */}
                   <div className="grid gap-1.5">
-                    <Label>{t("abdm_hip_id")}</Label>
-                    <p className="font-mono text-sm">
-                      {config.facility_id || "\u2014"}
-                    </p>
+                    <Label>{t("abdm_hip_id_issued")}</Label>
+                    {config.hip_id ? (
+                      <p className="font-mono text-sm">{config.hip_id}</p>
+                    ) : (
+                      <p className="text-muted-foreground text-sm">
+                        {t("abdm_hip_id_pending")}
+                      </p>
+                    )}
                     <p className="text-muted-foreground text-xs">
                       {t("abdm_hip_id_help")}
                     </p>

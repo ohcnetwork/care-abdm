@@ -9,6 +9,7 @@ from care.facility.models import Facility
 from care.security.authorization import AuthorizationController
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -16,6 +17,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from abdm import errors
 from abdm.facility.service import hip_id_for
 from abdm.hip import contexts
 from abdm.hip.consent import consent_summary
@@ -57,6 +59,49 @@ def _request_summary(row: AbdmOutboundRequest) -> dict:
     }
 
 
+def _failure_block(context: AbdmCareContext | None, token: AbdmLinkToken | None) -> dict | None:
+    """The 1 thing the desk reads when a link does not go through (ADR-012 D2 and D7).
+
+    Returns None while the link is on its way and nothing has gone wrong. Care has no beat
+    schedule for plugs, so the "ABDM never answered" rule is applied here, at read time (D6).
+    """
+    if context is None or context.status == AbdmCareContext.Status.LINKED:
+        return None
+    now = timezone.now()
+    code = context.error_code
+    # The wait for ABDM-1092 runs from the request ABDM accepted, not from the 1 it refused.
+    accepted_at = token.request.sent_at if (token and token.request_id) else None
+    if not code and context.status in (AbdmCareContext.Status.PENDING, AbdmCareContext.Status.LINK_REQUESTED):
+        waiting_since = (
+            context.link_request.sent_at
+            if (context.status == AbdmCareContext.Status.LINK_REQUESTED and context.link_request_id)
+            else accepted_at
+        )
+        if not errors.answer_overdue(waiting_since, now):
+            return None
+        return errors.no_answer(request_id=_request_id_of(context, token)).as_dict()
+    if not code:
+        return None
+    failure = errors.classify(
+        code=code,
+        message=context.error_message,
+        request_id=_request_id_of(context, token),
+        since=accepted_at,
+    )
+    block = failure.as_dict()
+    # The stored message already carries the classified sentence, so show it and nothing else.
+    block["detail"] = context.error_message
+    return block
+
+
+def _request_id_of(context: AbdmCareContext, token: AbdmLinkToken | None) -> str:
+    if context.link_request_id:
+        return context.link_request.request_id
+    if token and token.request_id:
+        return token.request.request_id
+    return ""
+
+
 def care_context_state(encounter: Encounter) -> dict:
     context = AbdmCareContext.objects.filter(encounter=encounter).first()
     address, number = contexts.patient_abha(encounter.patient)
@@ -90,6 +135,7 @@ def care_context_state(encounter: Encounter) -> dict:
         }
         if context
         else None,
+        "failure": _failure_block(context, token),
         "activity": [_request_summary(row) for row in activity],
     }
 

@@ -1,4 +1,9 @@
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -48,6 +53,10 @@ import { useEffect, useState } from "react";
  *            Aadhaar (m1-login-request-otp loginHint; phr variant for address).
  *            Mobile may return several accounts → pick one; the others finish in
  *            one OTP.
+ * A login against an identifier that has no ABHA ends the journey with nothing to
+ * link (ABDM answers `404 ABDM-1114`, or the account list comes back empty). The
+ * error then carries one action that starts the create journey with the typed
+ * Aadhaar and mobile, so the desk does not type them a second time.
  * The browser only ever talks to the Care backend plug; it never sees ABDM tokens.
  * On completion the caller receives the server-side transaction id, which is the
  * only thing the backend trusts (abdm/signals.py, abdm/abha/views.py PatientAbhaLink).
@@ -126,6 +135,22 @@ export function relayMessage(err: unknown, fallback: string): string {
   }
   return fallback;
 }
+
+export function relayCode(err: unknown): string | undefined {
+  if (err instanceof HttpError) {
+    const cause = err.cause as Partial<AbdmRelayError> | undefined;
+    return cause?.abdm_code ?? undefined;
+  }
+  return undefined;
+}
+
+/**
+ * The login answer for an identifier that carries no ABHA account. The M1 error
+ * table gives this code a different message, but the sandbox returns it as
+ * `404 ABDM-1114 User not found` on every login path (docs/findings.md A8), and
+ * a DigiLocker name mismatch cannot happen in a login journey.
+ */
+const NO_ABHA_CODE = "ABDM-1114";
 
 export function formatAbhaNumber(n?: string | null) {
   if (!n) return "";
@@ -264,6 +289,10 @@ export default function AbhaWizard({
   const [accounts, setAccounts] = useState<AbhaAccount[]>([]);
   const [selected, setSelected] = useState<string>("");
   const [result, setResult] = useState<AbhaWizardResult>();
+  /** The login found no ABHA, so the create journey is the way out. */
+  const [noAbha, setNoAbha] = useState(false);
+  /** The create journey started from a failed login; the back arrow returns there. */
+  const [fromLink, setFromLink] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -286,10 +315,44 @@ export default function AbhaWizard({
     setAccounts([]);
     setSelected("");
     setResult(undefined);
+    setNoAbha(false);
+    setFromLink(false);
   }, [open, initialMode, initialHint, defaultMobile]);
+
+  const clearError = () => {
+    setError(undefined);
+    setNoAbha(false);
+  };
 
   const fail = (fallback: string) => (err: unknown) =>
     setError(relayMessage(err, fallback));
+
+  /** A login failure can also mean "this person has no ABHA yet". */
+  const failLogin = (fallback: string) => (err: unknown) => {
+    setError(relayMessage(err, fallback));
+    setNoAbha(relayCode(err) === NO_ABHA_CODE);
+  };
+
+  /**
+   * Leave the failed login and start the create journey with what the desk
+   * already typed. The login transaction is dropped: the create journey opens
+   * its own.
+   */
+  const createFromLink = () => {
+    clearError();
+    setInfo(undefined);
+    setOtp("");
+    setTxnId("");
+    setAccounts([]);
+    setSelected("");
+    if (hint === "aadhaar") setAadhaar(loginId.replace(/\D/g, "").slice(0, 12));
+    if (hint === "mobile") setMobile(loginId.replace(/\D/g, "").slice(0, 10));
+    setConsent(false);
+    setFromLink(true);
+    setCreateStep("aadhaar");
+    setMode("create");
+  };
+
   const generic = t("abdm_error_generic");
 
   // ---- Journey 1 ----------------------------------------------------------
@@ -299,7 +362,7 @@ export default function AbhaWizard({
     NonNullable<typeof careApi.requestAadhaarOtp.TRequest>
   >({
     mutationFn: mutate(careApi.requestAadhaarOtp, { silent: true }),
-    onMutate: () => setError(undefined),
+    onMutate: () => clearError(),
     onSuccess: (res) => {
       setTxnId(res.txnId);
       setInfo(res.message);
@@ -315,7 +378,7 @@ export default function AbhaWizard({
     NonNullable<typeof careApi.enrolByAadhaar.TRequest>
   >({
     mutationFn: mutate(careApi.enrolByAadhaar, { silent: true }),
-    onMutate: () => setError(undefined),
+    onMutate: () => clearError(),
     onSuccess: (res) => {
       setProfile(res);
       const id = res.txnId ?? txnId;
@@ -351,7 +414,7 @@ export default function AbhaWizard({
     NonNullable<typeof careApi.verifyMobileOtp.TRequest>
   >({
     mutationFn: mutate(careApi.verifyMobileOtp, { silent: true }),
-    onMutate: () => setError(undefined),
+    onMutate: () => clearError(),
     onSuccess: (res) => {
       setTxnId(res.txnId);
       suggestions.mutate({ txn_id: res.txnId });
@@ -380,7 +443,7 @@ export default function AbhaWizard({
     NonNullable<typeof careApi.claimAbhaAddress.TRequest>
   >({
     mutationFn: mutate(careApi.claimAbhaAddress, { silent: true }),
-    onMutate: () => setError(undefined),
+    onMutate: () => clearError(),
     onSuccess: (res) => {
       const r: AbhaWizardResult = {
         txnId,
@@ -422,14 +485,14 @@ export default function AbhaWizard({
     NonNullable<typeof careApi.loginRequestOtp.TRequest>
   >({
     mutationFn: mutate(careApi.loginRequestOtp, { silent: true }),
-    onMutate: () => setError(undefined),
+    onMutate: () => clearError(),
     onSuccess: (res) => {
       setTxnId(res.txnId);
       setInfo(res.message);
       setOtp("");
       setLinkStep("otp");
     },
-    onError: fail(generic),
+    onError: failLogin(generic),
   });
 
   const loginVerify = useMutation<
@@ -438,7 +501,7 @@ export default function AbhaWizard({
     NonNullable<typeof careApi.loginVerifyOtp.TRequest>
   >({
     mutationFn: mutate(careApi.loginVerifyOtp, { silent: true }),
-    onMutate: () => setError(undefined),
+    onMutate: () => clearError(),
     onSuccess: (res) => {
       setTxnId(res.txnId);
       setInfo(undefined);
@@ -450,6 +513,7 @@ export default function AbhaWizard({
       setAccounts(list);
       if (list.length === 0) {
         setError(t("abdm_no_accounts"));
+        setNoAbha(true);
         return;
       }
       setSelected(list[0].ABHANumber);
@@ -462,7 +526,7 @@ export default function AbhaWizard({
         setLinkStep("accounts");
       }
     },
-    onError: fail(generic),
+    onError: failLogin(generic),
   });
 
   const loginSelect = useMutation<
@@ -471,12 +535,12 @@ export default function AbhaWizard({
     NonNullable<typeof careApi.loginSelectAccount.TRequest>
   >({
     mutationFn: mutate(careApi.loginSelectAccount, { silent: true }),
-    onMutate: () => setError(undefined),
+    onMutate: () => clearError(),
     onSuccess: (res) => {
       const acc = accounts.find((a) => a.ABHANumber === res.ABHANumber);
       finishLogin(res, acc?.name);
     },
-    onError: fail(generic),
+    onError: failLogin(generic),
   });
 
   const sendLoginOtp = () =>
@@ -520,14 +584,19 @@ export default function AbhaWizard({
     !done &&
     !busy &&
     ((mode !== "choose" && !initialMode) ||
-      (mode === "create" && createStep !== "aadhaar") ||
+      (mode === "create" && (createStep !== "aadhaar" || fromLink)) ||
       (mode === "link" && linkStep !== "identify"));
 
   const goBack = () => {
-    setError(undefined);
+    clearError();
     setInfo(undefined);
     setOtp("");
     if (mode === "create") {
+      if (createStep === "aadhaar" && fromLink) {
+        setFromLink(false);
+        setLinkStep("identify");
+        return setMode("link");
+      }
       if (createStep === "aadhaar") return setMode("choose");
       if (createStep === "address" || createStep === "mobile-otp")
         return setCreateStep("aadhaar");
@@ -566,7 +635,7 @@ export default function AbhaWizard({
     setHint(h);
     setLoginId(h === "mobile" ? defaultMobile : "");
     setOtpSystem(defaultOtpSystem(h));
-    setError(undefined);
+    clearError();
   };
 
   const loginIdDisplay =
@@ -609,6 +678,19 @@ export default function AbhaWizard({
           <Alert variant="destructive">
             <AlertTitle>{t("abdm_error")}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
+            {mode === "link" && noAbha && !busy && (
+              <AlertAction>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={createFromLink}
+                >
+                  <Fingerprint />
+                  {t("abdm_create_abha_instead")}
+                </Button>
+              </AlertAction>
+            )}
           </Alert>
         )}
         {info && !error && !done && (

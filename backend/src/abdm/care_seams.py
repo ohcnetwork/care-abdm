@@ -112,6 +112,14 @@ class AbdmFacilityExtension(PlugExtension):
                 "default": [],
                 "x-ui": {"render_blacklist": SERVER_OWNED},
             },
+            # The service id the gateway issued for this facility (facility/service.py). Server-written.
+            "hip_id": {
+                "type": "string",
+                "title": "HIP ID",
+                "default": "",
+                "readOnly": True,
+                "x-ui": {"render_blacklist": SERVER_OWNED},
+            },
             "hrp_registered_at": {
                 "type": "string",
                 "format": "date-time",
@@ -128,14 +136,8 @@ class AbdmFacilityExtension(PlugExtension):
         },
         "additionalProperties": False,
     }
-    read_schema = {
-        **write_schema,
-        "properties": {
-            **write_schema["properties"],
-            "hip_id": {"type": "string", "title": "HIP ID", "default": "", "readOnly": True},
-        },
-    }
-    retrieve_schema = read_schema
+    read_schema = write_schema
+    retrieve_schema = write_schema
 
 
 ExtensionRegistry.register(AbdmFacilityExtension())

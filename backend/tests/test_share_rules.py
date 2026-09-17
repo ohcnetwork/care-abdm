@@ -7,7 +7,9 @@ CONFIG = {"facility_id": "IN0810000177", "hip_id": "CARE_SBX_HIP", "hip_name": "
 
 class CounterRulesTests(unittest.TestCase):
     def test_accepts_alphanumeric_up_to_20(self):
-        self.assertEqual(validate_counters(["OPD1", " Pharmacy ", "", "A" * 20], CONFIG), ["OPD1", "Pharmacy", "A" * 20])
+        self.assertEqual(
+            validate_counters(["OPD1", " Pharmacy ", "", "A" * 20], CONFIG), ["OPD1", "Pharmacy", "A" * 20]
+        )
 
     def test_rejects_symbols_and_length(self):
         with self.assertRaises(ValueError):

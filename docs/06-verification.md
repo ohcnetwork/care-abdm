@@ -10,9 +10,16 @@ Everything below works without a live server.
 cd ~/ohc.network/care && set -a && . ./.env && set +a
 .venv/bin/python manage.py check
 .venv/bin/python manage.py makemigrations abdm --check --dry-run
-.venv/bin/ruff check ~/ohc.network/care-abdm-sbx/backend/src --exclude '*/migrations/*'
-.venv/bin/ruff format ~/ohc.network/care-abdm-sbx/backend/src
+(cd ~/ohc.network/care-abdm-sbx/backend && ~/ohc.network/care/.venv/bin/ruff check src tests && ~/ohc.network/care/.venv/bin/ruff format --check src tests)
 ```
+
+`manage.py check` cannot run on this machine since 2026-09-17: Care imports weasyprint, which needs
+`libgobject-2.0-0`, and glib is not installed. This is a Care environment gap, not a plug problem. To
+prove the plug's Django modules load, stub weasyprint and import them, then run `makemigrations --check`
+in the same process (see the scratch script pattern below).
+
+Ruff reads `backend/pyproject.toml` (line length 120, `abdm` first-party, migrations excluded), so run it
+from the `backend` directory; run from the Care directory it silently picks up Care's config instead.
 
 In-process HTTP against real auth and the real DB (the way Phase 2 was proven):
 
@@ -66,9 +73,12 @@ Observed 2026-09-10: 8 tests ran. Result: OK.
 Observed 2026-09-14: 14 tests ran. Result: OK (`test_share_rules.py` added).
 Observed 2026-09-15: 41 tests ran in 0.4 s. Result: OK (`test_hip_rules.py`, `test_hip_crypto.py`, `test_fhir_bundles.py` added).
 Observed 2026-09-15 (later): 46 tests. Result: OK (`test_callback_signature.py` rewritten: RS512, header auto-detect, unknown kid, HS256 refused).
+Observed 2026-09-17: 54 tests. Result: OK (`test_callback_paths.py`: the `/api` prefix the gateway really sends; `HipServiceLookupTests` in `test_facility_rules.py`: the registry's `<facilityId>_<n>` service id).
+Observed 2026-09-17 (later): 78 tests. Result: OK (`test_errors.py`: the ADR-012 classifier; `test_hip_rules.py` freshness test replaced).
 
 The tests run without Django. Pure rules must live in a module with no Django import
-(`abha/checksums.py`, `share/rules.py`, `facility/rules.py`, `hip/rules.py`, `hip/crypto.py`, `fhir/bundle.py`).
+(`abha/checksums.py`, `share/rules.py`, `facility/rules.py`, `hip/rules.py`, `hip/crypto.py`, `fhir/bundle.py`,
+`callbacks/paths.py`).
 
 ## Frontend
 

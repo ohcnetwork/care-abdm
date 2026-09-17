@@ -36,6 +36,12 @@ DEFAULTS = {
     "CM_ID": "sbx",
     "CALLBACK_BASE_URL": "",
     "CALLBACK_SIGNATURE_HEADER": "Authorization",
+    # ADR-012 D4. The gateway mints the session token up to 9 minutes before it builds a callback,
+    # and it repeats a failed delivery about 16 minutes later with the same, now-expired token.
+    # Observed 2026-09-17: 2 genuine callbacks were refused and lost, which left the desk on a
+    # spinner for ever. A token that expired inside this many seconds is accepted, and how late it
+    # was is recorded on the row. The signature itself is always verified in full.
+    "CALLBACK_SIGNATURE_LEEWAY_SECONDS": 3600,
     "REQUEST_TIMEOUT_SECONDS": 30,
     # Scan and Share counter QR code. The docs say only that the QR code holds a URL with the
     # HIP ID and a context (docs/findings.md). Placeholders: {hip_id} and {context}.

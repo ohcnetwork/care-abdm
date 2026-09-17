@@ -190,7 +190,7 @@ curl --request POST \
   --header 'REQUEST-ID: <REQUEST_ID>' \
   --header 'TIMESTAMP: <TIMESTAMP>' \
   --header 'BENEFIT_NAME: healthid api' \
-  --header 'X-token: Bearer <X_TOKEN_FROM_LOGIN_VERIFY>' \
+  --header 'X-token: <X_TOKEN_FROM_LOGIN_VERIFY>' \
   --header 'Content-Type: application/json' \
   --data '{
   "authData": {

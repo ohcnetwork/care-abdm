@@ -16,7 +16,7 @@ import logging
 from care.emr.models.encounter import Encounter
 from django.utils import timezone
 
-from abdm.facility.service import facility_for_hip_id
+from abdm.facility.service import facility_for_hip_id, hip_id_for
 from abdm.fhir import BundleError, available_hi_types, build_bundle
 from abdm.gateway import outbound
 from abdm.gateway.session import utc_timestamp
@@ -177,7 +177,7 @@ def build_entries(row: AbdmDataRequest, consent: AbdmConsent, keys: crypto.Sessi
 
 def transfer(row: AbdmDataRequest) -> AbdmDataRequest:
     consent = row.consent or AbdmConsent.objects.filter(consent_id=row.consent_artefact_id).first()
-    hip_id = (row.facility.extensions or {}).get("abdm", {}).get("facility_id", "") if row.facility else ""
+    hip_id = hip_id_for(row.facility)
     keys = crypto.new_session_keys()
     try:
         entries = build_entries(row, consent, keys) if consent else []

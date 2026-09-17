@@ -12,7 +12,7 @@ curl --request POST \
   --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
   --header 'REQUEST-ID: <REQUEST_ID>' \
   --header 'TIMESTAMP: <TIMESTAMP>' \
-  --header 'X-token: Bearer <X_TOKEN_FROM_LOGIN_VERIFY>' \
+  --header 'X-token: <X_TOKEN_FROM_LOGIN_VERIFY>' \
   --header 'Content-Type: application/json' \
   --data '{
   "scope": [
@@ -33,7 +33,7 @@ curl --request POST \
 
 - `REQUEST-ID` (string, required): Unique UUID v4 per request. Used for idempotency and distributed tracing. Generate a fresh UUID for every call.
 - `TIMESTAMP` (string, required): ISO 8601 UTC timestamp of the request.
-- `X-token` (string, required): The user scoped token returned when a person logs in or verifies an OTP. Required on this operation. See the shared `XToken` parameter for the general description and the `Bearer ` prefix rule.
+- `X-token` (string, required): The user scoped token returned when a person logs in or verifies an OTP. Required on this operation. See the shared `XToken` parameter, and note that this header takes the bare token with no prefix.
 
 ## Body
 

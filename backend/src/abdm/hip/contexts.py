@@ -4,7 +4,9 @@ HIP-initiated linking (M2 journey 1) and the SMS deep link (journey 2).
 Flow (/docs/hiecm/v3/milestones/m2, /docs/hiecm/v3/concepts/linking):
   1. The patient has an ABHA address (M1) and the facility has an HFR facility ID (setup page).
   2. `ensure_link_token()` sends m2-generate-link-token (202). The token arrives on
-     `/v3/hip/token/on-generate-token`; it is stored per patient and facility for 6 months.
+     `/api/v3/hip/token/on-generate-token` (about 2 s later, 2026-09-17); it is stored per patient
+     and facility. Its JWT is valid 6 months. ABDM refuses a second request for the same patient at
+     the same facility inside errors.TOKEN_REQUEST_WINDOW, so the plug never sends 1 inside it.
   3. `request_link()` sends m2-hip-link-care-context with `X-Link-Token` (202). The context is
      linked only when `/v3/link/on_carecontext` arrives with `status` (whats-new 2026-09-10).
   4. `notify_context()` sends m2-link-care-context-notify after a link, and again when a linked
@@ -18,6 +20,7 @@ from care.emr.models.encounter import Encounter
 from care.emr.models.patient import Patient
 from django.utils import timezone
 
+from abdm import errors
 from abdm.care_seams import AbhaAddressIdentifier, AbhaNumberIdentifier
 from abdm.facility.service import facility_for_hip_id, get_config, hip_id_for
 from abdm.fhir import available_hi_types
@@ -35,9 +38,9 @@ SMS_URL = "/api/hiecm/hip/v3/link/patient/links/sms/notify2"
 
 # m2-errors: "ABDM-1056 This care contexts has been already linked" -> treat as success.
 ALREADY_LINKED_CODES = {"ABDM-1056"}
-# m2-errors: "ABDM-1092 Duplicate Link token request". Observed 2026-09-15 with a fresh REQUEST-ID:
-# the gateway still holds the earlier request for this ABHA at this HIP open, and its callback
-# is the answer. The docs' remedy "New request id" does not apply (findings F6).
+# m2-errors: "ABDM-1092 Duplicate Link token request". Measured 2026-09-17 (findings F6): ABDM
+# refuses a second request for the same ABHA at the same HIP for about 6.2 minutes after the
+# accepted one, whether or not that one was answered. errors.TOKEN_REQUEST_WINDOW holds the value.
 DUPLICATE_TOKEN_REQUEST = "ABDM-1092"
 
 
@@ -104,21 +107,20 @@ def _fail(context: AbdmCareContext, code: str, message: str, *, status: str | No
 
 
 def ensure_link_token(patient: Patient, facility) -> AbdmLinkToken:
-    """Return the token row. Sends m2-generate-link-token when no usable token exists and no
-    request is in flight. The token itself arrives on the callback."""
+    """Return the token row. Sends m2-generate-link-token only when no usable token exists and the
+    refusal window of the last accepted request has closed. The token arrives on the callback."""
     address, number = patient_abha(patient)
     if not address:
         raise LinkingError("The patient has no ABHA address. Link an ABHA first.")
     row, _ = AbdmLinkToken.objects.get_or_create(patient=patient, facility=facility, defaults={"abha_address": address})
+    now = timezone.now()
     if row.usable:
         return row
-    in_flight = (
-        row.status == row.Status.REQUESTED
-        and row.request_id
-        and row.request.sent_at
-        and (timezone.now() - row.request.sent_at).total_seconds() < 120
-    )
-    if in_flight:
+    # ADR-012 D3: ABDM refuses a second request for the same patient at the same facility inside
+    # errors.TOKEN_REQUEST_WINDOW of the accepted one, whether or not that one was answered
+    # (findings F6). The plug never sends inside the window, so it never causes ABDM-1092.
+    accepted_at = row.request.sent_at if row.request_id else None
+    if accepted_at and errors.window_open(accepted_at, now):
         return row
     year = patient.year_of_birth or (patient.date_of_birth.year if patient.date_of_birth else None)
     if not year:
@@ -129,21 +131,20 @@ def ensure_link_token(patient: Patient, facility) -> AbdmLinkToken:
     if request.status == request.Status.SUCCEEDED:
         row.request = request
         row.status = row.Status.REQUESTED
+        row.token = ""
         row.error_code = ""
         row.error_message = ""
-    elif request.error_code == DUPLICATE_TOKEN_REQUEST:
-        # Keep the earlier request: the callback echoes its REQUEST-ID, not this one.
-        row.status = row.Status.REQUESTED
-        row.error_code = DUPLICATE_TOKEN_REQUEST
-        row.error_message = (
-            "The gateway still holds an open link-token request for this patient at this facility. "
-            "Waiting for its callback; a new request is refused until then."
-        )
     else:
-        row.request = request
-        row.status = row.Status.FAILED
-        row.error_code = request.error_code[:64]
-        row.error_message = outbound.failure_detail(request)[:512]
+        failure = outbound.failure(request, since=accepted_at or request.sent_at)
+        if failure.code == DUPLICATE_TOKEN_REQUEST and accepted_at:
+            # ABDM still holds the earlier request open. Its callback answers this patient, and it
+            # echoes the earlier REQUEST-ID, so keep that row. Do not store this refusal as the
+            # request: the window runs from the accepted one.
+            row.status = row.Status.REQUESTED
+        else:
+            row.status = row.Status.FAILED
+        row.error_code = failure.code[:64]
+        row.error_message = failure.summary()[:512]
     row.save()
     return row
 
@@ -164,7 +165,7 @@ def handle_generate_token_result(callback: AbdmCallback) -> dict:
         linked = link_pending_contexts(row.patient, row.facility)
         return {"link_token": "active", "expires_at": row.expires_at.isoformat(), "links_requested": linked}
     row.status = row.Status.FAILED
-    row.error_code = str((error or {}).get("code") or "NO_TOKEN")[:64]
+    row.error_code = (rules.normalize_error_code((error or {}).get("code")) or "NO_TOKEN")[:64]
     row.error_message = str((error or {}).get("message") or "The callback carried no linkToken")[:512]
     row.save()
     for context in AbdmCareContext.objects.filter(
@@ -225,10 +226,11 @@ def request_link(context: AbdmCareContext) -> AbdmCareContext:
     if token.status == token.Status.FAILED:
         return _fail(context, token.error_code or "LINK_TOKEN_FAILED", token.error_message or "Link token failed")
     if not token.usable:
-        # Token requested; handle_generate_token_result() continues from here.
+        # Token requested; handle_generate_token_result() continues from here. Carry the token's
+        # own code so the state endpoint can tell "waiting" from "refused, retry at ..." (ADR-012).
         context.status = context.Status.PENDING
-        context.error_code = token.error_code if token.error_code == DUPLICATE_TOKEN_REQUEST else ""
-        context.error_message = token.error_message or "Waiting for the link token"
+        context.error_code = token.error_code[:64]
+        context.error_message = (token.error_message or "Waiting for ABDM to answer")[:512]
         context.save(update_fields=["status", "error_code", "error_message", "modified_date"])
         return context
     address, number = patient_abha(context.patient)
@@ -248,11 +250,13 @@ def request_link(context: AbdmCareContext) -> AbdmCareContext:
         context.error_code = ""
         context.error_message = ""
     else:
+        failure = outbound.failure(request)
         context.status = context.Status.FAILED
-        context.error_code = request.error_code[:64]
-        context.error_message = outbound.failure_detail(request)[:512]
-        if request.error_code in {"ABDM-1026", "ABDM-1038", "ABDM-1063"}:
-            # Invalid or mismatched link token: drop it so the next attempt regenerates it.
+        context.error_code = failure.code[:64]
+        context.error_message = failure.summary()[:512]
+        if failure.renew_permission:
+            # ABDM says the permission for this patient is wrong. Drop it, so the next attempt
+            # asks for a new one. The refusal window guards against a request that is too early.
             AbdmLinkToken.objects.filter(pk=token.pk).update(status=AbdmLinkToken.Status.FAILED, token="")
     context.save()
     return context
@@ -284,7 +288,7 @@ def handle_carecontext_result(callback: AbdmCallback) -> dict:
     context = _context_for_callback(callback, "link_request")
     body = callback.parsed_json or {}
     error = body.get("error") if isinstance(body.get("error"), dict) else None
-    code = str((error or {}).get("code") or "")
+    code = rules.normalize_error_code((error or {}).get("code"))
     if error and code not in ALREADY_LINKED_CODES:
         _fail(context, code or "LINK_FAILED", str(error.get("message") or "Link failed"), status=context.Status.FAILED)
         return {"care_context": context.reference_number, "status": "failed", "error": code}
@@ -335,7 +339,7 @@ def handle_context_notify_result(callback: AbdmCallback) -> dict:
         context.notified_at = timezone.now()
         context.save(update_fields=["notified_at", "modified_date"])
         return {"care_context": context.reference_number, "notify": "success"}
-    code = str((error or {}).get("code") or ack.get("status") or "NOTIFY_ERRORED")
+    code = rules.normalize_error_code((error or {}).get("code")) or str(ack.get("status") or "NOTIFY_ERRORED")
     _fail(context, code, str((error or {}).get("message") or "Notify errored"))
     return {"care_context": context.reference_number, "notify": "errored", "error": code}
 

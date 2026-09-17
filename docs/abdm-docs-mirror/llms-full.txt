@@ -969,7 +969,7 @@ curl --request POST \
   --header 'REQUEST-ID: <REQUEST_ID>' \
   --header 'TIMESTAMP: <TIMESTAMP>' \
   --header 'BENEFIT_NAME: healthid api' \
-  --header 'X-token: Bearer <X_TOKEN_FROM_LOGIN_VERIFY>' \
+  --header 'X-token: <X_TOKEN_FROM_LOGIN_VERIFY>' \
   --header 'Content-Type: application/json' \
   --data '{
   "scope": [
@@ -989,7 +989,7 @@ curl --request POST \
 - `REQUEST-ID` (string, required): Unique UUID v4 per request. Used for idempotency and distributed tracing. Generate a fresh UUID for every call.
 - `TIMESTAMP` (string, required): ISO 8601 UTC timestamp of the request.
 - `BENEFIT_NAME` (string): The benefit scheme an enrolment belongs to. Send `healthid api` on the enrol and search calls, and `healthid` on the login OTP and verify calls under Find ABHA. On the enrolment OTP request the header is present but explicitly disabled, so it is not sent there. A login OTP request sent with `healthid api` rather than `healthid` was accepted on the sandbox on 2026-09-11, so the login calls may take either. NHA's files spell this header four different ways and use scheme values beyond healthid. Which spelling each endpoint accepts is not confirmed against the sandbox. The Conventions page for this module lists all four.
-- `X-token` (string): The user scoped token returned when a person logs in or verifies an OTP. Profile calls act on one account, so they need this in addition to the gateway token. Required on the calls that read or change a specific person's account. The value carries a `Bearer ` prefix, exactly like the Authorization header. Sending the bare token reads as an invalid token error.
+- `X-token` (string): The user scoped token returned when a person logs in or verifies an OTP. Profile calls act on one account, so they need this in addition to the gateway token. Required on the calls that read or change a specific person's account. Send the bare token. Unlike the Authorization header this one carries no `Bearer ` prefix, and adding one is refused as `ABDM-1094` with the message `X-token expired`. That message names the wrong thing: a token rejected one second after it was issued has not expired, it was malformed. Check the prefix before the lifetime.
 
 ## Body
 
@@ -1359,7 +1359,7 @@ curl --request POST \
   --header 'REQUEST-ID: <REQUEST_ID>' \
   --header 'TIMESTAMP: <TIMESTAMP>' \
   --header 'BENEFIT_NAME: healthid api' \
-  --header 'X-token: Bearer <X_TOKEN_FROM_LOGIN_VERIFY>' \
+  --header 'X-token: <X_TOKEN_FROM_LOGIN_VERIFY>' \
   --header 'Content-Type: application/json' \
   --data '{
   "authData": {
@@ -1388,7 +1388,7 @@ curl --request POST \
 - `REQUEST-ID` (string, required): Unique UUID v4 per request. Used for idempotency and distributed tracing. Generate a fresh UUID for every call.
 - `TIMESTAMP` (string, required): ISO 8601 UTC timestamp of the request.
 - `BENEFIT_NAME` (string): The benefit scheme an enrolment belongs to. Send `healthid api` on the enrol and search calls, and `healthid` on the login OTP and verify calls under Find ABHA. On the enrolment OTP request the header is present but explicitly disabled, so it is not sent there. A login OTP request sent with `healthid api` rather than `healthid` was accepted on the sandbox on 2026-09-11, so the login calls may take either. NHA's files spell this header four different ways and use scheme values beyond healthid. Which spelling each endpoint accepts is not confirmed against the sandbox. The Conventions page for this module lists all four.
-- `X-token` (string): The user scoped token returned when a person logs in or verifies an OTP. Profile calls act on one account, so they need this in addition to the gateway token. Required on the calls that read or change a specific person's account. The value carries a `Bearer ` prefix, exactly like the Authorization header. Sending the bare token reads as an invalid token error.
+- `X-token` (string): The user scoped token returned when a person logs in or verifies an OTP. Profile calls act on one account, so they need this in addition to the gateway token. Required on the calls that read or change a specific person's account. Send the bare token. Unlike the Authorization header this one carries no `Bearer ` prefix, and adding one is refused as `ABDM-1094` with the message `X-token expired`. That message names the wrong thing: a token rejected one second after it was issued has not expired, it was malformed. Check the prefix before the lifetime.
 
 ## Body
 
@@ -1734,7 +1734,7 @@ curl --request GET \
   --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
   --header 'REQUEST-ID: <REQUEST_ID>' \
   --header 'TIMESTAMP: <TIMESTAMP>' \
-  --header 'X-token: Bearer <X_TOKEN_FROM_LOGIN_VERIFY>'
+  --header 'X-token: <X_TOKEN_FROM_LOGIN_VERIFY>'
 ```
 
 ## Authorization
@@ -1745,7 +1745,7 @@ curl --request GET \
 
 - `REQUEST-ID` (string, required): Unique UUID v4 per request. Used for idempotency and distributed tracing. Generate a fresh UUID for every call.
 - `TIMESTAMP` (string, required): ISO 8601 UTC timestamp of the request.
-- `X-token` (string, required): The user scoped token returned when a person logs in or verifies an OTP. Required on this operation. See the shared `XToken` parameter for the general description and the `Bearer ` prefix rule.
+- `X-token` (string, required): The user scoped token returned when a person logs in or verifies an OTP. Required on this operation. See the shared `XToken` parameter, and note that this header takes the bare token with no prefix.
 
 ## Responses
 
@@ -2477,7 +2477,7 @@ curl --request POST \
   --header 'TIMESTAMP: <TIMESTAMP>' \
   --header 'BENEFIT_NAME: healthid api' \
   --header 'T-token: <T_TOKEN>' \
-  --header 'X-token: Bearer <X_TOKEN_FROM_LOGIN_VERIFY>' \
+  --header 'X-token: <X_TOKEN_FROM_LOGIN_VERIFY>' \
   --header 'Content-Type: application/json' \
   --data '{
   "scope": [
@@ -2506,7 +2506,7 @@ curl --request POST \
 - `TIMESTAMP` (string, required): ISO 8601 UTC timestamp of the request.
 - `BENEFIT_NAME` (string): The benefit scheme an enrolment belongs to. Send `healthid api` on the enrol and search calls, and `healthid` on the login OTP and verify calls under Find ABHA. On the enrolment OTP request the header is present but explicitly disabled, so it is not sent there. A login OTP request sent with `healthid api` rather than `healthid` was accepted on the sandbox on 2026-09-11, so the login calls may take either. NHA's files spell this header four different ways and use scheme values beyond healthid. Which spelling each endpoint accepts is not confirmed against the sandbox. The Conventions page for this module lists all four.
 - `T-token` (string): The transaction token that carries state between the two halves of a login. Returned by the verify call and sent back on the account selection call. Like X-token, the value carries a `Bearer ` prefix in every one of the recorded requests.
-- `X-token` (string): The user scoped token returned when a person logs in or verifies an OTP. Profile calls act on one account, so they need this in addition to the gateway token. Required on the calls that read or change a specific person's account. The value carries a `Bearer ` prefix, exactly like the Authorization header. Sending the bare token reads as an invalid token error.
+- `X-token` (string): The user scoped token returned when a person logs in or verifies an OTP. Profile calls act on one account, so they need this in addition to the gateway token. Required on the calls that read or change a specific person's account. Send the bare token. Unlike the Authorization header this one carries no `Bearer ` prefix, and adding one is refused as `ABDM-1094` with the message `X-token expired`. That message names the wrong thing: a token rejected one second after it was issued has not expired, it was malformed. Check the prefix before the lifetime.
 
 ## Body
 
@@ -2850,7 +2850,7 @@ curl --request GET \
   --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
   --header 'REQUEST-ID: <REQUEST_ID>' \
   --header 'TIMESTAMP: <TIMESTAMP>' \
-  --header 'X-token: Bearer <X_TOKEN_FROM_LOGIN_VERIFY>'
+  --header 'X-token: <X_TOKEN_FROM_LOGIN_VERIFY>'
 ```
 
 ## Authorization
@@ -2861,7 +2861,7 @@ curl --request GET \
 
 - `REQUEST-ID` (string, required): Unique UUID v4 per request. Used for idempotency and distributed tracing. Generate a fresh UUID for every call.
 - `TIMESTAMP` (string, required): ISO 8601 UTC timestamp of the request.
-- `X-token` (string): The user scoped token returned when a person logs in or verifies an OTP. Profile calls act on one account, so they need this in addition to the gateway token. Required on the calls that read or change a specific person's account. The value carries a `Bearer ` prefix, exactly like the Authorization header. Sending the bare token reads as an invalid token error.
+- `X-token` (string): The user scoped token returned when a person logs in or verifies an OTP. Profile calls act on one account, so they need this in addition to the gateway token. Required on the calls that read or change a specific person's account. Send the bare token. Unlike the Authorization header this one carries no `Bearer ` prefix, and adding one is refused as `ABDM-1094` with the message `X-token expired`. That message names the wrong thing: a token rejected one second after it was issued has not expired, it was malformed. Check the prefix before the lifetime.
 
 ## Responses
 
@@ -2882,7 +2882,7 @@ curl --request GET \
   --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
   --header 'REQUEST-ID: <REQUEST_ID>' \
   --header 'TIMESTAMP: <TIMESTAMP>' \
-  --header 'X-token: Bearer <X_TOKEN_FROM_LOGIN_VERIFY>'
+  --header 'X-token: <X_TOKEN_FROM_LOGIN_VERIFY>'
 ```
 
 ## Authorization
@@ -2893,7 +2893,7 @@ curl --request GET \
 
 - `REQUEST-ID` (string, required): Unique UUID v4 per request. Used for idempotency and distributed tracing. Generate a fresh UUID for every call.
 - `TIMESTAMP` (string, required): ISO 8601 UTC timestamp of the request.
-- `X-token` (string, required): The user scoped token returned when a person logs in or verifies an OTP. Required on this operation. See the shared `XToken` parameter for the general description and the `Bearer ` prefix rule.
+- `X-token` (string, required): The user scoped token returned when a person logs in or verifies an OTP. Required on this operation. See the shared `XToken` parameter, and note that this header takes the bare token with no prefix.
 
 ## Responses
 
@@ -2923,7 +2923,7 @@ curl --request GET \
   --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
   --header 'REQUEST-ID: <REQUEST_ID>' \
   --header 'TIMESTAMP: <TIMESTAMP>' \
-  --header 'X-token: Bearer <X_TOKEN_FROM_LOGIN_VERIFY>'
+  --header 'X-token: <X_TOKEN_FROM_LOGIN_VERIFY>'
 ```
 
 ## Authorization
@@ -2934,7 +2934,7 @@ curl --request GET \
 
 - `REQUEST-ID` (string, required): Unique UUID v4 per request. Used for idempotency and distributed tracing. Generate a fresh UUID for every call.
 - `TIMESTAMP` (string, required): ISO 8601 UTC timestamp of the request.
-- `X-token` (string, required): The user scoped token returned when a person logs in or verifies an OTP. Required on this operation. See the shared `XToken` parameter for the general description and the `Bearer ` prefix rule.
+- `X-token` (string, required): The user scoped token returned when a person logs in or verifies an OTP. Required on this operation. See the shared `XToken` parameter, and note that this header takes the bare token with no prefix.
 
 ## Responses
 
@@ -2999,7 +2999,7 @@ curl --request GET \
   --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
   --header 'REQUEST-ID: <REQUEST_ID>' \
   --header 'TIMESTAMP: <TIMESTAMP>' \
-  --header 'X-token: Bearer <X_TOKEN_FROM_LOGIN_VERIFY>'
+  --header 'X-token: <X_TOKEN_FROM_LOGIN_VERIFY>'
 ```
 
 ## Authorization
@@ -3010,7 +3010,7 @@ curl --request GET \
 
 - `REQUEST-ID` (string, required): Unique UUID v4 per request. Used for idempotency and distributed tracing. Generate a fresh UUID for every call.
 - `TIMESTAMP` (string, required): ISO 8601 UTC timestamp of the request.
-- `X-token` (string, required): The user scoped token returned when a person logs in or verifies an OTP. Required on this operation. See the shared `XToken` parameter for the general description and the `Bearer ` prefix rule.
+- `X-token` (string, required): The user scoped token returned when a person logs in or verifies an OTP. Required on this operation. See the shared `XToken` parameter, and note that this header takes the bare token with no prefix.
 
 ## Responses
 
@@ -3041,7 +3041,7 @@ curl --request GET \
   --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
   --header 'REQUEST-ID: <REQUEST_ID>' \
   --header 'TIMESTAMP: <TIMESTAMP>' \
-  --header 'X-token: Bearer <X_TOKEN_FROM_LOGIN_VERIFY>'
+  --header 'X-token: <X_TOKEN_FROM_LOGIN_VERIFY>'
 ```
 
 ## Authorization
@@ -3052,7 +3052,7 @@ curl --request GET \
 
 - `REQUEST-ID` (string, required): Unique UUID v4 per request. Used for idempotency and distributed tracing. Generate a fresh UUID for every call.
 - `TIMESTAMP` (string, required): ISO 8601 UTC timestamp of the request.
-- `X-token` (string, required): The user scoped token returned when a person logs in or verifies an OTP. Required on this operation. See the shared `XToken` parameter for the general description and the `Bearer ` prefix rule.
+- `X-token` (string, required): The user scoped token returned when a person logs in or verifies an OTP. Required on this operation. See the shared `XToken` parameter, and note that this header takes the bare token with no prefix.
 
 ## Responses
 
@@ -3092,7 +3092,7 @@ curl --request POST \
   --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
   --header 'REQUEST-ID: <REQUEST_ID>' \
   --header 'TIMESTAMP: <TIMESTAMP>' \
-  --header 'X-token: Bearer <X_TOKEN_FROM_LOGIN_VERIFY>' \
+  --header 'X-token: <X_TOKEN_FROM_LOGIN_VERIFY>' \
   --header 'Content-Type: application/json' \
   --data '{
   "scope": [
@@ -3113,7 +3113,7 @@ curl --request POST \
 
 - `REQUEST-ID` (string, required): Unique UUID v4 per request. Used for idempotency and distributed tracing. Generate a fresh UUID for every call.
 - `TIMESTAMP` (string, required): ISO 8601 UTC timestamp of the request.
-- `X-token` (string, required): The user scoped token returned when a person logs in or verifies an OTP. Required on this operation. See the shared `XToken` parameter for the general description and the `Bearer ` prefix rule.
+- `X-token` (string, required): The user scoped token returned when a person logs in or verifies an OTP. Required on this operation. See the shared `XToken` parameter, and note that this header takes the bare token with no prefix.
 
 ## Body
 
@@ -3161,7 +3161,7 @@ curl --request PATCH \
   --header 'REQUEST-ID: <REQUEST_ID>' \
   --header 'TIMESTAMP: <TIMESTAMP>' \
   --header 'BENEFIT_NAME: healthid api' \
-  --header 'X-token: Bearer <X_TOKEN_FROM_LOGIN_VERIFY>' \
+  --header 'X-token: <X_TOKEN_FROM_LOGIN_VERIFY>' \
   --header 'Content-Type: application/json' \
   --data '{
   "abhaNumber": "<ABHA_NUMBER>",
@@ -3180,7 +3180,7 @@ curl --request PATCH \
 - `REQUEST-ID` (string, required): Unique UUID v4 per request. Used for idempotency and distributed tracing. Generate a fresh UUID for every call.
 - `TIMESTAMP` (string, required): ISO 8601 UTC timestamp of the request.
 - `BENEFIT_NAME` (string): The benefit scheme an enrolment belongs to. Send `healthid api` on the enrol and search calls, and `healthid` on the login OTP and verify calls under Find ABHA. On the enrolment OTP request the header is present but explicitly disabled, so it is not sent there. A login OTP request sent with `healthid api` rather than `healthid` was accepted on the sandbox on 2026-09-11, so the login calls may take either. NHA's files spell this header four different ways and use scheme values beyond healthid. Which spelling each endpoint accepts is not confirmed against the sandbox. The Conventions page for this module lists all four.
-- `X-token` (string): The user scoped token returned when a person logs in or verifies an OTP. Profile calls act on one account, so they need this in addition to the gateway token. Required on the calls that read or change a specific person's account. The value carries a `Bearer ` prefix, exactly like the Authorization header. Sending the bare token reads as an invalid token error.
+- `X-token` (string): The user scoped token returned when a person logs in or verifies an OTP. Profile calls act on one account, so they need this in addition to the gateway token. Required on the calls that read or change a specific person's account. Send the bare token. Unlike the Authorization header this one carries no `Bearer ` prefix, and adding one is refused as `ABDM-1094` with the message `X-token expired`. That message names the wrong thing: a token rejected one second after it was issued has not expired, it was malformed. Check the prefix before the lifetime.
 
 ## Body
 
@@ -3265,7 +3265,7 @@ curl --request POST \
   --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
   --header 'REQUEST-ID: <REQUEST_ID>' \
   --header 'TIMESTAMP: <TIMESTAMP>' \
-  --header 'X-token: Bearer <X_TOKEN_FROM_LOGIN_VERIFY>' \
+  --header 'X-token: <X_TOKEN_FROM_LOGIN_VERIFY>' \
   --header 'Content-Type: application/json' \
   --data '{
   "scope": [
@@ -3292,7 +3292,7 @@ curl --request POST \
 
 - `REQUEST-ID` (string, required): Unique UUID v4 per request. Used for idempotency and distributed tracing. Generate a fresh UUID for every call.
 - `TIMESTAMP` (string, required): ISO 8601 UTC timestamp of the request.
-- `X-token` (string, required): The user scoped token returned when a person logs in or verifies an OTP. Required on this operation. See the shared `XToken` parameter for the general description and the `Bearer ` prefix rule.
+- `X-token` (string, required): The user scoped token returned when a person logs in or verifies an OTP. Required on this operation. See the shared `XToken` parameter, and note that this header takes the bare token with no prefix.
 
 ## Body
 
@@ -3594,9 +3594,9 @@ Shape of the 200 response, generated from the schema. The values are placeholder
 
 Seeing a symptom rather than a code? Start at [Troubleshooting](/docs/hiecm/v3/troubleshooting/).
 
-## Four error shapes, not one
+## Six error shapes, not one
 
-Do not write a parser that expects a single shape.
+Do not write a parser that expects a single shape. Four come from the ABHA service and its gateway. The fifth is an empty body. The sixth comes from the registries and hides its real code one level down.
 
 ### Shape 1: the wrapped ABDM error
 
@@ -3605,6 +3605,8 @@ Do not write a parser that expects a single shape.
 ```
 
 The code lives at `error.code`. This comes from the ABHA service's own business logic.
+
+Do not compare that code with string equality. It is not always a clean token: a failed session call returned `{"error":{"code":"ABDM-9999: ", "message":"Invalid user credentials"}}`, with a trailing colon and space inside the code. Trim it and match on the `ABDM-nnnn` prefix, or the branch you wrote for that code never runs.
 
 ### Shape 2: the flat ABDM error
 
@@ -3628,14 +3630,22 @@ No code at all. The key names the field you got wrong. Several bad fields produc
 
 Treat every key except `timestamp` as a field name. These always arrive as HTTP 400.
 
-Two of these read almost the same and mean opposite halves of the same step.
+Two of these read almost the same. Only one of them tells you anything.
 
-| Body                                | What failed                                           | What to change                                                                         |
-| ----------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `{"loginId": "Invalid LoginId"}`    | The service could not decrypt the value               | The key or the padding. Observed with the wrong padding on 2026-09-09                  |
-| `{"loginId": "LoginId is invalid"}` | It decrypted, then the plaintext failed a format rule | The plaintext shape. Observed with an ABHA number sent as 14 bare digits on 2026-09-11 |
+| Body                                | What it tells you                                |
+| ----------------------------------- | ------------------------------------------------ |
+| `{"loginId": "LoginId is invalid"}` | It decrypted. The plaintext failed a format rule |
+| `{"loginId": "Invalid LoginId"}`    | On the enrolment endpoint, nothing at all        |
 
-The second is the one that costs an afternoon, because the value really was encrypted and really was the right number. An ABHA number keeps its dashes, `NN-NNNN-NNNN-NNNN`. The plaintext shape for every encrypted field is in [encryption](/docs/hiecm/v3/concepts/encryption).
+The first is the one that costs an afternoon, because the value really was encrypted and really was the right number. An ABHA number keeps its dashes, `NN-NNNN-NNNN-NNNN`.
+
+The second carries no diagnostic value on `/v3/enrollment/request/otp`. That endpoint returns it for plaintext, for an empty string, for base64 that is not ciphertext, and for a correctly encrypted value alike. A padding matrix run against it returns the same refusal for every row, the correct row included, which is how a wrong padding survives a test that looks thorough.
+
+Test encryption against `POST /v3/profile/login/request/otp` with `loginHint: "mobile"` instead, and with a number that is registered against an ABHA account. The 200 is the signal: a right padding returns it with a `txnId`, a wrong one returns `Invalid Mobile Number`.
+
+The number has to be a real one. A correctly encrypted `9999999999` returns that same `Invalid Mobile Number`, because the value decrypted fine and named nobody. With an unregistered number this endpoint is as uninformative as the enrolment one.
+
+The algorithm is published: read `encryptionAlgorithm` from the certificate response. The plaintext shape for every encrypted field is in [encryption](/docs/hiecm/v3/concepts/encryption).
 
 ### Shape 4: the API gateway error
 
@@ -3644,6 +3654,22 @@ The second is the one that costs an afternoon, because the value really was encr
 ```
 
 A numeric code, not an `ABDM-` code, plus a `description` field the other shapes lack. This comes from the API gateway in front of the ABHA service, before your request reaches the business logic. It almost always means the `Authorization` header is wrong or expired.
+
+`900901` is a bad token. `900902` is no token at all, observed on the NHPR host. Match the family, not the single code.
+
+### Shape 5: the empty body
+
+An HTTP 401 with a zero length body and no JSON at all, observed on `/v3/phr/web/login/profile/abha-profile` when no user token was sent. There is nothing to parse and nothing to match. Code that assumes every failure carries a body throws here, on a response that means something simple.
+
+### Shape 6: the registry error, with the real code nested
+
+```json
+{    "code": "HIS-422",    "message": "Unable to process the current request due to some wrong data entered.",    "details": [        {"message": "You are not allowed to access this API", "code": "HIS-403", "attribute": null}    ]}
+```
+
+The registries return a `HIS-` family rather than `ABDM-`, and the top level code is not the cause. `HIS-422` and its message say the data was wrong. The real reason is in `details[0]`: `HIS-403`, not permitted. The HTTP status disagrees with the nested code too, arriving as 422 for what is an authorisation failure.
+
+Read `details[0].code` before the top level one on any `HIS-` response, and show `details[0].message` to whoever is debugging. Acting on the outer code sends you to check your payload for a problem that is not there.
 
 ## Codes
 
@@ -6674,7 +6700,9 @@ Three fields below are sent encrypted: the mobile number in mobile match, the [O
 | Sandbox URL    | `https://apihspsbx.abdm.gov.in/v4/int/api/v1/auth/cert` |
 | Production URL | `https://apinhpr.abdm.gov.in/v4/int/api/v1/auth/cert`   |
 
-The response is a PEM public key, beginning `-----BEGIN PUBLIC KEY-----`. The cipher is `RSA/ECB/PKCS1Padding`.
+The cipher is `RSA/ECB/PKCS1Padding`, under this certificate and no other. M1 uses RSA-OAEP with SHA-1 under the ABHA certificate, so an M1 encryption path reused here produces a value the NHPR cannot read.
+
+Check the response format before you parse it. Where it arrives as bare base64 rather than beginning `-----BEGIN PUBLIC KEY-----`, add the PEM armour yourself, wrapping at 64 characters per line, as the ABHA certificate call requires.
 
 ## HPID creation
 
@@ -24765,7 +24793,7 @@ Generated from the specifications. Every scheme and header below is declared in 
 | ---------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `REQUEST-ID`     | yes      | Unique UUID v4 per request. Used for idempotency and distributed tracing. Generate a fresh UUID for every call.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `TIMESTAMP`      | yes      | ISO 8601 UTC timestamp of the request.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `X-token`        | no       | The user scoped token returned when a person logs in or verifies an OTP. Profile calls act on one account, so they need this in addition to the gateway token. Required on the calls that read or change a specific person's account. The value carries a `Bearer `prefix, exactly like the Authorization header. Sending the bare token reads as an invalid token error.                                                                                                                                                                                                                                                                         |
+| `X-token`        | no       | The user scoped token returned when a person logs in or verifies an OTP. Profile calls act on one account, so they need this in addition to the gateway token. Required on the calls that read or change a specific person's account. Send the bare token. Unlike the Authorization header this one carries no `Bearer `prefix, and adding one is refused as `ABDM-1094` with the message `X-token expired`. That message names the wrong thing: a token rejected one second after it was issued has not expired, it was malformed. Check the prefix before the lifetime.                                                                         |
 | `BENEFIT_NAME`   | no       | The benefit scheme an enrolment belongs to. Send `healthid api` on the enrol and search calls, and `healthid` on the login OTP and verify calls under Find ABHA. On the enrolment OTP request the header is present but explicitly disabled, so it is not sent there. A login OTP request sent with `healthid api` rather than `healthid` was accepted on the sandbox on 2026-09-11, so the login calls may take either. NHA's files spell this header four different ways and use scheme values beyond healthid. Which spelling each endpoint accepts is not confirmed against the sandbox. The Conventions page for this module lists all four. |
 | `T-token`        | no       | The transaction token that carries state between the two halves of a login. Returned by the verify call and sent back on the account selection call. Like X-token, the value carries a `Bearer `prefix in every one of the recorded requests.                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `R-token`        | no       | The refresh token, sent when asking for a new user token without making the person log in again. Like X-token, the value carries a `Bearer `prefix.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
@@ -26880,7 +26908,7 @@ Per professional, store:
 - The master data ids you sent for council, course, college, university, language, country, state and district. The registry rejects display values.
 - The certificates you uploaded, with each document slot identifier.
 
-Once, for the whole integration: client id and client secret for the gateway session call, and the public certificate from `v4/int/api/v1/auth/cert`. Three fields are encrypted with it, cipher `RSA/ECB/PKCS1Padding`: the mobile number in mobile match, the OTP in mobile login, and the email and password in create HPID.
+Once, for the whole integration: client id and client secret for the gateway session call, and the public certificate from `v4/int/api/v1/auth/cert`. Three fields are encrypted with it, cipher `RSA/ECB/PKCS1Padding`: the mobile number in mobile match, the OTP in mobile login, and the email and password in create HPID. That cipher and that certificate belong to the NHPR. M1 encrypts with RSA-OAEP and SHA-1 under the ABHA certificate, so the two paths are not interchangeable.
 
 Upload limits: 1 MB for a profile photo, 5 MB for anything else, png, jpeg, jpg or PDF only. Attachments go as a `fileType` and a base64 `data` string.
 

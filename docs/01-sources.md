@@ -1,7 +1,7 @@
 # 01 — Sources: how to read the ABDM docs as an agent
 
 Base: `https://abdm-docs.dev.eka.care`. Catalogue version 2026.08.24; skills built
-2026-09-14 (from `/skills/index.json`). Mirror rebuilt 2026-09-15 (`docs/abdm-docs-mirror/MANIFEST.json`).
+2026-09-15 (from `/skills/index.json`). Mirror rebuilt 2026-09-17 (`docs/abdm-docs-mirror/MANIFEST.json`).
 
 ## Ways in, in order of preference
 
@@ -15,10 +15,9 @@ Base: `https://abdm-docs.dev.eka.care`. Catalogue version 2026.08.24; skills bui
    `decode_error`, `list_fhir_profiles`, `get_fhir_profile`, `get_fhir_example`,
    `validate_fhir`.
    Use `get_operation` for every request body we write, and `validate_request`
-   before the first real call. From a shell without an MCP client, a 30-line Python script can call
-   the server: `POST /mcp` with `initialize`, then `tools/call`; send
-   `Accept: application/json, text/event-stream` and echo the `Mcp-Session-Id` header. Responses
-   arrive as SSE `data:` lines. `validate_fhir` takes `bundle_json` as a string and returns
+   before the first real call. From a shell without an MCP client, `scripts/abdm-docs-mcp.py <tool> '<json args>'` calls
+   the server (`POST /mcp` with `initialize`, then `tools/call`; `Accept: application/json,
+   text/event-stream`; the `Mcp-Session-Id` header echoed back; answers arrive as SSE `data:` lines). `validate_fhir` takes `bundle_json` as a string and returns
    `findings: null` for a clean bundle.
 2. **Per-page markdown** — append `/index.md` to any docs URL
    (`…/docs/hiecm/v3/milestones/m2/index.md`). `.md` without `/index` 404s.

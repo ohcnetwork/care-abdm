@@ -18,10 +18,6 @@ def healthy(request):
     return JsonResponse({"status": "ok", "plug": "abdm"})
 
 
-def callback_route(route):
-    return path(route, callbacks.GenericCallbackView.as_view(), {"path": route})
-
-
 urlpatterns = [
     # --- probes and instance setup (the bridge is 1 per clientId; ADR-010) ---
     path("health", healthy),
@@ -32,8 +28,7 @@ urlpatterns = [
     # --- facility setup (ADR-007): HFR facility ID, names, counters; HRP service registration ---
     path("facilities/<uuid:facility_id>/abdm", facility_views.FacilityAbdmConfig.as_view()),
     path("facilities/<uuid:facility_id>/abdm/hrp-services", facility_views.FacilityHrpServices.as_view()),
-    # --- M1 Scan and Share: gateway callback + front desk inbox ---
-    callback_route("patient-share/v3/share"),
+    # --- M1 Scan and Share: front desk inbox (the gateway callback lands on the catch-all below) ---
     path("facilities/<uuid:facility_id>/abdm/profile-shares", share_views.ProfileShareList.as_view()),
     path("facilities/<uuid:facility_id>/abdm/profile-shares/<uuid:share_id>", share_views.ProfileShareDetail.as_view()),
     path(
@@ -43,21 +38,6 @@ urlpatterns = [
     # --- callback log (superuser) ---
     path("callbacks", callbacks.CallbackList.as_view()),
     path("callbacks/<uuid:callback_id>", callbacks.CallbackDetail.as_view()),
-    # --- M2 gateway callbacks. Every path variant the docs name is accepted (callbacks/receiver.py) ---
-    callback_route("v3/hip/token/on-generate-token"),
-    callback_route("v3/link/on_carecontext"),
-    callback_route("v3/links/context/on-notify"),
-    callback_route("v3/patients/sms/on-notify"),
-    callback_route("api/v3/hip/patient/care-context/discover"),
-    callback_route("v0.5/care-contexts/discover"),
-    callback_route("api/v3/hip/link/care-context/init"),
-    callback_route("v0.5/links/link/init"),
-    callback_route("api/v3/hip/link/care-context/confirm"),
-    callback_route("v0.5/links/link/confirm"),
-    callback_route("v0.5/consents/hip/notify"),
-    callback_route("api/v3/consent/request/hip/notify"),
-    callback_route("api/v3/hip/health-information/request"),
-    callback_route("v0.5/health-information/hip/request"),
     # --- M2 desk endpoints ---
     path("encounters/<uuid:encounter_id>/care-context", hip_views.EncounterCareContext.as_view()),
     path("encounters/<uuid:encounter_id>/care-context/link", hip_views.EncounterCareContextLink.as_view()),
@@ -80,8 +60,10 @@ urlpatterns = [
     path("patients/<uuid:patient_id>/abha", abha.PatientAbhaStatus.as_view()),
     path("patients/<uuid:patient_id>/abha/link", abha.PatientAbhaLink.as_view()),
     path("patients/<uuid:patient_id>/abha/card", abha.PatientAbhaCard.as_view()),
-    # Catch-all, last on purpose: a gateway POST to a path the docs did not name is stored as a
-    # callback row (operation id empty, processed_status `unhandled`) instead of a Care 404 that
-    # leaves no trace. The docs conflict on callback paths (findings E3).
+    # Every gateway callback, last on purpose. The bridge URL is `<base>/api/abdm`, so the gateway
+    # posts to `/api/abdm/<callback path>`; callbacks/paths.py maps the path to its operation and
+    # a path the docs never named is still stored (operation id empty, `unhandled`) instead of
+    # vanishing as a Care 404. Observed 2026-09-17: the real paths carry an `/api` prefix the docs
+    # omit (`/api/abdm/api/v3/hip/token/on-generate-token`).
     re_path(r"^(?P<path>.+)$", callbacks.GenericCallbackView.as_view()),
 ]

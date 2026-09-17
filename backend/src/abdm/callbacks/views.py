@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from abdm.callbacks.receiver import create_callback
-from abdm.callbacks.signature import CallbackSignatureError, verify_callback_signature
+from abdm.callbacks.signature import CallbackSignatureError, seconds_late, verify_callback_signature
 from abdm.models import AbdmCallback
 from abdm.tasks import dispatch_callback
 
@@ -33,15 +33,17 @@ class GenericCallbackView(APIView):
                 return Response({}, status=202)
             return Response({"errors": "Callback signature verification failed."}, status=401)
         try:
-            _claims, header_name = verify_callback_signature(callback.headers_json)
+            claims, header_name = verify_callback_signature(callback.headers_json)
         except CallbackSignatureError as exc:
             return self._refuse(callback, str(exc), status=401)
         except Exception as exc:  # noqa: BLE001 - our side failed (JWKS fetch); keep the row, ask for a retry
             logger.exception("abdm callback %s: verification could not run", callback.external_id)
             return self._refuse(callback, f"Verification unavailable: {exc}", status=503)
+        late = seconds_late(claims)
         callback.signature_status = AbdmCallback.SignatureStatus.OK
         callback.signature_header = header_name[:64]
-        callback.signature_error = ""
+        # Not an error: evidence that ABDM repeated a late delivery (ADR-012 D4).
+        callback.signature_error = f"Accepted {late} s after the token expired." if late else ""
         callback.processed_status = AbdmCallback.ProcessedStatus.QUEUED
         callback.save(
             update_fields=[

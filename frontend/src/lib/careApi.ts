@@ -12,7 +12,10 @@ export type AbdmRelayError = {
 };
 
 export type AbdmFacilityConfig = {
-  /** Read-only. The server derives this from facility_id (HIP ID = HFR facility ID). */
+  /**
+   * Read-only. The service id the gateway issued when the HRP service was registered
+   * (e.g. IN1410000232_1). Empty until then; not the HFR facility ID.
+   */
   hip_id?: string;
   facility_id: string;
   facility_name: string;
@@ -51,12 +54,30 @@ export type AbdmAdminOverview = AbdmBridgeState & {
   facilities: {
     id: string;
     name: string;
+    /** HFR facility ID (e.g. IN1410000232). */
     facility_id: string;
+    /** Gateway-issued HIP service id (e.g. IN1410000232_1); empty until the HRP service is registered. */
+    hip_id: string;
     facility_name: string;
     hip_name: string;
     counters: string[];
     hrp_registered_at: string | null;
     last_error: string;
+    /** The most recent refused ABDM call at this facility (backend errors.py, ADR-012). */
+    last_failure: {
+      operation_id: string;
+      request_id: string;
+      sent_at: string;
+      http_status: number | null;
+      code: string;
+      action: string;
+      retry: "now" | "after" | "never";
+      retryAt: string | null;
+      what: string;
+      nextStep: string;
+      detail: string;
+      supportReference: string;
+    } | null;
   }[];
 };
 
@@ -103,6 +124,17 @@ export type AbdmCareContextState = {
     notifiedAt: string | null;
     errorCode: string;
     errorMessage: string;
+  } | null;
+  /** The 1 thing the desk reads when a share does not go through (backend errors.py, ADR-012). */
+  failure: {
+    code: string;
+    action: string;
+    retry: "now" | "after" | "never";
+    retryAt: string | null;
+    what: string;
+    nextStep: string;
+    detail: string;
+    supportReference: string;
   } | null;
   activity: AbdmOutboundSummary[];
 };

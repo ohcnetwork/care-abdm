@@ -10,9 +10,13 @@ the signed token is not published". So:
   alone, and only RSA signatures (RS256, RS512: the 2 algorithms in the gateway's set) pass.
 - Verification fails closed. `verify_callback_signature` raises `CallbackSignatureError` for a
   bad or missing signature and lets `GatewayCertsError` through when the JWKS cannot be read.
+- An expired token is accepted for `ABDM_CALLBACK_SIGNATURE_LEEWAY_SECONDS` after its `exp`
+  (ADR-012 D4). The gateway repeats a failed delivery about 16 minutes later with the same token,
+  so a strict check throws genuine answers away. The signature is still verified in full.
 """
 
 import re
+from datetime import UTC, datetime
 
 import jwt
 from jwt import InvalidTokenError
@@ -73,9 +77,20 @@ def verify_callback_signature(headers: dict[str, str]) -> tuple[dict, str]:
         except KeyError as exc:
             raise CallbackSignatureError(f"Unknown signing key kid={exc.args[0]}") from exc
     last = "no RSA key matched"
+    leeway = max(0, int(plugin_settings.CALLBACK_SIGNATURE_LEEWAY_SECONDS or 0))
     for key, alg in candidates:
         try:
-            return jwt.decode(token, key=key, algorithms=[alg], options={"verify_aud": False}), header_name
+            claims = jwt.decode(token, key=key, algorithms=[alg], leeway=leeway, options={"verify_aud": False})
+            return claims, header_name
         except InvalidTokenError as exc:
             last = str(exc)
     raise CallbackSignatureError(f"Signature did not verify: {last}")
+
+
+def seconds_late(claims: dict, now: datetime | None = None) -> int:
+    """How many seconds after its `exp` the token arrived. 0 when it was still valid."""
+    expiry = claims.get("exp")
+    if not isinstance(expiry, (int, float)):
+        return 0
+    moment = now or datetime.now(UTC)
+    return max(0, int(moment.timestamp() - float(expiry)))

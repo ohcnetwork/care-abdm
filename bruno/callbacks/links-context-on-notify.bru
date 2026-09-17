@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: {{careUrl}}/api/abdm/v3/links/context/on-notify
+  url: {{careUrl}}/api/abdm/api/v3/links/context/on-notify
   body: json
   auth: none
 }
@@ -37,5 +37,5 @@ docs {
   Result of `m2-link-care-context-notify`. Operation id `m2-on-context-notify-result`.
   `acknowledgement.status` is `SUCCESS` or `ERRORED`.
 
-  Path: `/api/abdm/v3/links/context/on-notify`.
+  Path: `/api/abdm/api/v3/links/context/on-notify`.
 }

@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: {{careUrl}}/api/abdm/v3/patients/sms/on-notify
+  url: {{careUrl}}/api/abdm/api/v3/patients/sms/on-notify
   body: json
   auth: none
 }
@@ -36,5 +36,5 @@ body:json {
 docs {
   Result of `m2-sms-deep-link-notify`. Operation id `m2-on-sms-notify-result`.
 
-  Path: `/api/abdm/v3/patients/sms/on-notify`.
+  Path: `/api/abdm/api/v3/patients/sms/on-notify`.
 }

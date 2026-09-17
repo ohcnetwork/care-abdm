@@ -37,6 +37,14 @@
   the same from `/admin/abdm` (admin sidebar → ABDM). Run it before the HRP service registration.
 - Run Celery. Every callback handler and the Encounter auto-link run in the worker:
   `cd ~/ohc.network/care && ./scripts/celery-dev.sh`.
+  The worker does not reload plug code: `celery-dev.sh` watches only the Care tree, and a worker started
+  by hand watches nothing. After a change under `backend/src/abdm/` restart it, or send it
+  `kill -HUP <celery main pid>` (Celery re-executes itself in the same terminal with the same
+  environment; done on 2026-09-17, restart took 20 s). `runserver` reloads the plug on its own.
+- HIP ID is per facility and is read from the gateway, not typed: after "Register HRP service" the
+  plug stores the service id the registry issued (`IN1410000232_1` for facility `IN1410000232`) and
+  sends it as `X-HIP-ID`. The setup page re-reads it on every load. A call sent with the bare HFR id
+  is accepted with 202 but its callback is never delivered (2026-09-17).
 - Probes: `GET /api/abdm/health`; `GET /api/abdm/gateway/status`; `GET /api/abdm/bridge` (live gateway view); `GET /api/abdm/admin/overview` (superuser; backs `/admin/abdm`).
 - Callback log (superuser): `GET /api/abdm/callbacks?limit=20`; `GET /api/abdm/callbacks/<callback_id>`.
 - Encounter link state: `GET /api/abdm/encounters/<encounter_id>/care-context`.

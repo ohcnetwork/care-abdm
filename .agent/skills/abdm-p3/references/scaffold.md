@@ -8,6 +8,118 @@ Every flow below is an OODA loop, not a recipe: observe the actual state (last r
 
 Loop limit: 8 passes per flow step. Hitting the limit is an escalation: state what was observed, what was tried, and which atom to read, then ask one question.
 
+## Rules to hold before you call anything
+
+#### The five things a personal health record application must let a person do with consent (`hiecm.concept.consent-in-a-phr-app`)
+
+Consent in ABDM is granted by a person, not by a system, and the
+personal health record application (shared.glossary.phr) is where they do it.
+Everything else in the network assumes that screen exists and works.
+
+NHA sets a floor of five capabilities. An application missing one of them
+leaves a person able to give access they cannot inspect, change or withdraw.
+
+#### 1. See the request
+
+Every request the person has received, showing the
+health information user (shared.glossary.hiu) asking, the purpose, the record
+types wanted, the date range of records, how long the consent would last, and
+its current status.
+
+#### 2. Change it before allowing it
+
+Where the request permits it, the person adjusts it rather than facing all or
+nothing. Four things are adjustable: how long access lasts, the date range of
+records covered, which categories of record are shared, and the validity
+period of the consent itself.
+
+This is the capability most often left out, and it is the one that turns a
+consent screen into a negotiation rather than a demand.
+
+#### 3. Allow or refuse
+
+The decision goes back to the consent manager. NHA's own flow names three
+outcomes, not two: approve, reject, and ignore. Ignoring is a real outcome
+with a real effect, because a request the person never touches expires on the
+window the requester set, and your interface has to be able to show that
+state.
+
+Approving is `POST /api/consent-management/consent-requests/{consentRequestId}/approve`,
+and its reference page carries the headers and the body. Denying and revoking
+have a written page each as well, which approving does not yet, so read the
+reference for that one rather than looking for prose that is not there.
+
+#### 4. See what is already allowed
+
+Every consent currently granted, its details and status, so the person can see
+which organisations hold access to their records right now. A list of past
+decisions is not the same thing as a list of live ones.
+
+#### 5. Take it back
+
+The person withdraws a granted consent at any time. Two things follow, and
+both matter: the status is updated at the consent manager, and sharing under
+that consent stops immediately. Not at the end of the period, not at the next
+request.
+
+#### Subscriptions, and why a personal health record application needs one (`hiecm.concept.phr-subscriptions`)
+
+A care context (hiecm.concept.care-context) can be linked to a person's
+address at any time, by any facility they visit, without your application
+being part of it. A subscription is how you find out. It is a standing watch
+on one address: once it exists, the consent manager posts to your callback
+whenever something changes for that person.
+
+Either a health information user (shared.glossary.hiu) or a
+personal health record application (shared.glossary.phr) may hold one.
+Without it, the only way to notice a new record is to ask repeatedly, and
+nothing in ABDM is built for that.
+
+NHA expects every personal health record application to set one up at two
+moments: when it creates an address, and when a person signs in with an
+address it has not seen before.
+
+#### The four events it delivers
+
+Once the person approves the subscription, the consent manager notifies you
+on:
+
+- a new care context linked to the address,
+- a modified care context,
+- a new consent request,
+- a new subscription request.
+
+Delivery is to your callback. Showing it to the person on their device is
+your job, and NHA names a push service, Firebase on Android, as the example
+rather than a requirement.
+
+#### The states a request moves through
+
+The interface NHA describes carries two groups, and a request sits in exactly
+one state within them. Building a screen per state is the point of listing
+them:
+
+| Group | State | What it means |
+| --- | --- | --- |
+| Requests | Requested | Sent to the person, who has not acted yet |
+| Requests | Denied | The person refused it |
+| Requests | Expired | The person did not act inside the window the requester set |
+| Approved | Granted | The person allowed it |
+| Approved | Revoked | The person allowed it and later withdrew that |
+
+The same five states carry consent requests, subscription requests and health
+locker requests, so one screen serves all three.
+
+#### What a subscription is not
+
+It is not consent, and it does not give anybody a record. It tells you that a
+record exists. Reading it still needs a consent, which is why a subscription
+usually runs alongside an auto approval policy: the notification arrives, your
+application raises a consent request for the care context it names, the policy
+grants it without troubling the person, and only then can the record be
+fetched and stored. That sequence is
+subscribe and auto approve (hiecm.flow.p3-subscribe-and-auto-approve).
+
 ## Flows
 
 ### Fetch and store the records a linked care context points at (`hiecm.flow.p3-fetch-records`)

@@ -24,6 +24,7 @@ def _jwk(public_key, kid: str, alg: str = "RS256") -> dict:
 class CallbackSignatureTests(unittest.TestCase):
     def setUp(self):
         plugin_settings.CALLBACK_SIGNATURE_HEADER = "Authorization"
+        plugin_settings.CALLBACK_SIGNATURE_LEEWAY_SECONDS = 3600
         self.key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         self.other = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         # The sandbox set (2026-09-15) holds an RS256 key and an RS512 key.

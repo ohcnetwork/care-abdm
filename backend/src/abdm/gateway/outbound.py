@@ -1,9 +1,11 @@
 import logging
+from datetime import datetime
 from typing import Any
 
 import requests
 from django.utils import timezone
 
+from abdm import errors
 from abdm.facility.service import hip_id_for
 from abdm.gateway.session import gateway_headers, get_access_token, new_request_id  # noqa: F401
 from abdm.models import AbdmOutboundRequest
@@ -87,8 +89,8 @@ def _error_code(payload: Any) -> str:
         return ""
     error = payload.get("error")
     if isinstance(error, dict) and error:
-        return str(error.get("code", "") or "")
-    return str(payload.get("code", "") or "")
+        return errors.normalize_code(error.get("code"))
+    return errors.normalize_code(payload.get("code"))
 
 
 def failure_detail(row: AbdmOutboundRequest) -> str:
@@ -99,6 +101,24 @@ def failure_detail(row: AbdmOutboundRequest) -> str:
     if detail:
         head = f"{head}: {detail}"
     return f"{head} (REQUEST-ID {row.request_id})"
+
+
+def failure(row: AbdmOutboundRequest, *, since: datetime | None = None) -> errors.Failure:
+    """The `errors.Failure` for an outbound row that did not succeed (ADR-012).
+
+    `since` is the time the wait runs from. For `ABDM-1092` that is when the accepted request went
+    out, so the caller passes that row's `sent_at`, not this one's.
+    """
+    lines = _error_lines(row.response_json)
+    exception = row.error_code if row.http_status is None else ""
+    return errors.classify(
+        code=row.error_code if row.http_status is not None else "",
+        http_status=row.http_status,
+        message=" | ".join(dict.fromkeys(lines)),
+        exception=exception,
+        request_id=row.request_id,
+        since=since if since is not None else row.sent_at,
+    )
 
 
 def send(
@@ -145,12 +165,16 @@ def send(
             timeout=plugin_settings.REQUEST_TIMEOUT_SECONDS,
         )
     except requests.RequestException as exc:
+        # ADR-012 D5: record the transport failure and return the row. Every caller reads 1 shape.
+        # `http_status` stays null, which is how `failure()` tells a transport failure from a
+        # refusal. Nothing reached ABDM, so a repeat is safe.
         row.status = AbdmOutboundRequest.Status.FAILED
         row.error_code = exc.__class__.__name__
         row.response_json = {"message": str(exc)}
         row.completed_at = timezone.now()
         row.save(update_fields=["status", "error_code", "response_json", "completed_at", "modified_date"])
-        raise
+        logger.warning("abdm %s could not reach ABDM: %s (REQUEST-ID %s)", operation_id, exc, row.request_id)
+        return row
     response_json = _json_or_text(response)
     errors = response_errors(response_json)
     row.http_status = response.status_code
@@ -161,10 +185,12 @@ def send(
     else:
         row.status = AbdmOutboundRequest.Status.FAILED
         row.error_code = _error_code(response_json)[:128] or f"HTTP_{response.status_code}"
+        row.response_headers = dict(response.headers)
     row.save(
         update_fields=[
             "http_status",
             "response_json",
+            "response_headers",
             "completed_at",
             "status",
             "error_code",

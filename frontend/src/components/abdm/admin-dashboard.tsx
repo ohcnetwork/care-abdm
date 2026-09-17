@@ -335,8 +335,9 @@ export default function AbdmAdminDashboard() {
                         <TableRow>
                           <TableHead>{t("abdm_facility_name")}</TableHead>
                           <TableHead>{t("abdm_facility_hfr_id")}</TableHead>
+                          <TableHead>{t("abdm_hip_id")}</TableHead>
                           <TableHead>{t("abdm_hip_name")}</TableHead>
-                          <TableHead>{t("abdm_hrp_registered_at")}</TableHead>
+                          <TableHead>{t("abdm_admin_hip_status")}</TableHead>
                           <TableHead />
                         </TableRow>
                       </TableHeader>
@@ -351,14 +352,41 @@ export default function AbdmAdminDashboard() {
                                     {row.last_error}
                                   </span>
                                 )}
+                                {row.last_failure && (
+                                  <span className="text-destructive text-xs">
+                                    {row.last_failure.operation_id}
+                                    {row.last_failure.code &&
+                                      ` \u00b7 ${row.last_failure.code}`}
+                                    {` \u00b7 ${formatDate(row.last_failure.sent_at)}`}
+                                    {row.last_failure.detail &&
+                                      ` \u00b7 ${row.last_failure.detail}`}
+                                  </span>
+                                )}
                               </div>
                             </TableCell>
                             <TableCell className="font-mono text-xs">
                               {row.facility_id}
                             </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {row.hip_id || "\u2014"}
+                            </TableCell>
                             <TableCell>{row.hip_name || "\u2014"}</TableCell>
-                            <TableCell className="text-xs">
-                              {formatDate(row.hrp_registered_at)}
+                            <TableCell>
+                              <div className="grid gap-0.5">
+                                <Badge
+                                  variant={row.hip_id ? "success" : "neutral"}
+                                  size="sm"
+                                >
+                                  {row.hip_id
+                                    ? t("abdm_admin_hip_registered")
+                                    : t("abdm_admin_hip_not_registered")}
+                                </Badge>
+                                {row.hrp_registered_at && (
+                                  <span className="text-muted-foreground text-[11px]">
+                                    {formatDate(row.hrp_registered_at)}
+                                  </span>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell className="text-right">
                               {/* Full page load on purpose: a client-side move from /admin to an

@@ -52,7 +52,9 @@ Three fields below are sent encrypted: the mobile number in mobile match, the [O
 | Sandbox URL    | `https://apihspsbx.abdm.gov.in/v4/int/api/v1/auth/cert` |
 | Production URL | `https://apinhpr.abdm.gov.in/v4/int/api/v1/auth/cert`   |
 
-The response is a PEM public key, beginning `-----BEGIN PUBLIC KEY-----`. The cipher is `RSA/ECB/PKCS1Padding`.
+The cipher is `RSA/ECB/PKCS1Padding`, under this certificate and no other. M1 uses RSA-OAEP with SHA-1 under the ABHA certificate, so an M1 encryption path reused here produces a value the NHPR cannot read.
+
+Check the response format before you parse it. Where it arrives as bare base64 rather than beginning `-----BEGIN PUBLIC KEY-----`, add the PEM armour yourself, wrapping at 64 characters per line, as the ABHA certificate call requires.
 
 ## HPID creation
 

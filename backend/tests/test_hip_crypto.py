@@ -15,7 +15,11 @@ class DataTransferCryptoTests(unittest.TestCase):
         material = {
             "cryptoAlg": "ECDH",
             "curve": "Curve25519",
-            "dhPublicKey": {"expiry": "2027-01-01T00:00:00.000Z", "parameters": "Curve25519/32byte", "keyValue": base64.b64encode(raw).decode()},
+            "dhPublicKey": {
+                "expiry": "2027-01-01T00:00:00.000Z",
+                "parameters": "Curve25519/32byte",
+                "keyValue": base64.b64encode(raw).decode(),
+            },
             "nonce": base64.b64encode(nonce).decode(),
         }
         return priv, nonce, material
@@ -43,7 +47,9 @@ class DataTransferCryptoTests(unittest.TestCase):
 
     def test_der_encoded_public_key_is_accepted(self):
         priv = X25519PrivateKey.generate()
-        der = priv.public_key().public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+        der = priv.public_key().public_bytes(
+            serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+        )
         self.assertIsNotNone(crypto.load_public_key(base64.b64encode(der).decode()))
 
     def test_checksum_is_md5_of_plaintext(self):

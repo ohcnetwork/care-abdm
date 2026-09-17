@@ -27,6 +27,7 @@ care-abdm-sbx/
   frontend/         MFE plug (Vite + module federation remote for ohcnetwork/care_fe)
   bruno/            Bruno collection for every plug route (mirrors backend/src/abdm/urls.py)
   scripts/          refresh-docs-mirror.py — rebuilds docs/abdm-docs-mirror and .agent/skills from the live site
+                    abdm-docs-mcp.py — calls one docs MCP tool from a shell (get_operation, validate_fhir, ...)
   docs/             this knowledge base
   .agent/skills/    the docs site's own agent skills (abdm-m1 … abdm-fhir), downloaded verbatim
   .env.local        sandbox credentials — gitignored, never copy into docs

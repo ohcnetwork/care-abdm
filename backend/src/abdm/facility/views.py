@@ -48,6 +48,9 @@ class FacilityAbdmConfig(APIView):
     def get(self, request, facility_id):
         facility = _facility(facility_id)
         _can_update(request, facility)
+        # The setup page is where an administrator looks when linking misbehaves, so it is the
+        # right moment to re-read the HIP ID from the gateway (1 live call; never raises).
+        service.sync_hip_id(facility)
         return Response(_with_share_settings(service.get_config(facility)))
 
     def put(self, request, facility_id):

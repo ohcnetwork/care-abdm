@@ -2,7 +2,7 @@
 Celery tasks. Care autodiscovers `<app>.tasks` (config/celery_app.py:8-18).
 
 `dispatch_callback` routes a verified callback to its handler by operation id
-(callbacks/receiver.py::CALLBACK_OPERATION_BY_PATH). `sync_encounter` runs the HIP-initiated
+(callbacks/paths.py::CALLBACK_OPERATION_BY_PATH). `sync_encounter` runs the HIP-initiated
 link for an Encounter. Both do ABDM I/O, so a Celery worker must run for M2.
 """
 
@@ -68,12 +68,21 @@ def dispatch_callback(callback_id: int):
 
 
 @shared_task(
-    name="abdm.tasks.sync_encounter", autoretry_for=(Exception,), retry_kwargs={"max_retries": 3}, retry_backoff=30
+    name="abdm.tasks.sync_encounter",
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_kwargs={"max_retries": 3},
+    retry_backoff=30,
 )
-def sync_encounter(encounter_id: int):
+def sync_encounter(self, encounter_id: int):
+    """Link the Encounter. ADR-012 D5: repeat only a failure that a repeat can cure. A refusal is
+    not repeated, because ABDM gives the same answer and a second link-token request inside the
+    refusal window earns ABDM-1092."""
     from care.emr.models.encounter import Encounter
 
+    from abdm import errors
     from abdm.hip.contexts import sync_encounter as run
+    from abdm.models import AbdmCareContext
 
     encounter = Encounter.objects.filter(id=encounter_id).select_related("patient", "facility").first()
     if encounter is None:
@@ -81,4 +90,10 @@ def sync_encounter(encounter_id: int):
     context = run(encounter)
     if context is None:
         return {"encounter_id": encounter_id, "skipped": "facility not configured"}
-    return {"encounter_id": encounter_id, "status": context.status, "error": context.error_code}
+    result = {"encounter_id": encounter_id, "status": context.status, "error": context.error_code}
+    if context.status == AbdmCareContext.Status.FAILED and context.error_code:
+        failure = errors.classify(code=context.error_code, message=context.error_message)
+        if failure.retry_now and self.request.retries < 3:
+            result["retry"] = failure.action
+            raise self.retry(countdown=30 * (2**self.request.retries))
+    return result

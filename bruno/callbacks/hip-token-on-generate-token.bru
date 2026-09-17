@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: {{careUrl}}/api/abdm/v3/hip/token/on-generate-token
+  url: {{careUrl}}/api/abdm/api/v3/hip/token/on-generate-token
   body: json
   auth: none
 }
@@ -37,5 +37,8 @@ docs {
   `response.requestId` echoes the REQUEST-ID of the call that you sent.
   Put the `linkToken` in `X-Link-Token` on the next link call.
 
-  Path: `/api/abdm/v3/hip/token/on-generate-token`.
+  Path: `/api/abdm/api/v3/hip/token/on-generate-token`. Observed 2026-09-17: the gateway posts to this
+  path (the docs page omits the `/api` prefix), signs it in `Authorization: Bearer <RS256 JWT>`, and
+  sends `X-HIP-ID`, `REQUEST-ID` and `TIMESTAMP`. A real body carries `abhaAddress`, `linkToken` and
+  `response.requestId` only; `error` appears only on failure.
 }

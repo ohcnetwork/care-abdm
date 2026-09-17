@@ -97,7 +97,7 @@ Per professional, store:
 - The master data ids you sent for council, course, college, university, language, country, state and district. The registry rejects display values.
 - The certificates you uploaded, with each document slot identifier.
 
-Once, for the whole integration: client id and client secret for the gateway session call, and the public certificate from `v4/int/api/v1/auth/cert`. Three fields are encrypted with it, cipher `RSA/ECB/PKCS1Padding`: the mobile number in mobile match, the OTP in mobile login, and the email and password in create HPID.
+Once, for the whole integration: client id and client secret for the gateway session call, and the public certificate from `v4/int/api/v1/auth/cert`. Three fields are encrypted with it, cipher `RSA/ECB/PKCS1Padding`: the mobile number in mobile match, the OTP in mobile login, and the email and password in create HPID. That cipher and that certificate belong to the NHPR. M1 encrypts with RSA-OAEP and SHA-1 under the ABHA certificate, so the two paths are not interchangeable.
 
 Upload limits: 1 MB for a profile photo, 5 MB for anything else, png, jpeg, jpg or PDF only. Attachments go as a `fileType` and a base64 `data` string.
 
