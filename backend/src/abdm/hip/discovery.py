@@ -26,7 +26,7 @@ from abdm.facility.service import facility_for_hip_id, get_config
 from abdm.gateway import outbound
 from abdm.gateway.session import utc_timestamp
 from abdm.hip import rules
-from abdm.hip.contexts import care_context_payload, ensure_care_context, notify_context
+from abdm.hip.contexts import care_context_payload, ensure_care_context, schedule_notify
 from abdm.models import AbdmCallback, AbdmCareContext, AbdmLinkSession
 
 logger = logging.getLogger(__name__)
@@ -241,5 +241,5 @@ def handle_link_confirm(callback: AbdmCallback) -> dict:
         patient=session.patient if session else None,
     )
     for context in linked:
-        notify_context(context)
+        schedule_notify(context)
     return {"link_reference": link_ref, "confirmed": error is None, "error": error and error[0], "sent": request.status}

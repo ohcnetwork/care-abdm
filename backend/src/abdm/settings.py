@@ -43,6 +43,11 @@ DEFAULTS = {
     # was is recorded on the row. The signature itself is always verified in full.
     "CALLBACK_SIGNATURE_LEEWAY_SECONDS": 3600,
     "REQUEST_TIMEOUT_SECONDS": 30,
+    # ABDM needs time to index a new link before it answers the notify call. Measured 2026-09-18
+    # (finding F8): a notify sent 0.6 s after the `on_carecontext` callback is refused with
+    # `ABDM-1006 No links found for the patient in the given HIP`; the same notify 50 s later
+    # answers SUCCESS. The notify therefore waits this many seconds, and a refusal is repeated.
+    "NOTIFY_DELAY_SECONDS": 30,
     # Scan and Share counter QR code. The docs say only that the QR code holds a URL with the
     # HIP ID and a context (docs/findings.md). Placeholders: {hip_id} and {context}.
     # Empty = the setup page shows no QR code and asks for the observed format.

@@ -39,11 +39,26 @@ class CareContextRulesTests(unittest.TestCase):
         self.assertNotIn("abhaNumber", rules.generate_token_body("k@sbx", "", "K", "male", 1990))
 
     def test_link_body_types_abha_number_as_string_and_counts_contexts(self):
-        block = rules.patient_block("PAT", "K", [{"referenceNumber": "V1", "display": "OPD"}], ["Prescription"])
-        body = rules.link_body("k@sbx", "91123456789012", block)
+        blocks = rules.link_patient_blocks("PAT", "K", [{"referenceNumber": "V1", "display": "OPD"}], ["Prescription"])
+        body = rules.link_body("k@sbx", "91123456789012", blocks)
         self.assertEqual(body["abhaNumber"], "91123456789012")
         self.assertEqual(body["patient"][0]["count"], 1)
-        self.assertEqual(body["patient"][0]["hiType"], ["Prescription"])
+        self.assertEqual(body["patient"][0]["hiType"], "Prescription")
+
+    def test_link_patient_blocks_sends_1_block_for_each_hi_type(self):
+        blocks = rules.link_patient_blocks(
+            "PAT", "K", [{"referenceNumber": "V1", "display": "OPD"}], ["OPConsultation", "Prescription"]
+        )
+        self.assertEqual([b["hiType"] for b in blocks], ["OPConsultation", "Prescription"])
+        self.assertEqual([b["count"] for b in blocks], [1, 1])
+        self.assertEqual(blocks[0]["careContexts"], blocks[1]["careContexts"])
+
+    def test_link_patient_blocks_is_empty_without_an_hi_type(self):
+        self.assertEqual(rules.link_patient_blocks("PAT", "K", [{"referenceNumber": "V1", "display": "OPD"}], []), [])
+
+    def test_discovery_patient_block_keeps_the_hi_type_array(self):
+        block = rules.patient_block("PAT", "K", [{"referenceNumber": "V1", "display": "OPD"}], ["Prescription"])
+        self.assertEqual(block["hiType"], ["Prescription"])
 
 
 class DiscoveryRulesTests(unittest.TestCase):
@@ -121,6 +136,17 @@ class TransferRulesTests(unittest.TestCase):
         self.assertEqual(data["care_context_references"], ["V1"])
         self.assertEqual(data["hip_id"], "IN0001")
         self.assertEqual(data["data_erase_at"], datetime(2027, 1, 1, tzinfo=UTC))
+
+    def test_notify_body_sends_the_internal_patient_reference(self):
+        body = rules.notify_body("k@sbx", "V1", ["OPConsultation"], "now", "IN1", "H", patient_reference="PAT-1")[
+            "notification"
+        ]
+        self.assertEqual(body["patient"]["id"], "k@sbx")
+        self.assertEqual(body["careContext"]["patientReference"], "PAT-1")
+
+    def test_notify_body_falls_back_to_the_abha_address(self):
+        body = rules.notify_body("k@sbx", "V1", ["OPConsultation"], "now", "IN1", "H")["notification"]
+        self.assertEqual(body["careContext"]["patientReference"], "k@sbx")
 
     def test_data_flow_notify_body_fails_when_any_entry_errored(self):
         ok = rules.data_flow_notify_body("c", "t", "now", "IN1", [{"careContextReference": "V1", "hiStatus": "OK"}])

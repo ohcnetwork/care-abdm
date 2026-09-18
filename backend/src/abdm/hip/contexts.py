@@ -94,6 +94,14 @@ def patient_block_for(patient: Patient, contexts: list[AbdmCareContext]) -> dict
     )
 
 
+def link_patient_blocks_for(patient: Patient, contexts: list[AbdmCareContext]) -> list[dict]:
+    """The link body carries 1 patient block for each HI type (finding E11)."""
+    hi_types = sorted({t for c in contexts for t in (c.hi_types or [])})
+    return rules.link_patient_blocks(
+        str(patient.external_id), patient.name, [care_context_payload(c) for c in contexts], hi_types
+    )
+
+
 def _fail(context: AbdmCareContext, code: str, message: str, *, status: str | None = None) -> AbdmCareContext:
     context.error_code = code[:64]
     context.error_message = message[:512]
@@ -234,7 +242,7 @@ def request_link(context: AbdmCareContext) -> AbdmCareContext:
         context.save(update_fields=["status", "error_code", "error_message", "modified_date"])
         return context
     address, number = patient_abha(context.patient)
-    body = rules.link_body(address, number, patient_block_for(context.patient, [context]))
+    body = rules.link_body(address, number, link_patient_blocks_for(context.patient, [context]))
     request = outbound.send(
         "m2-hip-link-care-context",
         LINK_URL,
@@ -298,8 +306,23 @@ def handle_carecontext_result(callback: AbdmCallback) -> dict:
     context.error_code = ""
     context.error_message = ""
     context.save()
-    notify_context(context)
+    schedule_notify(context)
     return {"care_context": context.reference_number, "status": "linked", "gateway_status": body.get("status")}
+
+
+def schedule_notify(context: AbdmCareContext) -> None:
+    """Send the notify after ABDM indexes the link (finding F8). Without a Celery worker the call
+    goes out at once, which is what the tests and the smoke script do."""
+    from abdm.settings import plugin_settings
+
+    delay = int(plugin_settings.NOTIFY_DELAY_SECONDS or 0)
+    try:
+        from abdm.tasks import notify_care_context
+
+        notify_care_context.apply_async((context.id,), countdown=delay)
+    except Exception:
+        logger.warning("abdm could not queue the notify for care context %s; sending it now", context.id)
+        notify_context(context)
 
 
 def notify_context(context: AbdmCareContext) -> AbdmCareContext:
@@ -312,6 +335,7 @@ def notify_context(context: AbdmCareContext) -> AbdmCareContext:
         utc_timestamp(),
         config["hip_id"],
         config.get("hip_name") or config.get("facility_name") or context.facility.name,
+        patient_reference=str(context.patient.external_id),
     )
     request = outbound.send(
         "m2-link-care-context-notify",
@@ -336,8 +360,12 @@ def handle_context_notify_result(callback: AbdmCallback) -> dict:
     ack = body.get("acknowledgement") if isinstance(body.get("acknowledgement"), dict) else {}
     error = body.get("error") if isinstance(body.get("error"), dict) else None
     if str(ack.get("status") or "").upper() == "SUCCESS" and not error:
+        # A success must clear the error of an earlier attempt, or the desk keeps showing a
+        # failure for a care context that ABDM has now accepted.
         context.notified_at = timezone.now()
-        context.save(update_fields=["notified_at", "modified_date"])
+        context.error_code = ""
+        context.error_message = ""
+        context.save(update_fields=["notified_at", "error_code", "error_message", "modified_date"])
         return {"care_context": context.reference_number, "notify": "success"}
     code = rules.normalize_error_code((error or {}).get("code")) or str(ack.get("status") or "NOTIFY_ERRORED")
     _fail(context, code, str((error or {}).get("message") or "Notify errored"))

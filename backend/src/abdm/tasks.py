@@ -97,3 +97,24 @@ def sync_encounter(self, encounter_id: int):
             result["retry"] = failure.action
             raise self.retry(countdown=30 * (2**self.request.retries))
     return result
+
+
+@shared_task(name="abdm.tasks.notify_care_context", bind=True, max_retries=5)
+def notify_care_context(self, context_id: int):
+    """Tell ABDM that a care context is linked, after the link is indexed.
+
+    ABDM refuses a notify that arrives before it indexes the link (finding F8), so the caller
+    delays this task and a refusal is repeated with a longer wait. The care context is already
+    linked at this point, so a repeat is safe: it only asks ABDM to tell the patient's app again.
+    """
+    from abdm.hip.contexts import notify_context
+    from abdm.models import AbdmCareContext
+
+    context = AbdmCareContext.objects.filter(id=context_id).select_related("patient", "facility").first()
+    if context is None:
+        return {"context_id": context_id, "skipped": "missing"}
+    context = notify_context(context)
+    request = context.notify_request
+    if request is not None and request.status == request.Status.FAILED and self.request.retries < 5:
+        raise self.retry(countdown=30 * (2**self.request.retries))
+    return {"context_id": context_id, "http_status": request.http_status if request else None}

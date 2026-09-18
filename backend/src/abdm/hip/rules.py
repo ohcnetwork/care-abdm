@@ -172,6 +172,32 @@ def patient_block(reference_number: str, display: str, care_contexts: list[dict]
     }
 
 
+def link_patient_blocks(
+    reference_number: str, display: str, care_contexts: list[dict], hi_types: list[str]
+) -> list[dict]:
+    """The patient blocks for the link endpoint, 1 for each HI type.
+
+    The endpoint page types `hiType` as an array and its example sends an array, but the service
+    refuses an array with HTTP 400 and an empty body (finding E11). It takes 1 string. Measured
+    2026-09-18: an array answers the empty 400; the string `DischargeSummary` answers 202; a comma
+    joined string answers `Invalid HIType`; 2 blocks with 1 string each answer 202 and the gateway
+    sends 1 `on_carecontext` callback for the call. Every HI type is therefore kept, in 1 call.
+    `patient_block` still builds the array form for discovery, where no measurement contradicts
+    the page.
+    """
+    contexts = [{"referenceNumber": c["referenceNumber"], "display": c["display"]} for c in care_contexts]
+    return [
+        {
+            "referenceNumber": reference_number,
+            "display": display,
+            "careContexts": contexts,
+            "hiType": hi_type,
+            "count": len(contexts),
+        }
+        for hi_type in hi_types
+    ]
+
+
 def generate_token_body(abha_address: str, abha_number: str, name: str, gender: str, year_of_birth: int) -> dict:
     body = {"abhaAddress": abha_address, "name": name, "gender": gender_code(gender), "yearOfBirth": int(year_of_birth)}
     digits = abha_number_digits(abha_number)
@@ -180,8 +206,8 @@ def generate_token_body(abha_address: str, abha_number: str, name: str, gender: 
     return body
 
 
-def link_body(abha_address: str, abha_number: str, patient: dict) -> dict:
-    body = {"abhaAddress": abha_address, "patient": [patient]}
+def link_body(abha_address: str, abha_number: str, patients: list[dict]) -> dict:
+    body = {"abhaAddress": abha_address, "patient": list(patients)}
     digits = abha_number_digits(abha_number)
     if digits:
         body["abhaNumber"] = digits  # this page types abhaNumber as string
@@ -189,12 +215,26 @@ def link_body(abha_address: str, abha_number: str, patient: dict) -> dict:
 
 
 def notify_body(
-    abha_address: str, care_context_reference: str, hi_types: list[str], date: str, hip_id: str, hip_name: str
+    abha_address: str,
+    care_context_reference: str,
+    hi_types: list[str],
+    date: str,
+    hip_id: str,
+    hip_name: str,
+    patient_reference: str = "",
 ) -> dict:
+    """`patient_reference` is the HIP's own patient reference, the `patient.referenceNumber` that
+    the link call sent. The endpoint page puts the ABHA address in `careContext.patientReference`,
+    but the service refuses that with `ABDM-1006 No care context linked with given reference
+    number`; with the internal reference it answers `SUCCESS` (measured 2026-09-18, finding F7).
+    An empty value keeps the documented behaviour."""
     return {
         "notification": {
             "patient": {"id": abha_address},
-            "careContext": {"patientReference": abha_address, "careContextReference": care_context_reference},
+            "careContext": {
+                "patientReference": patient_reference or abha_address,
+                "careContextReference": care_context_reference,
+            },
             "hiTypes": list(hi_types),
             "date": date,
             "hip": {"id": hip_id, "name": hip_name, "type": "HIP"},
