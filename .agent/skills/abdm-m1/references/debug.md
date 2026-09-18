@@ -4,7 +4,7 @@ Diagnoses a failed M1 call. Every error below is an OODA loop: observe the error
 
 Loop limit: 5 passes per error. Hitting the limit is an escalation: state what was observed, what was tried, and which atom to read, then ask one question.
 
-## Errors
+## Error
 
 ### 900900, the ABHA service rejected the call without saying why (`hiecm.error.900900`)
 

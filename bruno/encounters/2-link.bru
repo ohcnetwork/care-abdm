@@ -1,20 +1,28 @@
 meta {
-  name: 2. Link care context
+  name: 2. Link selected records
   type: http
   seq: 2
 }
 
 post {
   url: {{careUrl}}/api/abdm/encounters/{{encounterId}}/care-context/link
-  body: none
+  body: json
   auth: none
 }
 
 headers {
   Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "all": true
+  }
 }
 
 docs {
-  Runs the HIP-initiated link now: link token (`m2-generate-link-token`) when none is active, then
-  `m2-hip-link-care-context`. For a linked context it sends `m2-link-care-context-notify` when the record types changed.
+  ADR-013: queue share items and send 1 link call. Body `{"items": ["<share item id>", ...]}` for a selection,
+  or `{"all": true}` for every staged and failed item. The GET lists the items with their ids.
+  Runs `m2-generate-link-token` when no token is active, then `m2-hip-link-care-context` with 1 patient block per HI type.
 }

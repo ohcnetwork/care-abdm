@@ -1,0 +1,19 @@
+meta {
+  name: 3. Exclude or include a record
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{careUrl}}/api/abdm/encounters/{{encounterId}}/share-items/{{shareItemId}}/exclude
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  Keep a staged record out of sharing (`/exclude`) or bring it back (`/include`). A linked record cannot change.
+}

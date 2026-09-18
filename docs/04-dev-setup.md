@@ -35,8 +35,9 @@
   `cd ~/ohc.network/care && set -a && . ./.env && set +a && .venv/bin/python manage.py abdm_register_bridge_url`
   (`--dry-run` prints the URL only). The command also prints the live bridge state. A superuser can do
   the same from `/admin/abdm` (admin sidebar → ABDM). Run it before the HRP service registration.
-- Run Celery. Every callback handler and the Encounter auto-link run in the worker:
+- Run Celery. Every callback handler, the record staging, the link calls and the retries run in the worker:
   `cd ~/ohc.network/care && ./scripts/celery-dev.sh`.
+  `celery-dev.sh` starts the worker with `-B`, so Celery beat runs in the same process and the ADR-013 periodic task `abdm.tasks.retry_share_items` (every 5 min) needs nothing more. Retry cadence: `ABDM_LINK_RETRY_INTERVAL_MINUTES` (60) × `ABDM_LINK_MAX_RETRIES` (3).
   The worker does not reload plug code: `celery-dev.sh` watches only the Care tree, and a worker started
   by hand watches nothing. After a change under `backend/src/abdm/` restart it, or send it
   `kill -HUP <celery main pid>` (Celery re-executes itself in the same terminal with the same

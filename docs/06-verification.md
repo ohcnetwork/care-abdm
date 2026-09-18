@@ -49,7 +49,7 @@ discovery (match and no match); link init → wrong OTP → right OTP; consent G
 (both path variants); health-information request → encrypted push → **HIU-side decrypt and MD5
 check** → notify TRANSFERRED; a wider date range refused (`ABDM-1063`); SMS deep link; the 403 on
 bridge registration; Scan and Share token `OPD1-001`. It snapshots every plug table first and deletes only the rows it created (a 2026-09-15 version
-deleted all outbound and callback rows; do not use it), then restores the facility extension. Expected last lines: `M2 SMOKE OK — outbound calls: 21 callbacks: 18`
+deleted all outbound and callback rows; do not use it), then restores the facility extension. Expected last lines: `M2 SMOKE OK — outbound calls: 31 callbacks: 54`
 and `cleanup done`.
 
 FHIR bundles use `fhir_smoke.py` in the same directory. It builds the 3 record types from fixture
@@ -75,6 +75,8 @@ Observed 2026-09-15: 41 tests ran in 0.4 s. Result: OK (`test_hip_rules.py`, `te
 Observed 2026-09-15 (later): 46 tests. Result: OK (`test_callback_signature.py` rewritten: RS512, header auto-detect, unknown kid, HS256 refused).
 Observed 2026-09-17: 54 tests. Result: OK (`test_callback_paths.py`: the `/api` prefix the gateway really sends; `HipServiceLookupTests` in `test_facility_rules.py`: the registry's `<facilityId>_<n>` service id).
 Observed 2026-09-17 (later): 78 tests. Result: OK (`test_errors.py`: the ADR-012 classifier; `test_hip_rules.py` freshness test replaced).
+
+Observed 2026-09-18: 90 tests. Result: OK (`test_sharing_rules.py` added for ADR-013).
 
 The tests run without Django. Pure rules must live in a module with no Django import
 (`abha/checksums.py`, `share/rules.py`, `facility/rules.py`, `hip/rules.py`, `hip/crypto.py`, `fhir/bundle.py`,

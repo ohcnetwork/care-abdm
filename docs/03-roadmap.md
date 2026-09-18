@@ -78,6 +78,14 @@ Docs: `/milestones/m2`, `/api/m2`, `/concepts/linking`, `/concepts/data-flow`, `
 - [x] Observed 2026-09-15: `m2_smoke.py` (session files; real Care auth and DB, ABDM network and signature mocked) printed `M2 SMOKE OK — outbound calls: 19 callbacks: 14` with 0 failed or unhandled callbacks. It proved: facility PUT → HIP ID derived; bridge GET live; admin overview lists the HIP facility (superuser only, 403 for staff); HRP body carries the cached bridge id and goes to the HSP host; Encounter save → `generate-token` with `X-HIP-ID`; `on-generate-token` → token active ~6 months → link call with `X-Link-Token`, reference = encounter `external_id`, display without clinical detail; `on_carecontext` → linked → notify → `on-notify` acknowledged; duplicate callback deduped; discovery → `on-discover` with the care context, no match → `patient: []`; link init → OTP session, masked hint → wrong OTP error block → right OTP `on-confirm`; consent GRANTED stored and acked, revoked via the `/api/v3` path; health-information request → ACKNOWLEDGED → 2 bundles (OPConsultRecord, PrescriptionRecord) pushed encrypted → **decrypted by the HIU-side key in the test, checksum = MD5 of the plaintext** → notify TRANSFERRED; a wider date range refused with `ABDM-1063` and acked ERRORED; SMS deep link body; non-superuser 403 on bridge registration; Scan and Share token `OPD1-001`.
 - [x] Observed 2026-09-15: MCP `validate_fhir` returned `findings: null` (0 findings) for the OPConsultation, Prescription and HealthDocumentRecord bundles built from fixture CARE data (`fhir_smoke.py`, session files).
 
+### Code-complete 2026-09-18 (ADR-013 staged sharing)
+- [x] Backend: `AbdmShareItem` (migration 0002; sandbox history kept as linked items); `post_save` stages prescriptions (not draft), final diagnostic reports and discharge summary uploads, plus 1 outpatient OP consultation with the first record; the desk links selected items or excludes one; a completed/discharged Encounter links every staged item; retries hourly × 3 (configurable) via Celery beat; `hi_types` derived from linked items; transfer builds only from linked items. FHIR: `DischargeSummaryRecord` added, `HealthDocumentRecord` removed, OP consult outpatient only, Prescription from prescriptions only.
+- [x] Frontend: encounter tab "ABDM Records" (`encounterTabs.abdm`); the actions slot opens it.
+- [x] Observed 2026-09-18: `manage.py check` clean; `makemigrations --check` clean; ruff clean; 90 unit tests OK (`test_sharing_rules.py` added); `m2_smoke.py` → `M2 SMOKE OK — outbound calls: 31 callbacks: 54` with the new stages 3 (stage, draft, cancel → excluded), 3b (select 1 → token), 4 (link carries only the queued type), 5 (item linked, `hi_types` derived, unselected item stays staged), 5a (completion → all staged linked in 1 call with linked + queued types; excluded item not sent), 5c (refusal → hourly retry → failed after 1 + 3 → desk re-select resets → linked), 5d (exclude/include; a linked item refuses). `fhir_smoke.py` + MCP `validate_fhir`: OPConsultation, Prescription, **DischargeSummary** → `findings: none`. `npm run build` OK; eslint 0 errors; i18n 250 keys, none missing or empty.
+- [ ] USER: write a prescription on an outpatient encounter of an ABHA patient → the ABDM tab shows `Prescription` and `OP consultation` as Staged and no gateway call; select one → Link selected → callback → Shared; complete the encounter → the rest links by itself.
+- [ ] Sandbox measurement for findings F10: does a second link with a new `hiType` add the type at ABDM? Link Prescription first, then OPConsultation for the same reference; read the `hiType` list in a PHR app discovery.
+- [ ] Discharge summary: generate one from an inpatient encounter (a `Template` row is needed), check it is staged, link it, confirm the bundle in the PHR app.
+
 ### Sandbox proofs (user-driven; each ends on an observed gateway answer)
 - [x] 1. Facility and bridge.
   - [x] Observed 2026-09-14: `GET bridge-services` → HTTP 200, bridge `SBXID_035123`, url `https://care-abdm-sbx.rithviknishad.dev/api/abdm`, `services: []`.
@@ -120,8 +128,8 @@ and the spinner never stopped.
 - [x] Closed 2026-09-18: `m2-hip-link-care-context` answers **202** and the context reaches `linked`. The empty 400 was an array `hiType` (E11). ADR-012 still gives support the reference when a call does fail.
 
 ### Known limitations after this pass
-- Notify-on-new-records runs on Encounter status change or on the desk "Send update" action, not on every clinical write (ADR-011 consequence).
-- Record types: OPConsultation, Prescription, HealthDocumentRecord. DiagnosticReport, DischargeSummary, WellnessRecord, ImmunizationRecord, Invoice are deferred (findings I4).
+- A record is announced to ABDM only when the desk links it or the Encounter closes (ADR-013). ABDM's own "a linked context gained records" notify follows each link.
+- Record types: OPConsultation (outpatient), Prescription, DischargeSummary (PDF). DiagnosticReport is staged and linked, but its structured `DiagnosticReportRecord` bundle is not built yet (a data request for it answers ERRORED for that entry). WellnessRecord, ImmunizationRecord, Invoice are deferred (findings I4).
 - The consent artefact signature is stored, not verified (findings H2).
 - The link-confirm OTP is fixed (`123456`) outside production, like Care core's login OTP.
 
@@ -151,3 +159,4 @@ Docs: `/milestones/m4`, `/api/m4`, `/api/m4/undocumented` (2 published endpoints
 - ADR-010 Instance and facility scope: Accepted; `AbdmBridge` removed by ADR-011. See `adr/010-instance-vs-facility-scope.md`.
 - ADR-011 Lean M2: Accepted. See `adr/011-lean-m2.md`.
 - ADR-012 Error handling: Accepted. See `adr/012-error-handling.md`.
+- ADR-013 Staged sharing: Accepted. See `adr/013-staged-sharing.md`.
