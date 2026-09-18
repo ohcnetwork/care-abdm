@@ -17,7 +17,7 @@ from care.emr.models.encounter import Encounter
 from django.utils import timezone
 
 from abdm.facility.service import facility_for_hip_id, hip_id_for
-from abdm.fhir import BundleError, available_hi_types, build_bundle
+from abdm.fhir import BundleError, build_bundle
 from abdm.gateway import outbound
 from abdm.gateway.session import utc_timestamp
 from abdm.hip import crypto, rules
@@ -131,13 +131,29 @@ def _encounters_in_range(consent: AbdmConsent, row: AbdmDataRequest) -> list[Abd
     return picked
 
 
+def linked_records(context: AbdmCareContext) -> dict[str, list[int]]:
+    """HI type -> the source ids of the linked share items. Only what ABDM was told about is
+    shared (ADR-013). A context linked before staged sharing carries `encounter` items, which
+    mean "every shareable record of that type" (None)."""
+    from abdm.models import AbdmShareItem
+
+    out: dict[str, list[int] | None] = {}
+    for item in context.share_items.filter(status=AbdmShareItem.Status.LINKED):
+        if item.source_model == AbdmShareItem.Source.ENCOUNTER:
+            out[item.hi_type] = None
+        elif out.get(item.hi_type, []) is not None:
+            out.setdefault(item.hi_type, []).append(item.source_id)
+    return out
+
+
 def build_entries(row: AbdmDataRequest, consent: AbdmConsent, keys: crypto.SessionKeys) -> list[dict]:
-    """1 encrypted entry per (care context, HI type) named by the consent and held by the encounter."""
+    """1 encrypted entry per (care context, HI type) named by the consent and linked by the HIP."""
     peer_public, peer_nonce = crypto.check_key_material(row.key_material)
     wanted = set(consent.hi_types or [])
     entries: list[dict] = []
     for context in _encounters_in_range(consent, row):
-        types = [t for t in available_hi_types(context.encounter) if not wanted or t in wanted]
+        linked = linked_records(context)
+        types = [t for t in linked if not wanted or t in wanted]
         if not types:
             entries.append(
                 {
@@ -150,7 +166,7 @@ def build_entries(row: AbdmDataRequest, consent: AbdmConsent, keys: crypto.Sessi
             continue
         for hi_type in types:
             try:
-                bundle = build_bundle(context.encounter, hi_type)
+                bundle = build_bundle(context.encounter, hi_type, source_ids=linked[hi_type])
             except BundleError as exc:
                 entries.append(
                     {

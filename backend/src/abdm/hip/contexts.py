@@ -23,7 +23,6 @@ from django.utils import timezone
 from abdm import errors
 from abdm.care_seams import AbhaAddressIdentifier, AbhaNumberIdentifier
 from abdm.facility.service import facility_for_hip_id, get_config, hip_id_for
-from abdm.fhir import available_hi_types
 from abdm.gateway import outbound
 from abdm.gateway.session import utc_timestamp
 from abdm.hip import rules
@@ -65,7 +64,6 @@ def ensure_care_context(encounter: Encounter) -> AbdmCareContext:
     """Create or refresh the care-context row for an Encounter. Display and HI types are recomputed;
     the link status is kept."""
     display = rules.care_context_display(encounter.encounter_class, encounter_start(encounter))
-    hi_types = available_hi_types(encounter)
     context, created = AbdmCareContext.objects.get_or_create(
         encounter=encounter,
         defaults={
@@ -73,13 +71,12 @@ def ensure_care_context(encounter: Encounter) -> AbdmCareContext:
             "facility": encounter.facility,
             "reference_number": str(encounter.external_id),
             "display": display,
-            "hi_types": hi_types,
+            "hi_types": [],
         },
     )
-    if not created and (context.display != display or context.hi_types != hi_types):
+    if not created and context.display != display:
         context.display = display
-        context.hi_types = hi_types
-        context.save(update_fields=["display", "hi_types", "modified_date"])
+        context.save(update_fields=["display", "modified_date"])
     return context
 
 
@@ -95,8 +92,12 @@ def patient_block_for(patient: Patient, contexts: list[AbdmCareContext]) -> dict
 
 
 def link_patient_blocks_for(patient: Patient, contexts: list[AbdmCareContext]) -> list[dict]:
-    """The link body carries 1 patient block for each HI type (finding E11)."""
-    hi_types = sorted({t for c in contexts for t in (c.hi_types or [])})
+    """The link body carries 1 patient block for each HI type (finding E11). The types are the
+    linked and queued share items of the contexts (ADR-013 §Open: right whether ABDM adds or
+    replaces the types of a context)."""
+    from abdm.hip.sharing import hi_types_to_link
+
+    hi_types = sorted({t for c in contexts for t in hi_types_to_link(c)})
     return rules.link_patient_blocks(
         str(patient.external_id), patient.name, [care_context_payload(c) for c in contexts], hi_types
     )
@@ -206,24 +207,33 @@ def _token_for_callback(callback: AbdmCallback) -> AbdmLinkToken:
 
 
 def sync_encounter(encounter: Encounter) -> AbdmCareContext | None:
-    """The one entry point for an Encounter: create the context, then link it or notify about new
-    records. Returns None when the facility is not set up for ABDM."""
+    """The Encounter changed. ADR-013: a closing status (`completed`, `discharged`) queues every
+    staged item and links; any other change only refreshes the display name. Returns None when
+    the facility is not set up for ABDM."""
+    from abdm.hip import sharing
+
     if not hip_id_for(encounter.facility):
         return None
-    address, _ = patient_abha(encounter.patient)
-    previous = AbdmCareContext.objects.filter(encounter=encounter).values_list("hi_types", flat=True).first()
     context = ensure_care_context(encounter)
+    if rules.encounter_closes(encounter.status):
+        sharing.queue_all_staged(context)
+    return link_context(context)
+
+
+def link_context(context: AbdmCareContext) -> AbdmCareContext:
+    """Link the queued items of a context now (desk action, Encounter close, retry). Nothing to
+    queue means nothing to send."""
+    from abdm.hip import sharing
+
+    address, _ = patient_abha(context.patient)
+    if not context.share_items.filter(status=sharing.Status.QUEUED).exists():
+        return context
     if not address:
         return _fail(context, "NO_ABHA", "The patient has no ABHA address. Link an ABHA first.")
-    if not context.hi_types:
-        return _fail(context, "NO_RECORDS", "The encounter has no shareable records yet.")
-    if context.status == context.Status.LINKED:
-        if previous is not None and set(previous) != set(context.hi_types):
-            return notify_context(context)
+    if context.status == context.Status.LINK_REQUESTED and context.link_request_id:
+        # A call is in flight; its callback settles the queued items.
         return context
-    if context.status == context.Status.LINK_REQUESTED:
-        return context
-    return request_link(context)
+    return sharing.link_queued(context)
 
 
 def request_link(context: AbdmCareContext) -> AbdmCareContext:
@@ -242,7 +252,10 @@ def request_link(context: AbdmCareContext) -> AbdmCareContext:
         context.save(update_fields=["status", "error_code", "error_message", "modified_date"])
         return context
     address, number = patient_abha(context.patient)
-    body = rules.link_body(address, number, link_patient_blocks_for(context.patient, [context]))
+    blocks = link_patient_blocks_for(context.patient, [context])
+    if not blocks:
+        return _fail(context, "NO_RECORDS", "No record is queued for sharing.")
+    body = rules.link_body(address, number, blocks)
     request = outbound.send(
         "m2-hip-link-care-context",
         LINK_URL,
@@ -271,11 +284,15 @@ def request_link(context: AbdmCareContext) -> AbdmCareContext:
 
 
 def link_pending_contexts(patient: Patient, facility) -> int:
+    """The link token arrived: send the link for every context of this patient that has queued items."""
+    from abdm.hip import sharing
+
     count = 0
-    for context in AbdmCareContext.objects.filter(
-        patient=patient, facility=facility, status=AbdmCareContext.Status.PENDING
-    ):
-        if context.hi_types and request_link(context).status == AbdmCareContext.Status.LINK_REQUESTED:
+    contexts = AbdmCareContext.objects.filter(
+        patient=patient, facility=facility, share_items__status=sharing.Status.QUEUED
+    ).distinct()
+    for context in contexts:
+        if sharing.link_queued(context).status == AbdmCareContext.Status.LINK_REQUESTED:
             count += 1
     return count
 
@@ -293,21 +310,34 @@ def _context_for_callback(callback: AbdmCallback, field: str) -> AbdmCareContext
 def handle_carecontext_result(callback: AbdmCallback) -> dict:
     """`/v3/link/on_carecontext`: {abhaAddress, status, error{code,message}, response.requestId}.
     `status` is free text on the docs page, so success = no error block."""
+    from abdm.hip import sharing
+
     context = _context_for_callback(callback, "link_request")
     body = callback.parsed_json or {}
     error = body.get("error") if isinstance(body.get("error"), dict) else None
     code = rules.normalize_error_code((error or {}).get("code"))
     if error and code not in ALREADY_LINKED_CODES:
-        _fail(context, code or "LINK_FAILED", str(error.get("message") or "Link failed"), status=context.Status.FAILED)
+        message = str(error.get("message") or "Link failed")
+        sharing.on_link_result(context, ok=False, code=code or "LINK_FAILED", message=message)
+        # The context stays linked when an earlier call linked it; only this call's items failed.
+        status = context.Status.LINKED if context.share_items.filter(status=sharing.Status.LINKED).exists() else None
+        _fail(context, code or "LINK_FAILED", message, status=status or context.Status.FAILED)
         return {"care_context": context.reference_number, "status": "failed", "error": code}
+    sharing.on_link_result(context, ok=True)
     context.status = context.Status.LINKED
     context.linked_via = context.LinkedVia.HIP
-    context.linked_at = timezone.now()
+    context.linked_at = context.linked_at or timezone.now()
     context.error_code = ""
     context.error_message = ""
     context.save()
+    sharing.refresh_hi_types(context)
     schedule_notify(context)
-    return {"care_context": context.reference_number, "status": "linked", "gateway_status": body.get("status")}
+    return {
+        "care_context": context.reference_number,
+        "status": "linked",
+        "hi_types": context.hi_types,
+        "gateway_status": body.get("status"),
+    }
 
 
 def schedule_notify(context: AbdmCareContext) -> None:

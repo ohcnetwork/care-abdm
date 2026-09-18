@@ -295,6 +295,61 @@ class AbdmCareContext(BaseModel):
         return f"{self.reference_number}:{self.status}"
 
 
+class AbdmShareItem(BaseModel):
+    """
+    1 shareable Care record inside 1 care context (ADR-013).
+
+    A clinician's record is staged here and linked later: when the desk selects it on the ABDM tab
+    or when the Encounter is completed or discharged. `AbdmCareContext.hi_types` is derived from
+    the linked items. ABDM holds no per-record state, so a linked item never goes back.
+    """
+
+    class HiType(models.TextChoices):
+        OP_CONSULTATION = "OPConsultation"
+        PRESCRIPTION = "Prescription"
+        DIAGNOSTIC_REPORT = "DiagnosticReport"
+        DISCHARGE_SUMMARY = "DischargeSummary"
+
+    class Source(models.TextChoices):
+        ENCOUNTER = "encounter"
+        PRESCRIPTION = "medication_request_prescription"
+        DIAGNOSTIC_REPORT = "diagnostic_report"
+        REPORT_UPLOAD = "report_upload"
+
+    class Status(models.TextChoices):
+        STAGED = "staged"  # the record exists; nothing was sent
+        QUEUED = "queued"  # selected for the next link call, or waiting for a retry
+        LINKED = "linked"  # the on_carecontext callback confirmed it
+        FAILED = "failed"  # the last retry failed; the desk can select it again
+        EXCLUDED = "excluded"  # the desk removed it, or the record was cancelled before a link
+
+    care_context = models.ForeignKey(AbdmCareContext, on_delete=models.CASCADE, related_name="share_items")
+    hi_type = models.CharField(max_length=32, choices=HiType.choices)
+    source_model = models.CharField(max_length=48, choices=Source.choices)
+    source_id = models.BigIntegerField()
+    label = models.CharField(max_length=256)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.STAGED, db_index=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    next_attempt_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    link_request = models.ForeignKey(
+        AbdmOutboundRequest, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    linked_at = models.DateTimeField(null=True, blank=True)
+    last_error_code = models.CharField(max_length=64, blank=True, default="")
+    last_error_message = models.CharField(max_length=512, blank=True, default="")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["care_context", "hi_type", "source_model", "source_id"], name="abdm_share_item_source"
+            )
+        ]
+        indexes = [models.Index(fields=["care_context", "status"]), models.Index(fields=["status", "next_attempt_at"])]
+
+    def __str__(self):
+        return f"{self.hi_type}:{self.source_model}:{self.source_id}:{self.status}"
+
+
 class AbdmLinkSession(BaseModel):
     """
     1 user-initiated link flow: discover -> init (OTP) -> confirm. Keyed by the gateway

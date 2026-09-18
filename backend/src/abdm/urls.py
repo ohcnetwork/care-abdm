@@ -41,6 +41,10 @@ urlpatterns = [
     # --- M2 desk endpoints ---
     path("encounters/<uuid:encounter_id>/care-context", hip_views.EncounterCareContext.as_view()),
     path("encounters/<uuid:encounter_id>/care-context/link", hip_views.EncounterCareContextLink.as_view()),
+    path(
+        "encounters/<uuid:encounter_id>/share-items/<uuid:item_id>/<str:action>",
+        hip_views.ShareItemExclude.as_view(),
+    ),
     path("patients/<uuid:patient_id>/abha/sms-link", hip_views.PatientSmsLink.as_view()),
     path("patients/<uuid:patient_id>/abha/consents", hip_views.PatientConsents.as_view()),
     # --- M1 Journey 1: ABHA creation by Aadhaar OTP ---

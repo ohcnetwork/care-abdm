@@ -19,7 +19,7 @@ from rest_framework.views import APIView
 
 from abdm import errors
 from abdm.facility.service import hip_id_for
-from abdm.hip import contexts
+from abdm.hip import contexts, rules, sharing
 from abdm.hip.consent import consent_summary
 from abdm.hip.transfer import data_request_summary
 from abdm.models import AbdmCallback, AbdmCareContext, AbdmConsent, AbdmDataRequest, AbdmLinkToken, AbdmOutboundRequest
@@ -28,6 +28,22 @@ from abdm.models import AbdmCallback, AbdmCareContext, AbdmConsent, AbdmDataRequ
 def _encounter(request, encounter_id, perm):
     encounter = get_object_or_404(Encounter, external_id=encounter_id)
     if not AuthorizationController.call(perm, request.user, encounter):
+        raise PermissionDenied
+    return encounter
+
+
+def _encounter_for_sharing(request, encounter_id):
+    """Sharing with ABDM is not a clinical write: `can_update_encounter_obj` refuses every write on
+    a completed encounter (care/security/authorization/encounter.py:110-118), yet a discharge
+    summary is shared after completion (ADR-013). Same permission, without the closure rule."""
+    from care.security.authorization.encounter import EncounterAccess
+    from care.security.permissions.encounter import EncounterPermissions
+
+    encounter = get_object_or_404(Encounter, external_id=encounter_id)
+    allowed = EncounterAccess().check_permission_in_encounter(
+        request.user, encounter, EncounterPermissions.can_write_encounter.name
+    )
+    if not (allowed or getattr(request.user, "is_superuser", False)):
         raise PermissionDenied
     return encounter
 
@@ -137,6 +153,11 @@ def care_context_state(encounter: Encounter) -> dict:
         else None,
         "failure": _failure_block(context, token),
         "activity": [_request_summary(row) for row in activity],
+        # ADR-013: what is staged, queued, linked, failed or excluded for this Encounter.
+        "shareItems": [sharing.item_summary(i) for i in context.share_items.order_by("hi_type", "created_date")]
+        if context
+        else [],
+        "encounterClosed": rules.encounter_closes(encounter.status),
     }
 
 
@@ -149,17 +170,61 @@ class EncounterCareContext(APIView):
         return Response(care_context_state(_encounter(request, encounter_id, "can_view_encounter_obj")))
 
 
+class LinkItemsBody(BaseModel):
+    """`items`: share item ids to link. `all`: every staged and failed item of the Encounter."""
+
+    items: list[str] = []
+    all: bool = False
+
+
 class EncounterCareContextLink(APIView):
-    """POST: link this Encounter now (or notify about new records). Runs the sync inline so the
-    desk sees the gateway acknowledgement; callbacks finish the state later."""
+    """POST: link the selected share items now (ADR-013 D3). The call runs inline so the desk
+    sees the gateway acknowledgement; the callback settles the items later."""
 
     permission_classes = [IsAuthenticated]
 
     def post(self, request, encounter_id):
-        encounter = _encounter(request, encounter_id, "can_update_encounter_obj")
+        encounter = _encounter_for_sharing(request, encounter_id)
         if not hip_id_for(encounter.facility):
             raise ValidationError({"errors": "This facility has no HFR facility ID. Complete the ABDM setup first."})
-        contexts.sync_encounter(encounter)
+        try:
+            body = LinkItemsBody.model_validate(request.data or {})
+        except PydanticValidationError as exc:
+            raise ValidationError({"errors": "; ".join(e["msg"] for e in exc.errors())}) from exc
+        context = contexts.ensure_care_context(encounter)
+        items = context.share_items.all()
+        if body.all:
+            items = items.filter(status__in=[sharing.Status.STAGED, sharing.Status.FAILED])
+        else:
+            items = items.filter(external_id__in=body.items)
+            if body.items and items.count() != len(set(body.items)):
+                raise ValidationError({"errors": "An item does not belong to this encounter."})
+        if not items.exists():
+            raise ValidationError({"errors": "Select at least 1 record to share."})
+        sharing.queue_items(items, reset_attempts=True)
+        contexts.link_context(context)
+        return Response(care_context_state(encounter))
+
+
+class ShareItemExclude(APIView):
+    """POST .../share-items/<id>/exclude or /include: the desk keeps a staged record out of sharing,
+    or brings it back. A linked item cannot change: ABDM holds no unlink call."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, encounter_id, item_id, action):
+        encounter = _encounter_for_sharing(request, encounter_id)
+        item = get_object_or_404(sharing.AbdmShareItem, external_id=item_id, care_context__encounter=encounter)
+        if item.status in (sharing.Status.LINKED, sharing.Status.QUEUED):
+            raise ValidationError({"errors": "This record is already shared or being shared."})
+        if action == "exclude":
+            item.status = sharing.Status.EXCLUDED
+            item.last_error_code = ""
+        else:
+            item.status = sharing.Status.STAGED
+            item.last_error_code = ""
+        item.last_error_message = ""
+        item.save(update_fields=["status", "last_error_code", "last_error_message", "modified_date"])
         return Response(care_context_state(encounter))
 
 

@@ -46,9 +46,8 @@ def _querysets(encounter):
 
 
 def has_data(encounter) -> bool:
-    if getattr(encounter, "encounter_class", None) == "amb":
-        return True
-    return any(qs.exists() for qs in _querysets(encounter).values())
+    """OPConsultation is the outpatient visit only (Rithvik, 2026-09-18; ADR-013)."""
+    return getattr(encounter, "encounter_class", None) == "amb"
 
 
 def _patient_resource(encounter, timestamp):
@@ -63,8 +62,9 @@ def _patient_resource(encounter, timestamp):
     )
 
 
-def build(encounter) -> dict:
-    """Build an OPConsultRecord bundle from encounter-linked CARE clinical rows."""
+def build(encounter, source_ids=None) -> dict:
+    """Build an OPConsultRecord bundle from encounter-linked CARE clinical rows. `source_ids` is
+    accepted for the common contract; the OP consultation is 1 item for the whole Encounter."""
     if not has_data(encounter):
         raise BundleError("Encounter has no OP consultation data")
 

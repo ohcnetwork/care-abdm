@@ -24,12 +24,18 @@ from abdm.fhir.bundle import (
 EXCLUDED_STATUSES = {"cancelled", "entered_in_error", "entered-in-error"}
 
 
-def _medication_requests(encounter):
+def _medication_requests(encounter, source_ids=None):
+    """The MedicationRequest rows of the Encounter's prescriptions. Only requests that belong to a
+    `MedicationRequestPrescription` count (Rithvik, 2026-09-18); `source_ids` limits the set to the
+    linked prescriptions (ADR-013)."""
     from care.emr.models.medication_request import MedicationRequest
 
-    return MedicationRequest.objects.filter(encounter=encounter, do_not_perform=False).exclude(
-        status__in=EXCLUDED_STATUSES
-    )
+    rows = MedicationRequest.objects.filter(
+        encounter=encounter, do_not_perform=False, prescription__isnull=False
+    ).exclude(status__in=EXCLUDED_STATUSES)
+    if source_ids is not None:
+        rows = rows.filter(prescription_id__in=source_ids)
+    return rows
 
 
 def has_data(encounter) -> bool:
@@ -57,9 +63,11 @@ def _patient_resource(encounter, timestamp):
     )
 
 
-def build(encounter) -> dict:
-    """Build a PrescriptionRecord bundle from CARE MedicationRequest rows."""
-    requests = list(_medication_requests(encounter).select_related("requester", "prescription__prescribed_by"))
+def build(encounter, source_ids=None) -> dict:
+    """Build a PrescriptionRecord bundle from the MedicationRequest rows of the given prescriptions."""
+    requests = list(
+        _medication_requests(encounter, source_ids).select_related("requester", "prescription__prescribed_by")
+    )
     if not requests:
         raise BundleError("Encounter has no prescription data")
 

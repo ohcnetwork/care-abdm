@@ -369,3 +369,55 @@ def parse_consent_notification(parsed: dict) -> dict:
         "signature": str(parsed.get("signature") or ""),
         "detail": detail,
     }
+
+
+# --- ADR-013: staged sharing -------------------------------------------------------------------
+
+# Encounter statuses that link every staged item (care/emr/resources/encounter/constants.py).
+ENCOUNTER_CLOSING_STATUSES = frozenset({"completed", "discharged"})
+# Prescription statuses that never leave the facility (spec.py:18-26). `draft` is staged later.
+PRESCRIPTION_EXCLUDED_STATUSES = frozenset({"draft", "cancelled", "entered_in_error"})
+DIAGNOSTIC_REPORT_SHAREABLE_STATUS = "final"
+DISCHARGE_SUMMARY_REPORT_TYPE = "discharge_summary"
+
+
+def prescription_is_shareable(status: str | None) -> bool:
+    return bool(status) and status not in PRESCRIPTION_EXCLUDED_STATUSES
+
+
+def diagnostic_report_is_shareable(status: str | None) -> bool:
+    return status == DIAGNOSTIC_REPORT_SHAREABLE_STATUS
+
+
+def discharge_summary_is_shareable(report_type: str | None, upload_completed: bool, is_archived: bool) -> bool:
+    return report_type == DISCHARGE_SUMMARY_REPORT_TYPE and bool(upload_completed) and not is_archived
+
+
+def op_consultation_applies(encounter_class: str | None) -> bool:
+    """OPConsultation is the outpatient visit only (Rithvik, 2026-09-18)."""
+    return encounter_class == "amb"
+
+
+def encounter_closes(status: str | None) -> bool:
+    return (status or "") in ENCOUNTER_CLOSING_STATUSES
+
+
+def item_label(hi_type: str, when: datetime | None, name: str = "") -> str:
+    """What the desk reads on the ABDM tab. No clinical detail (the same rule as the display name)."""
+    words = {
+        "OPConsultation": "OP consultation",
+        "Prescription": "Prescription",
+        "DiagnosticReport": "Diagnostic report",
+        "DischargeSummary": "Discharge summary",
+    }.get(hi_type, hi_type)
+    stamp = when.strftime("%d %b %Y %H:%M") if when else ""
+    head = f"{words} {name}".strip() if name else words
+    return f"{head} · {stamp}" if stamp else head
+
+
+def next_attempt(now: datetime, attempts: int, interval: timedelta, max_retries: int) -> datetime | None:
+    """When the next link attempt may run, or None when the retries are used up (ADR-013 D4).
+    `attempts` counts the attempts already made, the first one included."""
+    if attempts > max_retries:
+        return None
+    return now + interval

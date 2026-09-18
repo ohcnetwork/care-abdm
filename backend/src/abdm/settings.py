@@ -48,6 +48,10 @@ DEFAULTS = {
     # `ABDM-1006 No links found for the patient in the given HIP`; the same notify 50 s later
     # answers SUCCESS. The notify therefore waits this many seconds, and a refusal is repeated.
     "NOTIFY_DELAY_SECONDS": 30,
+    # ADR-013 D4: a failed link call is repeated this often, this many times, then the share item
+    # is marked failed and the desk can select it again.
+    "LINK_RETRY_INTERVAL_MINUTES": 60,
+    "LINK_MAX_RETRIES": 3,
     # Scan and Share counter QR code. The docs say only that the QR code holds a URL with the
     # HIP ID and a context (docs/findings.md). Placeholders: {hip_id} and {context}.
     # Empty = the setup page shows no QR code and asks for the observed format.

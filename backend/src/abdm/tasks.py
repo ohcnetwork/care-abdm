@@ -8,7 +8,7 @@ link for an Encounter. Both do ABDM I/O, so a Celery worker must run for M2.
 
 import logging
 
-from celery import shared_task
+from celery import current_app, shared_task
 
 from abdm.models import AbdmCallback
 
@@ -99,6 +99,53 @@ def sync_encounter(self, encounter_id: int):
     return result
 
 
+@shared_task(name="abdm.tasks.stage_record")
+def stage_record(source_model: str, source_id: int):
+    """A clinical record was saved: stage it for sharing (ADR-013 D2). Nothing is sent to ABDM."""
+    from care.emr.models.diagnostic_report import DiagnosticReport
+    from care.emr.models.medication_request import MedicationRequestPrescription
+    from care.emr.models.report.report_upload import ReportUpload
+
+    from abdm.hip import sharing
+
+    loaders = {
+        "medication_request_prescription": (MedicationRequestPrescription, sharing.stage_prescription),
+        "diagnostic_report": (DiagnosticReport, sharing.stage_diagnostic_report),
+        "report_upload": (ReportUpload, sharing.stage_discharge_summary),
+    }
+    model, stage = loaders[source_model]
+    record = model.objects.filter(id=source_id).first()
+    if record is None:
+        return {"source": source_model, "id": source_id, "skipped": "missing"}
+    item = stage(record)
+    return {"source": source_model, "id": source_id, "item": item.status if item else None}
+
+
+@shared_task(
+    name="abdm.tasks.link_care_context", bind=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 2}
+)
+def link_care_context(self, context_id: int):
+    """Send 1 link call for the queued share items of a care context (desk action, Encounter
+    close, or retry). A refusal is not repeated here: ADR-013 D4 schedules the next attempt."""
+    from abdm.hip.contexts import link_context
+    from abdm.models import AbdmCareContext
+
+    context = AbdmCareContext.objects.filter(id=context_id).select_related("patient", "facility", "encounter").first()
+    if context is None:
+        return {"context_id": context_id, "skipped": "missing"}
+    context = link_context(context)
+    return {"context_id": context_id, "status": context.status, "error": context.error_code}
+
+
+@shared_task(name="abdm.tasks.retry_share_items")
+def retry_share_items():
+    """Periodic (Celery beat, every 5 minutes): re-run the link for contexts whose queued items
+    are due (ADR-013 D4)."""
+    from abdm.hip import sharing
+
+    return {"contexts": sharing.retry_due_items()}
+
+
 @shared_task(name="abdm.tasks.notify_care_context", bind=True, max_retries=5)
 def notify_care_context(self, context_id: int):
     """Tell ABDM that a care context is linked, after the link is indexed.
@@ -118,3 +165,9 @@ def notify_care_context(self, context_id: int):
     if request is not None and request.status == request.Status.FAILED and self.request.retries < 5:
         raise self.retry(countdown=30 * (2**self.request.retries))
     return {"context_id": context_id, "http_status": request.http_status if request else None}
+
+
+@current_app.on_after_finalize.connect
+def register_periodic_tasks(sender, **kwargs):
+    """Care registers periodic tasks this way (care/emr/tasks/__init__.py:12-31)."""
+    sender.add_periodic_task(5 * 60, retry_share_items.s(), name="abdm retry share items")

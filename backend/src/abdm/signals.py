@@ -9,8 +9,11 @@ a patient half-linked to an ABHA is worse than a clean retry.
 
 import logging
 
+from care.emr.models.diagnostic_report import DiagnosticReport
 from care.emr.models.encounter import Encounter
+from care.emr.models.medication_request import MedicationRequestPrescription
 from care.emr.models.patient import Patient
+from care.emr.models.report.report_upload import ReportUpload
 from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -87,21 +90,49 @@ def link_abha_from_txn(sender, instance: Patient, **kwargs):
     link_patient_to_transaction(instance, txn)
 
 
-# --- M2: Encounter -> care context (ADR-008 decision 1: auto-link at create and on status change)
+# --- M2 / ADR-013: stage records; link on Encounter close ----------------------------------------
 
 ENCOUNTER_SYNC_FIELDS = {"status", "encounter_class", "period"}
 
 
+def _queue(task, *args):
+    transaction.on_commit(lambda: task.delay(*args))
+
+
 @receiver(post_save, sender=Encounter)
 def sync_encounter_care_context(sender, instance: Encounter, created: bool, update_fields=None, **kwargs):
-    """Queue the HIP-initiated link after the Encounter commits. Saves that touch only cache
-    fields (care/emr/models/encounter.py::sync_organization_cache) are skipped."""
+    """Queue `tasks.sync_encounter` after the Encounter commits: a closing status links every
+    staged item; other changes refresh the display name. Saves that touch only cache fields
+    (care/emr/models/encounter.py::sync_organization_cache) are skipped."""
     if update_fields is not None and not (set(update_fields) & ENCOUNTER_SYNC_FIELDS):
         return
     from abdm.facility.service import hip_id_for
 
-    if not hip_id_for(instance.facility):
+    if created or not hip_id_for(instance.facility):
         return
     from abdm.tasks import sync_encounter
 
-    transaction.on_commit(lambda: sync_encounter.delay(instance.id))
+    _queue(sync_encounter, instance.id)
+
+
+@receiver(post_save, sender=MedicationRequestPrescription)
+def stage_prescription_item(sender, instance: MedicationRequestPrescription, **kwargs):
+    from abdm.tasks import stage_record
+
+    _queue(stage_record, "medication_request_prescription", instance.id)
+
+
+@receiver(post_save, sender=DiagnosticReport)
+def stage_diagnostic_report_item(sender, instance: DiagnosticReport, **kwargs):
+    from abdm.tasks import stage_record
+
+    _queue(stage_record, "diagnostic_report", instance.id)
+
+
+@receiver(post_save, sender=ReportUpload)
+def stage_discharge_summary_item(sender, instance: ReportUpload, **kwargs):
+    if instance.report_type != "discharge_summary":
+        return
+    from abdm.tasks import stage_record
+
+    _queue(stage_record, "report_upload", instance.id)
