@@ -97,7 +97,6 @@ export function statusKey(view: CareContextView): string {
 const HI_TYPE_KEYS: Record<string, string> = {
   OPConsultation: "abdm_hi_type_op_consultation",
   Prescription: "abdm_hi_type_prescription",
-  HealthDocumentRecord: "abdm_hi_type_health_document_record",
   DiagnosticReport: "abdm_hi_type_diagnostic_report",
   DischargeSummary: "abdm_hi_type_discharge_summary",
   WellnessRecord: "abdm_hi_type_wellness_record",

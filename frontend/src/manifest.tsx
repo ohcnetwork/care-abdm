@@ -49,6 +49,11 @@ const manifest = {
       icon: <Network />,
     },
   ],
+  // Host slot `encounterTabs` (EncounterShow.tsx:80,192-200). The host owns the tab label
+  // `ENCOUNTER_TAB__abdm` ("ABDM Records") and the route `.../encounter/:encounterId/abdm`.
+  encounterTabs: {
+    abdm: lazy(() => import("@/components/abdm/encounter-tab")),
+  },
   components: {
     FacilityHomeActions: lazy(
       () => import("@/components/abdm/facility-home-actions"),

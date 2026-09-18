@@ -137,6 +137,35 @@ export type AbdmCareContextState = {
     supportReference: string;
   } | null;
   activity: AbdmOutboundSummary[];
+  /** ADR-013: 1 row per shareable record of this Encounter. */
+  shareItems: AbdmShareItem[];
+  /** The Encounter is completed or discharged: every staged item was queued. */
+  encounterClosed: boolean;
+};
+
+export type AbdmShareItemStatus =
+  | "staged"
+  | "queued"
+  | "linked"
+  | "failed"
+  | "excluded";
+
+export type AbdmShareItem = {
+  id: string;
+  hiType: string;
+  sourceModel:
+    | "encounter"
+    | "medication_request_prescription"
+    | "diagnostic_report"
+    | "report_upload";
+  sourceId: number;
+  label: string;
+  status: AbdmShareItemStatus;
+  attempts: number;
+  nextAttemptAt: string | null;
+  linkedAt: string | null;
+  requestId: string;
+  failure: AbdmCareContextState["failure"];
 };
 
 export type AbdmConsentSummary = {
@@ -481,6 +510,12 @@ const routes = apiRoutes({
   },
   encounterCareContextLink: {
     path: "/api/abdm/encounters/{encounterId}/care-context/link",
+    method: HttpMethod.POST,
+    TRequest: {} as { items?: string[]; all?: boolean },
+    TResponse: {} as AbdmCareContextState,
+  },
+  shareItemAction: {
+    path: "/api/abdm/encounters/{encounterId}/share-items/{itemId}/{action}",
     method: HttpMethod.POST,
     TRequest: {} as Record<string, never>,
     TResponse: {} as AbdmCareContextState,
