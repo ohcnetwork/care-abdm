@@ -1,240 +1,1357 @@
-# HIE-CM P1 build
+# HIE-CM p1 build
 
-Scaffolds an ABDM P1 integration one flow at a time. P1 covers registration in a PHR application, the four login routes, and the profile the person holds.
+Scaffolds an ABDM p1 integration one journey at a time. It covers creating an ABHA address in a PHR app and logging in to it.
 
 ## How this skill runs
 
-Every flow below is an OODA loop, not a recipe: observe the actual state (last response, last error), orient against the flow step matched below, decide the cheapest next action, act, and return to observe. A flow step is done only when its exit condition is observed against the sandbox, never because it "should have worked."
+Every journey below is an OODA loop, not a recipe: observe the actual state (last response, last error), orient against the step matched below, decide the cheapest next action, act, and return to observe. A step is done only when its exit condition is observed against the sandbox, never because it "should have worked."
 
-Loop limit: 8 passes per flow step. Hitting the limit is an escalation: state what was observed, what was tried, and which atom to read, then ask one question.
+Loop limit: 8 passes per step. Hitting the limit is an escalation: state what was observed, what was tried, and which operation page to read, then ask one question.
 
-## Flows
+## Journeys
 
-### Create an ABHA address in a PHR application (`hiecm.flow.p1-create-abha-address`)
+### Create ABHA number, Aadhaar OTP (`p1-create-abha-number-aadhaar-otp`)
 
-**Before you start**
+**Act: the calls in this journey, in order**
 
-Four things must already be true, each checkable:
-
-- You hold a gateway session token. See
-  the gateway session (hiecm.concept.gateway-session).
-- You can send and verify an OTP (shared.glossary.otp), and
-  your screens keep resend locked for 60 seconds in every flow.
-- You can store a refresh token securely, because login follows
-  immediately and the application holds the session from here on.
-- You know which path the user is on. A mobile number produces a
-  Self-Declared profile with no KYC (shared.glossary.kyc); an
-  existing 14 digit ABHA number (shared.glossary.abha-number)
-  produces a KYC Verified one.
-
-**Act: the calls in this flow, in order**
-
-#### Send the OTP that starts a registration (`hiecm.endpoint.p1-enrollment-request-otp`)
+#### 1. Request enrolment OTP (`m1_post_v3_enrollment_request_otp`)
 
 ```bash
-curl -X POST 'https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/request/otp' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'Content-Type: application/json' \
-  -d '{ "scope": [ "abha-address-enroll", "mobile-verify" ], "loginHint": "mobile-number", "loginId": "{{encrypted-mobile-number}}", "otpSystem": "abdm" }'
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/request/otp \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "txnId": "{{txnId}}",
+  "scope": [
+    "abha-enrol"
+  ],
+  "loginHint": "aadhaar",
+  "loginId": "{{encrypted aadhaar number}}",
+  "otpSystem": "aadhaar"
+}'
 ```
 
-#### Verify the registration OTP (`hiecm.endpoint.p1-enrollment-verify-otp`)
+#### 2. Enrol by Aadhaar (`m1_post_v3_enrollment_enrol_byaadhaar`)
 
 ```bash
-curl -X POST 'https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/verify' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'Content-Type: application/json' \
-  -d '{ "scope": [ "abha-address-enroll", "mobile-verify" ], "authData": { "authMethods": [ "otp" ], "otp": { "txnId": "*{{transactionId}}*", "otpValue": "*{{encrypted OTP}}*" } } }'
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/enrol/byAadhaar \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'BENEFIT_NAME: {{Benefit Name}}' \
+  --header 'X-token: Bearer {{X-token}}' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "authData": {
+    "authMethods": [
+      "otp"
+    ],
+    "otp": {
+      "txnId": "{{txnId}}",
+      "otpValue": "{{encrypted otp}}",
+      "mobile": "{{mobile number}}"
+    }
+  },
+  "consent": {
+    "code": "abha-enrollment",
+    "version": "1.4"
+  }
+}'
 ```
 
-#### Ask for address suggestions (`hiecm.endpoint.p1-enrollment-address-suggestion`)
+#### 3. Request enrolment OTP (`m1_post_v3_enrollment_request_otp`)
 
 ```bash
-curl -X POST 'https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/suggestion' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'Content-Type: application/json' \
-  -d '{ "txnId": "*{{transactionId}}*", "firstName": "John", "lastName": "Doe", "dayOfBirth": "14", "monthOfBirth": "11", "yearOfBirth": "1998" }'
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/request/otp \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "txnId": "{{txnId}}",
+  "scope": [
+    "abha-enrol",
+    "mobile-verify"
+  ],
+  "loginHint": "mobile",
+  "loginId": "{{encrypted mobileNumber}}",
+  "otpSystem": "abdm"
+}'
 ```
 
-#### Check whether an address is taken (`hiecm.endpoint.p1-enrollment-address-exists`)
+#### 4. Verify- mobile OTP (`m1_post_v3_enrollment_auth_byabdm`)
 
 ```bash
-curl -X GET 'https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/isExists' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'Content-Type: application/json' \
-  -d '<REQUEST_BODY>'
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/auth/byAbdm \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-enrol",
+    "mobile-verify"
+  ],
+  "authData": {
+    "authMethods": [
+      "otp"
+    ],
+    "otp": {
+      "txnId": "{{txnId}}",
+      "otpValue": "{{encrypted otp}}"
+    }
+  }
+}'
 ```
 
-#### Create the health address (`hiecm.endpoint.p1-enrollment-enrol`)
+#### 5. Submit the email verification link (`p1_post_v3_profile_account_request_emailverificationlink`)
 
 ```bash
-curl -X POST 'https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/enrol' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'Content-Type: application/json' \
-  -d '{ "txnId": "22387064-45ea-42d4-b6c5-8b86dbec6fe5", "phrDetails": { "mobile": " *{{encrypted mobile-number }}*", "firstName": "John", "middleName": "", "lastName": "Doe", "yearOfBirth": "1998", "dayOfBirth": "14", "monthOfBirth": "11", "gender": "M", "email": "", "profilePhoto": "{{base-64-encoded-profile-photo}}", "stateCode": "9", "districtCode": "135", "pinCode": 232101, "address": "Street number 4, sector 12", "stateName": "Maharashtra", "districtName": "Nashik", "ABHANumber": "XX-XXXX-XXXX-1234", "abhaAddress": "johndoe@sbx", "password": "*{{encrypted password}}*" } }'
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/profile/account/request/emailVerificationLink \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-token: Bearer <JWT TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-profile",
+    "email-link-verify"
+  ],
+  "loginHint": "email",
+  "loginId": "{{encrypted email}}",
+  "otpSystem": "abdm"
+}'
 ```
 
-#### Encrypt data (Aadhaar/Mobile/OTP/Password) (`hiecm.endpoint.p1-encrypt-data-aadhaar-mobile-otp-password`)
+#### 6. Get the ABHA address suggestion (`m1_get_v3_enrollment_enrol_suggestion`)
 
 ```bash
-curl -X GET 'https://dev.abdm.gov.inhttps://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/public/certificate' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'Content-Type: application/json' \
-  -d '<REQUEST_BODY>'
+curl --request GET \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/enrol/suggestion \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'TRANSACTION_ID: {{txnId}}' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z'
 ```
 
-#### Get User Profile (`hiecm.endpoint.p1-get-user-profile`)
+#### 7. Create ABHA address (`m1_post_v3_enrollment_enrol_abha_address`)
 
 ```bash
-curl -X GET 'https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'Content-Type: application/json' \
-  -d '<REQUEST_BODY>'
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/enrol/abha-address \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "txnId": "{{txnId}}",
+  "abhaAddress": "{{ABHA Address}}",
+  "preferred": 1
+}'
 ```
 
-**Exit condition (Observe until this is true)**
-
-The user holds an ABHA address in the form `username@abdm`, and the
-profile screen shows it marked Self-Declared or KYC Verified according to
-the path they took. The ABHA number is visible only on a KYC Verified
-profile.
-
-Listing the addresses linked to that mobile number or ABHA number now
-returns the address the user ended with, which is what proves the
-creation landed rather than the screen merely closing.
-
-**If it goes wrong**
-
-The failures these sources document, in rough order of frequency:
-
-- A duplicate address, because step 3 was skipped and the user created a
-  second one rather than picking the one they had.
-- A mandatory demographic field missing on the mobile number path, which
-  is rejected as validation. The mandatory set is narrower than it looks:
-  day and month of birth are not in it.
-- An expired OTP, where the user waited out the window. Resend is locked
-  for 60 seconds by design, so the screen must say so rather than appear
-  broken.
-
-### Sign a user in to a PHR application (`hiecm.flow.p1-login`)
-
-**Before you start**
-
-Four things must already be true, each checkable:
-
-- The person holds an ABHA address (shared.glossary.abha-address).
-  See create an ABHA address.
-- You hold a gateway session token. See
-  the gateway session (hiecm.concept.gateway-session).
-- You can store a refresh token securely, and you have a sign out that
-  clears it.
-- Your application supports more than one user profile per install, with
-  sign in and sign out between them.
-
-**Act: the calls in this flow, in order**
-
-#### Send the OTP that starts a login (`hiecm.endpoint.p1-login-request-otp`)
+#### 8. Get user profile details (`m1_get_v3_profile_account`)
 
 ```bash
-curl -X POST 'https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/request/otp' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'Content-Type: application/json' \
-  -d '{ "scope": [ "abha-address-login", "mobile-verify" ], "loginHint": "mobile-number", "loginId": "*{{encrypted mobile-number}}*", "otpSystem": "abdm" }'
+curl --request GET \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/profile/account \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'X-token: Bearer {{X-token}}' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z'
 ```
 
-#### Verify the login OTP (`hiecm.endpoint.p1-login-verify-otp`)
+#### 9. Retrieve ABHA card image (`m1_get_v3_profile_account_abha_card`)
 
 ```bash
-curl -X POST 'https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/verify' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'Content-Type: application/json' \
-  -d '{ "scope": [ "abha-address-login", "mobile-verify" ], "authData": { "authMethods": [ "otp" ], "otp": { "txnId": "*{{ transactionId}}*", "otpValue": "*{{encrypted OTP}}*" } } }'
-```
-
-#### Say which address is signing in (`hiecm.endpoint.p1-login-verify-user`)
-
-```bash
-curl -X POST 'https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/verify/user' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'Content-Type: application/json' \
-  -d '{ "abhaAddress":"johndoe@abdm", "txnId":"*{{transactionId}}*" }'
-```
-
-#### Login using Password Search user (`hiecm.endpoint.p1-login-using-password-search-user`)
-
-```bash
-curl -X POST 'https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/search' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'Content-Type: application/json' \
-  -d '{ "abhaAddress": "johndoe@sbx" }'
-```
-
-#### Generate Refresh Token (`hiecm.endpoint.p1-generate-refresh-token`)
-
-```bash
-curl -X GET 'https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile/request/token' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'Content-Type: application/json' \
-  -d '<REQUEST_BODY>'
-```
-
-#### Logout User (`hiecm.endpoint.p1-logout-user`)
-
-```bash
-curl -X GET 'https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile/request/logout' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'Content-Type: application/json' \
-  -d '<REQUEST_BODY>'
+curl --request GET \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/profile/account/abha-card \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'X-token: Bearer {{X-token}}' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z'
 ```
 
 **Exit condition (Observe until this is true)**
 
-The application holds a session for one named ABHA address, and the
-profile screen shows that address rather than a chooser. Signing out and
-back in returns the user to the same address without repeating the
-choice, which is what proves the session was stored rather than held in
-memory.
+A 200 response. The specification gives no body for it, so read what comes back.
 
-**If it goes wrong**
+### Create ABHA address, mobile number (`p1-create-abha-address-mobile`)
 
-The failures these sources document, in rough order of frequency:
+**Act: the calls in this journey, in order**
 
-- The wrong auth mode offered for an address, so the user is asked for a
-  password they never set. Read the modes rather than defaulting.
-- A mobile number carrying several addresses and no chooser shown, which
-  signs the person in as the wrong one of their own identities.
-- An expired OTP where the screen offered resend before the 60 seconds
-  were up, or did not say the wait was deliberate.
+#### 1. Request enrolment OTP (`p1_post_v3_phr_app_enrollment_request_otp`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/request/otp \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-address-enroll",
+    "mobile-verify"
+  ],
+  "loginHint": "mobile-number",
+  "loginId": "{{encryptedData}}",
+  "otpSystem": "abdm"
+}'
+```
+
+#### 2. Verify the enrolment OTP (`p1_post_v3_phr_app_enrollment_verify`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/verify \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-address-enroll",
+    "mobile-verify"
+  ],
+  "authData": {
+    "authMethods": [
+      "otp"
+    ],
+    "otp": {
+      "txnId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa",
+      "otpValue": "{{encryptedData}}"
+    }
+  }
+}'
+```
+
+#### 3. Suggest an ABHA address (`p1_post_v3_phr_app_enrollment_suggestion`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/suggestion \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "txnId": "ee10d1c7-e25f-40e0-a3a1-df4c1dda02211",
+  "firstName": "John",
+  "lastName": "Doe",
+  "dayOfBirth": "<DOB>",
+  "monthOfBirth": "<DOB>",
+  "yearOfBirth": "<DOB>",
+  "email": ""
+}'
+```
+
+#### 4. Check whether the ABHA address exists (`p1_get_v3_phr_app_enrollment_isexists`)
+
+```bash
+curl --request GET \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/isExists \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z'
+```
+
+#### 5. Enrol ABHA address (`p1_post_v3_phr_app_enrollment_enrol`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/enrol \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "txnId": "27d444b7-2a3d-46d8-bf67-e5590b6c46b6",
+  "phrDetails": {
+    "mobile": "<BASE64_PHOTO>",
+    "firstName": "John",
+    "middleName": "",
+    "lastName": "Doe",
+    "yearOfBirth": "<DOB>",
+    "dayOfBirth": "",
+    "monthOfBirth": "<DOB>",
+    "gender": "M",
+    "email": "",
+    "profilePhoto": "",
+    "address": "<ADDRESS>",
+    "stateName": "Maharashtra",
+    "stateCode": "27",
+    "districtName": "<ADDRESS>",
+    "districtCode": "123",
+    "pinCode": "<PINCODE>",
+    "abhaAddress": "<ABHA_ADDRESS>",
+    "password": "<BASE64_PHOTO>"
+  }
+}'
+```
+
+**Exit condition (Observe until this is true)**
+
+A 200 whose body matches:
+
+```json
+{
+  "txnId": "6907ebb5-ff71-47f9-8052-6dd5554df5df",
+  "message": "ABHA Address Created Successfully",
+  "phrDetails": {
+    "firstName": "John",
+    "middleName": "",
+    "lastName": "Doe",
+    "fullName": "John Doe",
+    "dayOfBirth": "<DOB>",
+    "monthOfBirth": "<DOB>",
+    "yearOfBirth": "<DOB>",
+    "dateOfBirth": "<DOB>",
+    "gender": "M",
+    "email": "<EMAIL>",
+    "mobile": "******1234",
+    "address": "<ADDRESS>",
+    "stateName": "Maharashtra",
+    "districtName": "<ADDRESS>",
+    "pinCode": "<PINCODE>",
+    "abhaAddress": [
+      "<ABHA_ADDRESS>",
+      "<ABHA_ADDRESS>",
+      "<ABHA_ADDRESS>"
+    ],
+    "stateCode": "27",
+    "districtCode": "123"
+  },
+  "tokens": {
+    "token": "<JWT TOKEN>",
+    "expiresIn": 1800,
+    "refreshToken": "<JWT TOKEN>",
+    "refreshExpiresIn": 1296000
+  }
+}
+```
+
+### Create ABHA address, ABHA number with ABHA OTP (`p1-create-abha-address-abha-number-abha-otp`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Request enrolment OTP (`p1_post_v3_phr_app_enrollment_request_otp`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/request/otp \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-login",
+    "mobile-verify"
+  ],
+  "loginHint": "abha-number",
+  "loginId": "{{encryptedData}}",
+  "otpSystem": "abdm"
+}'
+```
+
+#### 2. Verify the enrolment OTP (`p1_post_v3_phr_app_enrollment_verify`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/verify \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-login",
+    "mobile-verify"
+  ],
+  "authData": {
+    "authMethods": [
+      "otp"
+    ],
+    "otp": {
+      "txnId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa",
+      "otpValue": "{{encryptedData}}"
+    }
+  }
+}'
+```
+
+#### 3. Verify User, verify user (`p1_post_v3_phr_app_login_verify_user`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/verify/user \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'T-token: Bearer <JWT TOKEN>' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "abhaAddress": "<ABHA_ADDRESS>",
+  "txnId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa"
+}'
+```
+
+#### 4. Suggest an ABHA address (`p1_post_v3_phr_app_enrollment_suggestion`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/suggestion \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "txnId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa",
+  "firstName": "John",
+  "lastName": "Doe",
+  "dayOfBirth": "<DOB>",
+  "monthOfBirth": "<DOB>",
+  "yearOfBirth": "<DOB>",
+  "email": ""
+}'
+```
+
+#### 5. Check whether the ABHA address exists (`p1_get_v3_phr_app_enrollment_isexists`)
+
+```bash
+curl --request GET \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/isExists \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z'
+```
+
+#### 6. Enrol ABHA address (`p1_post_v3_phr_app_enrollment_enrol`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/enrol \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "txnId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa",
+  "phrDetails": {
+    "firstName": "John",
+    "middleName": "",
+    "lastName": "Doe",
+    "dayOfBirth": "<DOB>",
+    "monthOfBirth": "<DOB>",
+    "yearOfBirth": "<DOB>",
+    "gender": "M",
+    "email": "",
+    "mobile": "<BASE64_PHOTO>",
+    "address": "<ADDRESS>",
+    "stateName": "Maharashtra",
+    "stateCode": "27",
+    "districtName": "<ADDRESS>",
+    "districtCode": "123",
+    "pinCode": "<PINCODE>",
+    "abhaAddress": "<ABHA_ADDRESS>",
+    "password": "<BASE64_PHOTO>"
+  }
+}'
+```
+
+**Exit condition (Observe until this is true)**
+
+A 200 whose body matches:
+
+```json
+{
+  "txnId": "6907ebb5-ff71-47f9-8052-6dd5554df5df",
+  "message": "ABHA Address Created Successfully",
+  "phrDetails": {
+    "firstName": "John",
+    "middleName": "",
+    "lastName": "Doe",
+    "fullName": "John Doe",
+    "dayOfBirth": "<DOB>",
+    "monthOfBirth": "<DOB>",
+    "yearOfBirth": "<DOB>",
+    "dateOfBirth": "<DOB>",
+    "gender": "M",
+    "email": "<EMAIL>",
+    "mobile": "******1234",
+    "address": "<ADDRESS>",
+    "stateName": "Maharashtra",
+    "districtName": "<ADDRESS>",
+    "pinCode": "<PINCODE>",
+    "abhaAddress": [
+      "<ABHA_ADDRESS>",
+      "<ABHA_ADDRESS>",
+      "<ABHA_ADDRESS>"
+    ],
+    "stateCode": "27",
+    "districtCode": "123"
+  },
+  "tokens": {
+    "token": "<JWT TOKEN>",
+    "expiresIn": 1800,
+    "refreshToken": "<JWT TOKEN>",
+    "refreshExpiresIn": 1296000
+  }
+}
+```
+
+### Create ABHA address, ABHA number with Aadhaar OTP (`p1-create-abha-address-abha-number-aadhaar-otp`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Request enrolment OTP (`p1_post_v3_phr_app_enrollment_request_otp`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/request/otp \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-login",
+    "aadhaar-verify"
+  ],
+  "loginHint": "abha-number",
+  "loginId": "{{encryptedData}}",
+  "otpSystem": "aadhaar"
+}'
+```
+
+#### 2. Verify the enrolment OTP (`p1_post_v3_phr_app_enrollment_verify`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/verify \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-login",
+    "aadhaar-verify"
+  ],
+  "authData": {
+    "authMethods": [
+      "otp"
+    ],
+    "otp": {
+      "txnId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa",
+      "otpValue": "{{encryptedData}}"
+    }
+  }
+}'
+```
+
+#### 3. Suggest an ABHA address (`p1_post_v3_phr_app_enrollment_suggestion`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/suggestion \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "txnId": "7f45052a-ac63-48de-92db-c5d8d3d0c92a",
+  "firstName": "John",
+  "lastName": "Doe",
+  "dayOfBirth": "<DOB>",
+  "monthOfBirth": "<DOB>",
+  "yearOfBirth": "<DOB>",
+  "email": ""
+}'
+```
+
+#### 4. Check whether the ABHA address exists (`p1_get_v3_phr_app_enrollment_isexists`)
+
+```bash
+curl --request GET \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/isExists \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z'
+```
+
+#### 5. Enrol ABHA address (`p1_post_v3_phr_app_enrollment_enrol`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/enrol \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "txnId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa",
+  "phrDetails": {
+    "firstName": "John",
+    "middleName": "",
+    "lastName": "Doe",
+    "dayOfBirth": "<DOB>",
+    "monthOfBirth": "<DOB>",
+    "yearOfBirth": "<DOB>",
+    "gender": "M",
+    "email": "",
+    "mobile": "<BASE64_PHOTO>",
+    "address": "<ADDRESS>",
+    "stateName": "Maharashtra",
+    "stateCode": "27",
+    "districtName": "<ADDRESS>",
+    "districtCode": "123",
+    "pinCode": "<PINCODE>",
+    "abhaAddress": "<ABHA_ADDRESS>",
+    "password": "<BASE64_PHOTO>"
+  }
+}'
+```
+
+**Exit condition (Observe until this is true)**
+
+A 200 whose body matches:
+
+```json
+{
+  "txnId": "6907ebb5-ff71-47f9-8052-6dd5554df5df",
+  "message": "ABHA Address Created Successfully",
+  "phrDetails": {
+    "firstName": "John",
+    "middleName": "",
+    "lastName": "Doe",
+    "fullName": "John Doe",
+    "dayOfBirth": "<DOB>",
+    "monthOfBirth": "<DOB>",
+    "yearOfBirth": "<DOB>",
+    "dateOfBirth": "<DOB>",
+    "gender": "M",
+    "email": "<EMAIL>",
+    "mobile": "******1234",
+    "address": "<ADDRESS>",
+    "stateName": "Maharashtra",
+    "districtName": "<ADDRESS>",
+    "pinCode": "<PINCODE>",
+    "abhaAddress": [
+      "<ABHA_ADDRESS>",
+      "<ABHA_ADDRESS>",
+      "<ABHA_ADDRESS>"
+    ],
+    "stateCode": "27",
+    "districtCode": "123"
+  },
+  "tokens": {
+    "token": "<JWT TOKEN>",
+    "expiresIn": 1800,
+    "refreshToken": "<JWT TOKEN>",
+    "refreshExpiresIn": 1296000
+  }
+}
+```
+
+### PHR login, mobile number (`p1-login-mobile`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Login request OTP (`p1_post_v3_phr_app_login_request_otp`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/request/otp \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-address-login",
+    "mobile-verify"
+  ],
+  "loginHint": "mobile-number",
+  "loginId": "{{encryptedData}}",
+  "otpSystem": "abdm"
+}'
+```
+
+#### 2. Login PHR verify (`p1_post_v3_phr_app_login_verify`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/verify \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-address-login",
+    "mobile-verify"
+  ],
+  "authData": {
+    "authMethods": [
+      "otp"
+    ],
+    "otp": {
+      "txnId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa",
+      "otpValue": "{{encryptedData}}"
+    }
+  }
+}'
+```
+
+#### 3. Verify User, verify user (`p1_post_v3_phr_app_login_verify_user`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/verify/user \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'T-token: Bearer <JWT TOKEN>' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "abhaAddress": "<ABHA_ADDRESS>",
+  "txnId": "48bc0a00-1127-459c-b040-8147f4ccc11a"
+}'
+```
+
+**Exit condition (Observe until this is true)**
+
+A 200 whose body matches:
+
+```json
+{
+  "token": "<JWT TOKEN>",
+  "expiresIn": 1800,
+  "refreshToken": "<JWT TOKEN>",
+  "refreshExpiresIn": 1296000
+}
+```
+
+### PHR login, email (`p1-login-email`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Login request OTP (`p1_post_v3_phr_app_login_request_otp`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/request/otp \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-address-login",
+    "email-verify"
+  ],
+  "loginHint": "email",
+  "loginId": "{{encryptedData}}",
+  "otpSystem": "abdm"
+}'
+```
+
+#### 2. Login PHR verify (`p1_post_v3_phr_app_login_verify`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/verify \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-address-login",
+    "email-verify"
+  ],
+  "authData": {
+    "authMethods": [
+      "otp"
+    ],
+    "otp": {
+      "txnId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa",
+      "otpValue": "{{encryptedData}}"
+    }
+  }
+}'
+```
+
+#### 3. Verify User, verify user (`p1_post_v3_phr_app_login_verify_user`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/verify/user \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'T-token: Bearer <JWT TOKEN>' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "abhaAddress": "<ABHA_ADDRESS>",
+  "txnId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa"
+}'
+```
+
+**Exit condition (Observe until this is true)**
+
+A 200 whose body matches:
+
+```json
+{
+  "token": "<JWT TOKEN>",
+  "expiresIn": 1800,
+  "refreshToken": "<JWT TOKEN>",
+  "refreshExpiresIn": 1296000
+}
+```
+
+### PHR login, ABHA address with mobile OTP (`p1-login-abha-address-mobile-otp`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Login request OTP (`p1_post_v3_phr_app_login_request_otp`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/request/otp \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-address-login",
+    "mobile-verify"
+  ],
+  "loginHint": "abha-address",
+  "loginId": "{{encryptedData}}",
+  "otpSystem": "abdm"
+}'
+```
+
+#### 2. Login PHR verify (`p1_post_v3_phr_app_login_verify`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/verify \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-address-login",
+    "mobile-verify"
+  ],
+  "authData": {
+    "authMethods": [
+      "otp"
+    ],
+    "otp": {
+      "txnId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa",
+      "otpValue": "{{encryptedData}}"
+    }
+  }
+}'
+```
+
+**Exit condition (Observe until this is true)**
+
+A 200 whose body matches:
+
+```json
+{
+  "txnId": "b81a963d-4b97-48b4-9f9f-acf9f13afab7",
+  "message": "OTP verified successfully",
+  "authResult": "success",
+  "users": [
+    {
+      "abhaAddress": "<ABHA_ADDRESS>",
+      "fullName": "John Doe",
+      "abhaNumber": "<ABHA_NUMBER>",
+      "status": "ACTIVE",
+      "kycStatus": "VERIFIED"
+    },
+    {
+      "abhaAddress": "<ABHA_ADDRESS>",
+      "fullName": "John Doe",
+      "abhaNumber": "<ABHA_NUMBER>",
+      "status": "ACTIVE",
+      "kycStatus": "PENDING"
+    },
+    {
+      "abhaAddress": "<ABHA_ADDRESS>",
+      "fullName": "John Doe",
+      "status": "ACTIVE",
+      "kycStatus": "PENDING"
+    }
+  ],
+  "tokens": {
+    "token": "<JWT TOKEN>",
+    "expiresIn": 1800,
+    "refreshToken": null,
+    "refreshExpiresIn": null
+  }
+}
+```
+
+### PHR login, ABHA number with Aadhaar OTP (`p1-login-abha-number-aadhaar-otp`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Login request OTP (`p1_post_v3_phr_app_login_request_otp`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/request/otp \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-login",
+    "aadhaar-verify"
+  ],
+  "loginHint": "abha-number",
+  "loginId": "{{encryptedData}}",
+  "otpSystem": "aadhaar"
+}'
+```
+
+#### 2. Login PHR verify (`p1_post_v3_phr_app_login_verify`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/verify \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-login",
+    "aadhaar-verify"
+  ],
+  "authData": {
+    "authMethods": [
+      "otp"
+    ],
+    "otp": {
+      "txnId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa",
+      "otpValue": "{{encryptedData}}"
+    }
+  }
+}'
+```
+
+#### 3. Verify User, verify user (`p1_post_v3_phr_app_login_verify_user`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/verify/user \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'T-token: Bearer <JWT TOKEN>' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "abhaAddress": "<ABHA_ADDRESS>",
+  "txnId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa"
+}'
+```
+
+**Exit condition (Observe until this is true)**
+
+A 200 whose body matches:
+
+```json
+{
+  "token": "<JWT TOKEN>",
+  "expiresIn": 1800,
+  "refreshToken": "<JWT TOKEN>",
+  "refreshExpiresIn": 1296000
+}
+```
+
+### PHR login, ABHA number with ABHA OTP (`p1-login-abha-number-abha-otp`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Login request OTP (`p1_post_v3_phr_app_login_request_otp`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/request/otp \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-login",
+    "mobile-verify"
+  ],
+  "loginHint": "abha-number",
+  "loginId": "{{encryptedData}}",
+  "otpSystem": "abdm"
+}'
+```
+
+#### 2. Login PHR verify (`p1_post_v3_phr_app_login_verify`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/verify \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-login",
+    "mobile-verify"
+  ],
+  "authData": {
+    "authMethods": [
+      "otp"
+    ],
+    "otp": {
+      "txnId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa",
+      "otpValue": "{{encryptedData}}"
+    }
+  }
+}'
+```
+
+#### 3. Verify User, verify user (`p1_post_v3_phr_app_login_verify_user`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/verify/user \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'T-token: Bearer <JWT TOKEN>' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "abhaAddress": "<ABHA_ADDRESS>",
+  "txnId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa"
+}'
+```
+
+**Exit condition (Observe until this is true)**
+
+A 200 whose body matches:
+
+```json
+{
+  "token": "<JWT TOKEN>",
+  "expiresIn": 1800,
+  "refreshToken": "<JWT TOKEN>",
+  "refreshExpiresIn": 1296000
+}
+```
+
+### PHR login, ABHA address with password (`p1-login-abha-address-password`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Search auth methods ABHAAddress (`p1_post_v3_phr_app_login_search`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/search \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "abhaAddress": "<ABHA_ADDRESS>"
+}'
+```
+
+#### 2. Login PHR verify (`p1_post_v3_phr_app_login_verify`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/verify \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-address-login",
+    "password-verify"
+  ],
+  "authData": {
+    "authMethods": [
+      "password"
+    ],
+    "password": {
+      "abhaAddress": "<ABHA_ADDRESS>",
+      "password": "<BASE64_PHOTO>"
+    }
+  }
+}'
+```
+
+**Exit condition (Observe until this is true)**
+
+A 200 whose body matches:
+
+```json
+{
+  "txnId": "b81a963d-4b97-48b4-9f9f-acf9f13afab7",
+  "message": "OTP verified successfully",
+  "authResult": "success",
+  "users": [
+    {
+      "abhaAddress": "<ABHA_ADDRESS>",
+      "fullName": "John Doe",
+      "abhaNumber": "<ABHA_NUMBER>",
+      "status": "ACTIVE",
+      "kycStatus": "VERIFIED"
+    },
+    {
+      "abhaAddress": "<ABHA_ADDRESS>",
+      "fullName": "John Doe",
+      "abhaNumber": "<ABHA_NUMBER>",
+      "status": "ACTIVE",
+      "kycStatus": "PENDING"
+    },
+    {
+      "abhaAddress": "<ABHA_ADDRESS>",
+      "fullName": "John Doe",
+      "status": "ACTIVE",
+      "kycStatus": "PENDING"
+    }
+  ],
+  "tokens": {
+    "token": "<JWT TOKEN>",
+    "expiresIn": 1800,
+    "refreshToken": null,
+    "refreshExpiresIn": null
+  }
+}
+```
+
+### PHR login, ABHA address with email OTP (`p1-login-abha-address-email-otp`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Login request OTP (`p1_post_v3_phr_app_login_request_otp`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/request/otp \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-address-login",
+    "email-verify"
+  ],
+  "loginHint": "abha-address",
+  "loginId": "{{encryptedData}}",
+  "otpSystem": "abdm"
+}'
+```
+
+#### 2. Login PHR verify (`p1_post_v3_phr_app_login_verify`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/verify \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-address-login",
+    "email-verify"
+  ],
+  "authData": {
+    "authMethods": [
+      "otp"
+    ],
+    "otp": {
+      "txnId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa",
+      "otpValue": "{{encryptedData}}"
+    }
+  }
+}'
+```
+
+**Exit condition (Observe until this is true)**
+
+A 200 whose body matches:
+
+```json
+{
+  "txnId": "b81a963d-4b97-48b4-9f9f-acf9f13afab7",
+  "message": "OTP verified successfully",
+  "authResult": "success",
+  "users": [
+    {
+      "abhaAddress": "<ABHA_ADDRESS>",
+      "fullName": "John Doe",
+      "abhaNumber": "<ABHA_NUMBER>",
+      "status": "ACTIVE",
+      "kycStatus": "VERIFIED"
+    },
+    {
+      "abhaAddress": "<ABHA_ADDRESS>",
+      "fullName": "John Doe",
+      "abhaNumber": "<ABHA_NUMBER>",
+      "status": "ACTIVE",
+      "kycStatus": "PENDING"
+    },
+    {
+      "abhaAddress": "<ABHA_ADDRESS>",
+      "fullName": "John Doe",
+      "status": "ACTIVE",
+      "kycStatus": "PENDING"
+    }
+  ],
+  "tokens": {
+    "token": "<JWT TOKEN>",
+    "expiresIn": 1800,
+    "refreshToken": null,
+    "refreshExpiresIn": null
+  }
+}
+```
+
+### PHR login, Aadhaar OTP (`p1-login-aadhaar-otp`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Login request OTP (`p1_post_v3_phr_app_login_request_otp`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/request/otp \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-login",
+    "aadhaar-verify",
+    "aadhaar-otp-verify"
+  ],
+  "loginHint": "aadhaar",
+  "loginId": "<BASE64_PHOTO>",
+  "otpSystem": "aadhaar"
+}'
+```
+
+#### 2. Login PHR verify (`p1_post_v3_phr_app_login_verify`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/verify \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-login",
+    "aadhaar-verify",
+    "aadhaar-otp-verify"
+  ],
+  "authData": {
+    "authMethods": [
+      "otp"
+    ],
+    "otp": {
+      "txnId": "c51ad4d8-ae92-4509-8fb9-b91dea948492",
+      "otpValue": "<BASE64_PHOTO>"
+    }
+  }
+}'
+```
+
+#### 3. Verify User, verify user (`p1_post_v3_phr_app_login_verify_user`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/verify/user \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'T-token: Bearer <JWT TOKEN>' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "abhaAddress": "<ABHA_ADDRESS>",
+  "txnId": "c51ad4d8-ae92-4509-8fb9-b91dea948492"
+}'
+```
+
+**Exit condition (Observe until this is true)**
+
+A 200 whose body matches:
+
+```json
+{
+  "token": "<JWT TOKEN>",
+  "expiresIn": 1800,
+  "refreshToken": "<JWT TOKEN>",
+  "refreshExpiresIn": 1296000
+}
+```
+
+### PHR certificate and session token (`p1-certificate-and-session`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Get the PHR certificate (`p1_get_v3_phr_app_login_public_certificate`)
+
+```bash
+curl --request GET \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/public/certificate \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z'
+```
+
+#### 2. Generate Keycloak token/access token (`gateway_post_gateway_v3_sessions`)
+
+```bash
+curl --request POST \
+  --url https://dev.abdm.gov.in/api/hiecm/gateway/v3/sessions \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "clientId": "SBX_0000",
+  "clientSecret": "0******-***-***-***-a****",
+  "grantType": "client_credentials"
+}'
+```
+
+**Exit condition (Observe until this is true)**
+
+A 202 whose body matches:
+
+```json
+{
+  "accessToken": "<TOKEN>",
+  "expiresIn": 1200,
+  "refreshExpiresIn": 1800,
+  "refreshToken": "<TOKEN>",
+  "tokenType": "bearer"
+}
+```
 
 ## Where the detail is
 
-- Every operation in this milestone, with its body fields and responses: /docs/hiecm/v3/api/p1
-- The flows as diagrams: /docs/hiecm/v3/milestones/p1
-- Every error code across milestones: /docs/hiecm/v3/reference/error-codes
-- Terms: /docs/hiecm/v3/getting-started/glossary
+- Every operation, with its body fields and responses: /docs/hiecm/v3/api/p1
+- Error codes: /docs/hiecm/v3/api/p1/errors

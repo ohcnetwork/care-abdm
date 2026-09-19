@@ -43,6 +43,13 @@ CALLBACK_HANDLERS = {
     "m2-on-link-confirm": _lazy("abdm.hip.discovery", "handle_link_confirm"),
     "m2-consent-hip-notify": _lazy("abdm.hip.consent", "handle_consent_notify"),
     "m2-on-health-information-request": _lazy("abdm.hip.transfer", "handle_health_information_request"),
+    # M3 (HIU), ADR-014.
+    "m3-on-consent-request-init": _lazy("abdm.hiu.service", "handle_on_init"),
+    "m3-on-consent-request-status": _lazy("abdm.hiu.service", "handle_on_status"),
+    "m3-hiu-consent-notify": _lazy("abdm.hiu.service", "handle_consent_notify"),
+    "m3-on-consent-fetch": _lazy("abdm.hiu.service", "handle_on_fetch"),
+    "m3-on-health-information-request": _lazy("abdm.hiu.service", "handle_hi_on_request"),
+    "m3-health-information-transfer": _lazy("abdm.hiu.service", "handle_transfer"),
 }
 
 
@@ -167,7 +174,18 @@ def notify_care_context(self, context_id: int):
     return {"context_id": context_id, "http_status": request.http_status if request else None}
 
 
+@shared_task(name="abdm.tasks.hiu_housekeeping")
+def hiu_housekeeping():
+    """Periodic (Celery beat, every 15 minutes), ADR-014: a health-information request with no push
+    inside the 20-minute window is failed and the gateway told; a fetched bundle past the consent
+    `dataEraseAt` is erased."""
+    from abdm.hiu.service import housekeeping
+
+    return housekeeping()
+
+
 @current_app.on_after_finalize.connect
 def register_periodic_tasks(sender, **kwargs):
     """Care registers periodic tasks this way (care/emr/tasks/__init__.py:12-31)."""
     sender.add_periodic_task(5 * 60, retry_share_items.s(), name="abdm retry share items")
+    sender.add_periodic_task(15 * 60, hiu_housekeeping.s(), name="abdm hiu housekeeping")

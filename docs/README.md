@@ -17,7 +17,7 @@ Read in this order:
 | `06-verification.md` | How to prove a change without starting servers; Care core traps |
 | `findings.md` | Every gap in the ABDM docs, with the URL that should have answered it |
 | `adr/` | Architecture decision records. One decision per file, numbered |
-| `abdm-docs-mirror/` | Snapshot of the docs site (`llms.txt`, `llms-full.txt`, `sitemap.xml`, `skills-index.json`, `agent-setup-prompt.md`, and `pages/<url path>.md` for every page under `docs/hiecm/v3` and `docs/whats-new`). `MANIFEST.json` records the fetch date. Rebuild with `python3 scripts/refresh-docs-mirror.py` (`--diff` reports changes only). Snapshot only — prefer the live site / MCP |
+| `abdm-docs-mirror/` | Snapshot of the docs site (`llms.txt`, `llms-full.txt`, `sitemap.xml`, `skills-index.json`, `agent-setup-prompt.md`, and `pages/<url path>.md` for every page under `docs/hiecm/v3` and `docs/whats-new`). `MANIFEST.json` records the fetch date. Rebuild with `python3 scripts/refresh-docs-mirror.py` (`--diff` reports changes only; a real run also removes stale pages and stale skill files). Snapshot only — prefer the live site / MCP |
 
 Repo layout:
 
@@ -29,7 +29,7 @@ care-abdm-sbx/
   scripts/          refresh-docs-mirror.py — rebuilds docs/abdm-docs-mirror and .agent/skills from the live site
                     abdm-docs-mcp.py — calls one docs MCP tool from a shell (get_operation, validate_fhir, ...)
   docs/             this knowledge base
-  .agent/skills/    the docs site's own agent skills (abdm-m1 … abdm-fhir), downloaded verbatim
+  .agent/skills/    the docs site's own agent skills (abdm-gateway, abdm-m1 … abdm-fhir; 12 on 2026-09-19), downloaded verbatim
   .env.local        sandbox credentials — gitignored, never copy into docs
 ```
 

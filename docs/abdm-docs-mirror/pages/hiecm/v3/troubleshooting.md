@@ -9,3 +9,19 @@ Find the symptom you are seeing. Every page here walks the checks in the order t
 - [Consent stuck in Requested](/docs/hiecm/v3/troubleshooting/consent-stuck-requested): a consent request never moved to Granted or Denied.
 
 If your symptom is not here, or you already have an error code in hand, the [error codes reference](/docs/hiecm/v3/reference/error-codes) is organised the other way, by code.
+
+## What to put in a support request
+
+Raise it through [Support](/docs/support), with:
+
+| Include                          | Example                                |
+| -------------------------------- | -------------------------------------- |
+| The API you called               | `POST /api/hiecm/gateway/v3/sessions`  |
+| The `REQUEST-ID` header you sent | `4f8a1c62-6a3b-4d0e-9d7c-2b1f0a5e8d31` |
+| The `TIMESTAMP` header you sent  | `2026-08-24T09:14:07.412Z`             |
+| The response you received        | Status code and full body              |
+| What you expected instead        | The behaviour the document describes   |
+
+Add the callback body if the call is asynchronous and a callback arrived. Never post an access token, a client secret, or a real patient's identifiers. Replace them with a placeholder.
+
+`REQUEST-ID` is a fresh UUID you generate per request. It is the one value that names the exact call you made, so log it and quote it.

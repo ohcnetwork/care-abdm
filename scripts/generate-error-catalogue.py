@@ -111,10 +111,28 @@ def render(catalogue: dict[str, str], row_count: int) -> str:
     return "\n".join(lines)
 
 
+def has_action_column(path: Path) -> bool:
+    """True when the page carries the `What to do` column this script reads."""
+    return any(
+        line.startswith("|") and "what to do" in line.lower()
+        for line in path.read_text(encoding="utf-8").splitlines()
+    )
+
+
 def main() -> int:
     if not SOURCE.exists():
         print(f"missing {SOURCE}", file=sys.stderr)
         return 1
+    if not has_action_column(SOURCE):
+        # The 2026-09-16 catalogue replaced the action column with HTTP / Message / Returned by and
+        # kept 20 codes of 818. Writing from that page would delete the ADR-012 catalogue. Keep the
+        # last good file and record the gap in docs/findings.md.
+        print(
+            f"{SOURCE.relative_to(ROOT)} has no `What to do` column; "
+            f"{TARGET.relative_to(ROOT)} is left as it is",
+            file=sys.stderr,
+        )
+        return 2
     rows = read_rows(SOURCE)
     catalogue = resolve(rows)
     TARGET.write_text(render(catalogue, len(rows)), encoding="utf-8")

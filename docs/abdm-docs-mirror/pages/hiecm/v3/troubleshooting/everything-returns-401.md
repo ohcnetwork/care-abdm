@@ -17,7 +17,7 @@ A call that was returning 401 now returns its normal response, and stays that wa
 
 ## When it goes wrong
 
-If you have re-run the session call, confirmed the environment, fixed the clock, and confirmed `X-CM-ID`, and calls still return 401 with no matching code, escalate on the [NHA dev forum](https://devforum.abdm.gov.in). Report the API you called, the `REQUEST-ID`, the `TIMESTAMP`, and the full response body. See [Support](/docs/support) for the full report format.
+If you have re-run the session call, confirmed the environment, fixed the clock, and confirmed `X-CM-ID`, and calls still return 401 with no matching code, raise a request on the [support ticketing platform](https://sandboxsupport.abdm.gov.in/). Report the API you called, the `REQUEST-ID`, the `TIMESTAMP`, and the full response body. See [what to put in a support request](/docs/hiecm/v3/troubleshooting#what-to-put-in-a-support-request) for the full report format.
 
 The codes this symptom can surface are on the [error codes reference](/docs/hiecm/v3/reference/error-codes): an invalid timestamp, the wrong consent manager id, a missing session token, or a required header that is absent or malformed.
 

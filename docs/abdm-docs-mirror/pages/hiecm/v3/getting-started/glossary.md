@@ -1,6 +1,6 @@
 # Glossary
 
-Every term the HIE-CM documentation links to. Each row keeps its own anchor, so a link like `#hip` lands on the right row. The other gateways carry their own terms: [UHI](/docs/uhi/v1/getting-started/glossary), [NHCX](/docs/nhcx/v1/getting-started/glossary).
+The following terms are defined in accordance with the official terminology used by the Ayushman Bharat Digital Mission (ABDM) and the National Health Authority (NHA). The other gateways carry their own terms: [UHI](/docs/uhi/v1/getting-started/glossary), [NHCX](/docs/nhcx/v1/getting-started/glossary).
 
 ## Across ABDM
 
@@ -8,75 +8,75 @@ These terms mean the same thing on every ABDM gateway.
 
 ### ABDM
 
-Ayushman Bharat Digital Mission, India's national programme for digital health, run by the [NHA](#nha). ABDM sets the identifiers, the registries and the exchange rules that let a health record move from the system that created it to the person it belongs to.
+The Ayushman Bharat Digital Mission (ABDM) is a Government of India initiative that aims to develop an integrated, citizen-centric digital health ecosystem. It establishes common standards and core digital building blocks to enable secure and interoperable exchange of health information among participating stakeholders.
 
 ### ABHA
 
-Ayushman Bharat Health Account. It comes in two forms people confuse: the 14 digit [ABHA number](#abha-number) and the readable [ABHA address](#abha-address). When a document says "the patient's ABHA", work out which of the two it means before you write code against it.
+Ayushman Bharat Health Account (ABHA) is the account used by an individual to participate in India’s digital health ecosystem. It includes an [ABHA Number](#abha-number) for unique identification and may be linked to an [ABHA Address](#abha-address) for consent-based access and sharing of digital health records.
 
 ### ABHA address
 
-A readable name on the [HIE-CM](#hie-cm), such as `name@abdm`, used to reach health records and share them with a provider. Every ABHA number is issued a default address made from the number itself: `14digit@sbx` in [sandbox](#sandbox), `14digit@abdm` in production. A person can also create an ABHA address without holding an ABHA number, using mobile number, name, age and gender.
+An ABHA Address is a unique, self-declared username that enables an individual to link, access and share health records digitally with appropriate consent.
 
 ### ABHA number
 
-A 14 digit identifier issued to a person only after a [KYC](#kyc) check passes, and the identity anchor of ABDM: one person, one number. An ABHA number carries a check digit and validates under the Luhn algorithm. See [M1](/docs/hiecm/v3/getting-started/glossary#m1) for how one is created.
+An ABHA Number is a unique 14-digit number that identifies an individual as a participant in India’s digital health ecosystem. It provides a trusted identity that may be used across participating healthcare providers and payers. Creation and use of an ABHA Number are voluntary.
 
 ### FHIR
 
-Fast Healthcare Interoperability Resources, the HL7 standard ABDM uses to carry health records. ABDM uses FHIR R4 with the profiles published by NRCES at [nrces.in/ndhm/fhir/r4](https://nrces.in/ndhm/fhir/r4/index.html). Every record you share travels as a FHIR bundle of type `document` whose first entry is a Composition.
+Fast Healthcare Interoperability Resources (FHIR) is a standard developed by Health Level Seven International (HL7) for the electronic exchange of healthcare information. ABDM adopts applicable FHIR R4 profiles published by the National Resource Centre for EHR Standards (NRCeS) to support interoperable health-data exchange.
 
 ### Gateway
 
-The routing layer for ABDM: you do not call another participant directly, you call the gateway, it forwards your request, and the reply arrives at your [bridge](/docs/hiecm/v3/getting-started/glossary#bridge) as a separate inbound call. You get a session token first, by posting your client id and client secret to `/api/hiecm/gateway/v3/sessions`. Two sandbox hosts serve that path, `https://apissbx.abdm.gov.in` and `https://dev.abdm.gov.in`. Take the host from your onboarding documentation and keep it in configuration; see [Choose your gateway](/docs/hiecm/v3).
+The ABDM Gateway enables secure routing and exchange of information among participating systems in the ABDM ecosystem. Integrators communicate through approved ABDM interfaces and implement the callback endpoints and authentication mechanisms specified in the applicable technical documentation.
 
 ### Health Tech Committee
 
-The committee that reviews your integration at the end of the sandbox exit process, referred to as the HTC. Once your functional testing, security audit and exit form are complete, it is scheduled its own demonstration, separate from the one you give the integration team earlier. Its decision is recorded in four review stages, each carrying its own reviewer, comment and date. See [Go live](/docs/hiecm/v3/getting-started/going-live).
+The Health Technology Committee (HTC) reviews eligible integrations as part of the ABDM sandbox exit and production onboarding process. The review is undertaken after completion of the applicable functional, security and documentation requirements prescribed by [NHA](#nha). See [Go live](/docs/hiecm/v3/getting-started/going-live).
 
 ### HFR
 
-Health Facility Registry, the national directory of health facilities across modern and traditional systems of medicine, public and private, including hospitals, clinics, diagnostic laboratories, imaging centres and pharmacies. A facility enrols once and receives a facility ID that identifies it everywhere in ABDM. See [registries](/docs/hiecm/v3/registries).
+The Health Facility Registry (HFR) is a comprehensive repository of public and private health facilities in India across different systems of medicine. Registered facilities receive a unique Facility ID and may access applicable digital services within the ABDM ecosystem. See [registries](/docs/hiecm/v3/registries).
 
 ### HIE-CM
 
-Health Information Exchange and Consent Manager, the component that routes exchange requests and manages patient consent. It is data blind: it holds identifiers and metadata about [care contexts](/docs/hiecm/v3/getting-started/glossary#care-context), never the content of a record. See [The ABDM gateway](/docs/hiecm/v3/concepts/gateway).
+The Health Information Exchange and Consent Manager (HIE-CM) is a gateway under ABDM that manages consent relating to an individual’s personal health data and supports the secure, consent-based exchange of interoperable health information among ecosystem participants. See [The ABDM gateway](/docs/hiecm/v3/concepts/gateway).
 
 ### HPID
 
-Healthcare Professional ID: a 14 digit number issued to a healthcare professional or a facility manager after Aadhaar authentication. It is the professional's digital identity across ABDM, and it is created on the [HPR](#hpr). See [M4](/docs/hiecm/v3/getting-started/glossary#m4).
+Healthcare Professional ID (HPID) refers to the unique identifier assigned to an eligible healthcare professional upon successful registration and verification in the [Healthcare Professionals Registry](#hpr). See [M4](/docs/hiecm/v3/getting-started/glossary#m4).
 
 ### HPR
 
-Healthcare Professionals Registry, the national registry of doctors, nurses, pharmacists and other healthcare professionals. Registering a professional there issues an [HPID](#hpid). The HPR token is also used when onboarding a facility to the [HFR](#hfr).
+The Healthcare Professionals Registry (HPR) is the national registry of doctors, nurses and pharmacists. Registering a professional on the HPR results in the issuance of an [HPID](#hpid). The HPR Token can also be used to onboard a facility to the [HFR](#hfr).
 
 ### KYC
 
-Know Your Customer: the identity check that must pass before an [ABHA number](#abha-number) is issued. In ABDM the check runs against Aadhaar, by one of four methods: an [OTP](#otp) to the Aadhaar linked mobile number, face authentication, fingerprint or IRIS capture on a registered device, or a demographic match. Re-KYC repeats the check on an ABHA number that already exists.
+Know Your Customer: the identity check that must pass before an [ABHA number](#abha-number) is issued. The check runs against Aadhaar: by [OTP](#otp), by biometric authentication (face, fingerprint or iris), or, for government entities only, by demographic authentication.
 
 ### NHA
 
-National Health Authority, the government body that runs ABDM, publishes its specifications, and operates both the [sandbox](#sandbox) and the production gateways.
+The National Health Authority (NHA), under the Ministry of Health and Family Welfare, Government of India, is responsible for the implementation of ABDM and PMJAY and the management of its foundational digital health building blocks, policies and standards.
 
 ### NHCX
 
-National Health Claims Exchange, ABDM's network for insurance claims between providers and payers, with its own sandbox and its own document set at [hcxsbx.abdm.gov.in](https://hcxsbx.abdm.gov.in). See [NHCX](/docs/nhcx/v1).
+The National Health Claims Exchange (NHCX) is a digital gateway under ABDM that supports standardised and interoperable exchange of health-insurance claims information among payers, providers and other authorised participants. See [NHCX](/docs/nhcx/v1).
 
 ### OTP
 
-One Time Password: a short code sent to a mobile number or an email address to prove the person holds it. ABDM uses OTPs at many points: Aadhaar [KYC](#kyc), mobile number verification during ABHA creation, and login. An OTP is always paired with a transaction id from the call that requested it.
+One Time Password: a short code sent to a mobile number or an email address to prove the person holds it. An ABHA OTP is valid for 10 minutes, and it is always verified together with the [txnId](#txnid) of the call that requested it.
 
 ### PHR
 
-Personal Health Record, a patient facing application: the person logs in with their [ABHA address](#abha-address), discovers records held by facilities they visited, links them, and reads them. PHR apps subscribe to a patient's ABHA address and are notified when a new [care context](/docs/hiecm/v3/getting-started/glossary#care-context) is linked. See [PHR applications](/docs/hiecm/v3/concepts/phr).
+A Personal Health Record (PHR) application enables an individual to discover, link, view and manage personal health records and to provide or withdraw consent for sharing those records through the ABDM ecosystem. See [PHR applications](/docs/hiecm/v3/concepts/phr).
 
 ### Safe to Host certificate
 
-The certificate a [WASA](#wasa) produces, issued by a CERT-In empanelled auditor, and required before you receive production credentials. It names the application it covers and carries an issue date and an expiry date. A certificate that is in date covers a new module without a fresh audit of the parts already certified. See [Security audit](/docs/hiecm/v3/getting-started/security-audit).
+The security documentation a [WASA](#wasa) supports. It is issued after the assessment by a CERT-In-empanelled auditor, and it is required for production onboarding under ABDM.
 
 ### Sandbox
 
-The ABDM test environment, and where every integration starts: you register on the sandbox portal, declare your role and the milestones you plan to complete, and receive a client id and client secret. Sandbox hosts differ from production, so ABHA calls go to `abhasbx.abdm.gov.in` in sandbox and `abha.abdm.gov.in` in production. Everything in sandbox is test data; see [Get started](/docs/hiecm/v3/getting-started/sandbox).
+The ABDM Sandbox is a controlled test environment that enables health-technology companies and other eligible entities to integrate their software with ABDM building blocks, test applicable use cases and demonstrate compliance before seeking production access.
 
 ### txnId
 
@@ -84,95 +84,95 @@ Transaction id. Most flows take two or three calls, and the first one returns a 
 
 ### UHI
 
-Unified Health Interface, an open protocol network for health services that are not record exchange: physical consultation booking, ambulance booking, blood bank discovery, Jan Aushadhi and pharmacy search. It has two roles, [EUA](/docs/uhi/v1/getting-started/glossary#eua) on the consumer side and [HSPA](/docs/uhi/v1/getting-started/glossary#hspa) on the provider side, and every call is signed with Ed25519. See [UHI](/docs/uhi/v1).
+The Unified Health Interface (UHI) is an open network for digital health-service discovery and delivery. It enables participating applications and providers to interact through standard protocols for services such as appointment discovery and booking and other supported digital health use cases. See [UHI](/docs/uhi/v1).
 
 ### WASA
 
-The security audit of your application, conducted on your staging URL by an auditor from the CERT-In empanelled list. It produces the [Safe to Host certificate](#safe-to-host-certificate), and it is separate from functional testing: passing every milestone still leaves this to do. Each platform you ship is audited on its own. See [Security audit](/docs/hiecm/v3/getting-started/security-audit).
+Web Application Security Assessment (WASA) is a security assessment performed by a CERT-In-empanelled auditor on the relevant application environment. The assessment supports issuance of the required security documentation for production onboarding under ABDM. See [Security audit](/docs/hiecm/v3/getting-started/security-audit).
 
 ## On HIE-CM
 
-These terms belong to HIE-CM: the roles, the consent objects and the four milestones.
+These terms describe the principal roles, consent objects and integration concepts used within the ABDM HIE-CM framework.
 
 ### Bridge
 
-The set of callback endpoints your system exposes to the [gateway](#gateway). A bridge is your integration, not a facility: one bridge URL is stored for each registered participant, every facility you link to that bridge shares it, and callbacks are posted underneath it. The paths are `POST {hiuBridgeUrl}/v0.5/consents/hiu/notify` for an [HIU](#hiu) and `POST {hipBridgeUrl}/v0.5/health-information/hip/request` for a [HIP](#hip). Registering your bridge URL is part of sandbox onboarding.
+A bridge is the registered integration endpoint through which a participating system exchanges callback-based messages with the [ABDM Gateway](#gateway). The endpoint must be configured and secured in accordance with the applicable sandbox and API specifications.
 
 ### Care context
 
-A group of a patient's health records, defined by your system. It carries two fields and nothing else: a reference number, which is your own internal identifier, and a display name a person can read, which must not carry clinical detail such as a diagnosis or a test result because it is shown before consent. Use one care context per outpatient visit and one per inpatient admission.
+A care context is a logical grouping of an individual’s health records maintained by a [Health Information Provider](#hip). It is represented through a reference number and a display name and is linked to the individual’s [ABHA Address](#abha-address) with appropriate authentication or consent, as applicable.
 
 ### Consent artefact
 
-The record of a consent the patient granted. It names the patient, the requesting [HIU](#hiu), the [HI types](#hi-type) covered, the [purpose of use](#purpose-of-use), the date range of records allowed and an expiry. An HIU quotes the consent artefact id when it asks for data, and the [HIP](#hip) checks that id, and its date range, before it sends anything.
+A consent artefact is the machine-readable record of consent granted by an individual for access to specified health information. It contains the authorised purpose, health-information types, data range, frequency, expiry and participating entities, as applicable.
 
 ### Consent manager
 
-The component that holds consent on the patient's behalf. In ABDM that component is the [HIE-CM](#hie-cm). It receives consent requests, shows them to the patient, records the grant or the denial, and tells both the requester and the record holder what the patient decided.
+A Consent Manager enables an individual to manage consent for the collection, use and sharing of personal health information. Within ABDM, the [HIE-CM](#hie-cm) framework supports consent management and consent-based exchange of health records among authorised participants.
 
 ### Discovery
 
-The step where a patient's [PHR](#phr) app asks a facility whether it holds records for that patient. The [HIE-CM](#hie-cm) forwards the request to the [HIP](#hip) with verified identifiers (ABHA address, mobile number, name, gender, year of birth) and any unverified identifier the patient typed, such as a hospital patient ID. Your system matches those against your own patients and replies with a list of [care contexts](#care-context), carrying no clinical detail.
+Discovery is the process through which an individual’s [PHR application](#phr) requests a participating [Health Information Provider](#hip) to identify available [care contexts](#care-context) associated with that individual. The provider performs matching using the identifiers supplied through the prescribed workflow and returns eligible care-context metadata without disclosing clinical content.
 
 ### ECDH
 
-Elliptic Curve Diffie-Hellman key exchange, used so that only the [HIU](#hiu) that holds a valid consent can read the records a [HIP](#hip) sends. Both sides generate a short lived key pair and a random 32 byte nonce, exchange the public halves, and derive the same session key. The exchange uses Curve25519, and the encryption itself uses AES-GCM.
+Elliptic Curve Diffie-Hellman (ECDH) is a cryptographic key-agreement method used in the secure exchange of health information. Its implementation must conform to the encryption, key-management and payload specifications prescribed in the applicable ABDM technical documentation.
 
 ### EMR, EHR
 
-Electronic Medical Record and Electronic Health Record: the clinical system a hospital or a clinic records consultations, prescriptions and results in. The distinction drawn is that an EMR holds one provider's record of what happened in their own building and an EHR follows the patient across providers, but vendors use the two words for the same product. A facility uses it to publish records as the [HIP](#hip), linking care contexts in [M2](#m2), and to fetch them as the [HIU](#hiu) in [M3](#m3). ABDM does not build an EHR as a database: the records stay with the facility that created them, and the [HIE-CM](/docs/hiecm/v3/getting-started/glossary#hie-cm) plus consent is what lets another provider assemble the picture. See [Hospital, lab and pharmacy systems](/docs/hiecm/v3/concepts/hip-hiu).
+An Electronic Medical Record (EMR) is a digital record of care maintained within a healthcare organisation, while an Electronic Health Record (EHR) is designed to support a broader, longitudinal view of an individual’s health information across care settings. ABDM enables interoperable, consent-based exchange of such records while the source records remain with the responsible data custodian. See [Hospital, lab and pharmacy systems](/docs/hiecm/v3/concepts/hip-hiu).
 
 ### HI type
 
-Health Information type: the kind of record being asked for or shared, used in consent requests and in data requests. There are seven values: `Prescription`, `DiagnosticReport`, `OPConsultation`, `DischargeSummary`, `ImmunizationRecord`, `HealthDocumentRecord` and `WellnessRecord`. The M2 error message for an invalid HI type also lists `Invoice`.
+Health Information (HI) Type denotes the category of health record covered by a consent or data-exchange request. Supported values are specified in the current ABDM API and FHIR implementation documentation and may include prescriptions, diagnostic reports, outpatient consultations, discharge summaries, immunisation records, health documents and wellness records.
 
 ### HIP
 
-Health Information Provider: the role an entity takes when it publishes a health record. A hospital, laboratory or pharmacy takes it through its own software, and a citizen takes it through a [PHR](#phr) app. The HIP links [care contexts](#care-context) to a patient's [ABHA address](#abha-address), answers [discovery](#discovery), and sends encrypted records when a valid [consent artefact](#consent-artefact) exists. [M2](#m2) is the HIP milestone.
+A Health Information Provider (HIP) is an entity that creates or holds an individual’s health information and makes it available for consent-based exchange through ABDM. A HIP supports discovery and linking of [care contexts](#care-context) and shares health information only in accordance with a valid [consent artefact](#consent-artefact) and the applicable technical requirements.
 
 ### HIU
 
-Health Information User: whoever asks to read records they did not create is the HIU. A facility asks through a doctor's console or its [HMIS](#hmis), a citizen asks through a [PHR](#phr) app or a health locker, and an insurer, a referral tool or an analytics product asks while holding neither an [ABHA address](#abha-address) nor a facility ID. The HIU raises a consent request, waits for the patient's decision, and fetches data only under a granted [consent artefact](#consent-artefact). [M3](#m3) is the HIU milestone.
+A Health Information User (HIU) is an authorised entity that requests and uses an individual’s health information for a specified purpose. An HIU may access health information only after the individual grants valid consent and the request satisfies the applicable policy and technical requirements.
 
 ### HMIS, HIS, HIMS
 
-The software a hospital runs day to day: registration, visits, orders, results and billing. Three names for it: HMIS is Hospital Management Information System, HIS is Hospital Information System, HIMS is Hospital Information Management System. A facility uses it to publish records as the [HIP](#hip) and to fetch them as the [HIU](#hiu), so the ABDM work is [M2](#m2) and [M3](#m3) either way, and it must implement every [HI type](#hi-type). Note that `HIS-` is also the prefix on every error code the HPR and the HFR return: those are [M4](#m4) registry errors and nothing to do with hospital software. See [Hospital, lab and pharmacy systems](/docs/hiecm/v3/concepts/hip-hiu).
+Hospital Management Information System (HMIS), Hospital Information System (HIS) and Hospital Information Management System (HIMS) are terms commonly used for software that supports a healthcare facility’s administrative, operational and clinical workflows. Such systems may integrate with ABDM to perform applicable HIP, HIU, [ABHA](#abha) and registry-related functions. See [Hospital, lab and pharmacy systems](/docs/hiecm/v3/concepts/hip-hiu).
 
 ### HRP
 
-Health Repository Provider. HRP is whoever holds the records, which is custody rather than a direction of travel. That is the facility in most integrations, and its repository software is how the facility holds them. Where a facility's records sit with another organisation, that organisation is the HRP. HRP and HIP are written together as "HRP/HIP" because the entity holding the records is usually the entity publishing them. If you run an [HMIS](#hmis) or a [LIMS](#lims) for a facility integrating [M2](#m2), that facility is the HRP. One repository can hold the records of many facilities.
+A Health Repository Provider (HRP) is an entity responsible for storing or maintaining health information on behalf of a healthcare provider or another authorised participant. Where applicable, an HRP may also perform the HIP function for consent-based exchange of records.
 
 ### IMS
 
-Information Management System, the umbrella term for the software a health facility runs: an [HMIS](#hmis) in a hospital, an [EMR](#emr) in a clinic, a [LIMS](#lims) in a laboratory, a [PMS](#pms) in a pharmacy. IMS is one of the two integrator roles on HIE-CM, the other being [PHR](#phr), and it is fixed for the life of your product. Which of those systems you build does not change the integration: the facility is the [HIP](#hip) when it publishes and the [HIU](#hiu) when it fetches, so the work is [M2](#m2) and [M3](#m3) either way.
+An Information Management System (IMS) is a digital solution used by a healthcare facility or service provider to manage relevant administrative, operational or clinical information. Depending on its use case, an IMS may integrate with ABDM building blocks and perform authorised HIP or HIU functions.
 
 ### LIMS, LMIS
 
-Laboratory Information Management System, also written LMIS: the system a diagnostic lab uses to record orders, samples and results. A laboratory uses it to publish records as the [HIP](#hip), linking each report as a care context in [M2](#m2), which is most of what a lab does, and to fetch them as the [HIU](#hiu) on the rarer occasions it reads a patient's history. See [Hospital, lab and pharmacy systems](/docs/hiecm/v3/concepts/hip-hiu).
+A Laboratory Information Management System (LIMS), also referred to in some contexts as an LMIS, supports laboratory workflows such as test orders, specimen tracking, processing and reporting. An ABDM-enabled laboratory system may link and share diagnostic records as a HIP and may request authorised records as an HIU. See [Hospital, lab and pharmacy systems](/docs/hiecm/v3/concepts/hip-hiu).
 
 ### Link token
 
-The token that authorises your system to link a [care context](#care-context) to a patient's [ABHA address](#abha-address); your system obtains it when the patient registers and stores it against that patient. A link token is valid for six months. Validate it before use. If you do not hold a valid one, regenerate it through demographic authentication before you link.
+The token that authorises a [Health Information Provider](#hip) to link [care contexts](#care-context) to a patient's [ABHA Address](#abha-address). It is generated through the link token API and is valid for six months.
 
 ### M1
 
-Milestone 1, ABHA identity: creating an [ABHA number](#abha-number), logging a person in, reading and updating their profile, downloading the ABHA card, and the [gateway](#gateway) session and token calls that everything else depends on. Most of these APIs are mandatory for both private and government integrators, with Aadhaar demographic authentication the exception: mandatory for government integrators, not required for private ones. See [M1](/docs/hiecm/v3/api/m1).
+Milestone 1 (M1 Create), ABHA Creation and Verification, covers ABHA-related functions implemented within an integrated application, including creation of an [ABHA Number](#abha-number) through supported methods, creation of an [ABHA Address](#abha-address), verification during patient registration, download of the ABHA Card and other role-specific functions prescribed in the current test cases. See [M1 Create](/docs/hiecm/v3/milestones/m1).
 
 ### M2
 
-Milestone 2, sharing records as a [HIP](#hip): turning your records into [FHIR](#fhir) bundles, grouping them into [care contexts](#care-context), linking those to a patient's [ABHA address](#abha-address), answering [discovery](#discovery), and encrypting and pushing data when consent allows. See [M2](/docs/hiecm/v3/api/m2).
+Milestone 2 (M2 Attach), [Health Information Provider](#hip) Services, covers linking health records with an individual’s [ABHA Address](#abha-address). It includes discovery of eligible [care contexts](#care-context), authentication or consent for linking, linking of care contexts by the HIP and notification of newly linked records to the applicable [PHR application](#phr). See [M2 Attach](/docs/hiecm/v3/milestones/m2).
 
 ### M3
 
-Milestone 3, consent and reading records as an [HIU](#hiu): raising a consent request, tracking its status, handling the grant or denial callback, fetching the [consent artefact](#consent-artefact), requesting health information and decrypting what arrives. See [M3](/docs/hiecm/v3/api/m3).
+Milestone 3 (M3 Retrieve), [Health Information User](#hiu) Services, covers consent-based exchange of health information. It includes creation and management of consent requests by an HIU, receipt of the individual’s decision, retrieval of a valid [consent artefact](#consent-artefact) and secure exchange of the authorised health information between participating entities. See [M3 Retrieve](/docs/hiecm/v3/milestones/m3).
 
 ### M4
 
-Milestone 4, the registries: creating an [HPID](#hpid) on the [HPR](#hpr) and onboarding a facility to the [HFR](#hfr). This is also called NHPR. See [M4](/docs/hiecm/v3/api/m4).
+Milestone 4 (M4 Enrol), also referred to as National Healthcare Providers Registry (NHPR) native integration, covers integration of healthcare-professional and health-facility registration functions into eligible applications. The milestone is undertaken in accordance with the roles, sequencing and test requirements prescribed by [NHA](#nha). See [M4 Enrol](/docs/hiecm/v3/milestones/m4).
 
 ### PMS
 
-Pharmacy Management System: the software a pharmacy runs to dispense and to keep its stock. A pharmacy uses it to fetch the prescription it is dispensing against as the [HIU](#hiu), and to publish what it dispensed as the [HIP](#hip). See [Hospital, lab and pharmacy systems](/docs/hiecm/v3/concepts/hip-hiu).
+A Pharmacy Management System (PMS) supports pharmacy operations such as prescription processing, dispensing, inventory and billing. Where integrated with ABDM, it may perform authorised HIP or HIU functions in accordance with the relevant use case, consent requirements and technical specifications. See [Hospital, lab and pharmacy systems](/docs/hiecm/v3/concepts/hip-hiu).
 
 ### Purpose of use
 

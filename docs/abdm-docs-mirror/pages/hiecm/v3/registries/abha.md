@@ -87,7 +87,7 @@ The profile response carries:
 | `email`                                       | Present once an email is verified, otherwise `null` |
 | `profilePhoto`                                | Base64 image data with no data URI prefix           |
 
-The communication mobile number need not be the Aadhaar linked one. It is verified separately, by its own OTP, after enrolment. Email is optional throughout. An ABHA also carries a card, downloadable as an image, and a QR code, both M1 calls. Field level detail is on [M1 APIs](/docs/hiecm/v3/api/m1/apis).
+The communication mobile number need not be the Aadhaar linked one. It is verified separately, by its own OTP, after enrolment. Email is optional throughout. An ABHA also carries a card, downloadable as an image, and a QR code, both M1 calls. Field level detail is on [M1 APIs](/docs/hiecm/v3/api/m1).
 
 ## Where the calls go
 
@@ -112,6 +112,6 @@ No flow starts without an ABHA, so M1 comes first even when your real goal is M2
 ## Next
 
 - [NHPR](/docs/hiecm/v3/registries/nhpr), the professional and facility registries.
-- [M1, ABHA identity](/docs/hiecm/v3/api/m1), the guide.
+- [M1 Create, ABHA Creation and Verification](/docs/hiecm/v3/api/m1), the guide.
 - [M1 API reference](/reference/hiecm-m1).
 - [Sandbox data dictionary](/docs/hiecm/v3/reference/data-dictionary), test identities.

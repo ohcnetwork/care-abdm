@@ -4,99 +4,59 @@ The calls themselves: where they live, what they need in their headers, and one 
 
 ## Hosts
 
-- `https://dev.abdm.gov.in` Sandbox. Pair it with the `X-CM-ID: sbx` header.
-- `https://apis.abdm.gov.in` Production. Pair it with the `X-CM-ID: abdm` header.
-- `https://dev.abdm.gov.in/api` ABDM Gateway (Dev / Sandbox)
-- `https://apis.abdm.gov.in/api` ABDM Gateway (Production)
-- `https://apihspsbx.abdm.gov.in` HSP Registry (Sandbox)
+- `https://dev.abdm.gov.in` ABDM gateway, sandbox
+- `https://apis.abdm.gov.in` ABDM gateway, production
 ## Endpoints
 
-25 operations, grouped by the journey they belong to.
+23 operations, grouped by the journey they belong to.
 
-### bridge
-
-| Method | Path | What it does |
-| --- | --- | --- |
-| `POST` | `/v4/int/v1/bridges/MutipleHRPAddUpdateServices` | Register / Update Bridge Services (HIU) |
-
-### consent
+### Other operations
 
 | Method | Path | What it does |
 | --- | --- | --- |
-| `POST` | `/hiecm/consent/v3/fetch` | Fetch the full consent artefact |
-| `POST` | `/hiecm/consent/v3/request/hiu/on-notify` | Acknowledge a consent notification, as the HIU |
-| `POST` | `/hiecm/consent/v3/request/init` | Initiate a consent request |
-| `POST` | `/hiecm/consent/v3/request/status` | Check the status of a consent request |
-
-### data-retrieval
-
-| Method | Path | What it does |
-| --- | --- | --- |
-| `POST` | `/hiecm/data-flow/v3/health-information/notify` | Notify the gateway that data was received |
-| `POST` | `/hiecm/data-flow/v3/health-information/request` | Request a patient's health information |
-| `GET` | `/hiecm/data-flow/v3/health-information/request/status/{transaction-id}` | Health Information Request Status |
-
-### Gateway & Bridge
-
-| Method | Path | What it does |
-| --- | --- | --- |
-| `GET` | `/api/hiecm/gateway/v3/.well-known/openid-configuration` | Get OIDC Discovery Document |
-| `GET` | `/api/hiecm/gateway/v3/bridge-service/serviceId/{serviceId}` | Find Bridge Service by Service ID |
-| `GET` | `/api/hiecm/gateway/v3/bridge-services` | List All Bridge Services |
-| `PATCH` | `/api/hiecm/gateway/v3/bridge/url` | Update HIP/HIU Bridge Callback URL |
-| `GET` | `/api/hiecm/gateway/v3/certs` | Get Gateway JWKS Certificates |
-
-### Provider directory
-
-| Method | Path | What it does |
-| --- | --- | --- |
-| `GET` | `/api/hiecm/gateway/v3/govt-programs` | List government programs |
-| `GET` | `/api/hiecm/gateway/v3/health-lockers` | List health-locker-enabled providers |
-| `GET` | `/api/hiecm/gateway/v3/providers` | List providers by name |
-| `GET` | `/api/hiecm/gateway/v3/providers/{provider-id}` | Get a provider by id |
-
-### Session and tokens
-
-| Method | Path | What it does |
-| --- | --- | --- |
-| `POST` | `/api/hiecm/gateway/v3/sessions` | Create a session and get an access token |
-
-### webhooks
-
-| Method | Path | What it does |
-| --- | --- | --- |
-| `POST` | `/api/v3/consent/request/hip/notify` | The patient's decision, sent to the record holder |
-| `POST` | `/api/v3/hiu/consent/on-fetch` | The consent artefact detail, fetched by artefact id |
-| `POST` | `/api/v3/hiu/consent/request/notify` | The patient's decision, sent to the requester |
-| `POST` | `/api/v3/hiu/consent/request/on-init` | The consent request was accepted, with its request id |
-| `POST` | `/api/v3/hiu/consent/request/on-status` | The consent manager reports the state of a consent request you asked about. |
-| `POST` | `/api/v3/hiu/health-information/on-request` | Acknowledgement of a health information request |
-| `POST` | `/health-information/transfer` | The encrypted health data itself, pushed to the URL you supplied |
+| `POST` | `/api/hiecm/consent/v3/fetch` | Fetch the consent details |
+| `POST` | `/api/hiecm/consent/v3/request/hiu/on-notify` | Acknowledge the notification sent when a consent request is approved/denied/rev… |
+| `POST` | `/api/hiecm/consent/v3/request/init` | Initiate the consent request |
+| `POST` | `/api/hiecm/consent/v3/request/status` | Get consent request status |
+| `POST` | `/api/hiecm/data-flow/v3/health-information/notify` | Notifications corresponding to events during data flow |
+| `POST` | `/api/hiecm/data-flow/v3/health-information/request` | Health information data request from HIU. |
+| `GET` | `/api/hiecm/data-flow/v3/health-information/request/status/{transaction-id}` | Get the current status of the Health Information Request. |
+| `GET` | `/api/hiecm/gateway/v3/.well-known/openid-configuration` | Get the open ID configuration. |
+| `PUT` | `/api/hiecm/gateway/v3/bridge-service` | v3/gateway/bridge-service |
+| `GET` | `/api/hiecm/gateway/v3/bridge-service/serviceId/{service-id}` | Fetch the details of a service ID. |
+| `GET` | `/api/hiecm/gateway/v3/bridge-services` | Fetch the service ids registered against a bridge. |
+| `PATCH` | `/api/hiecm/gateway/v3/bridge/url` | Update the bridge URL. |
+| `GET` | `/api/hiecm/gateway/v3/certs` | Get the certificate information. |
+| `GET` | `/api/hiecm/gateway/v3/govt-programs` | Fetch the list of govt programmes. |
+| `GET` | `/api/hiecm/gateway/v3/health-lockers` | Fetch the record with health locker enabled provider details. |
+| `GET` | `/api/hiecm/gateway/v3/providers` | Fetch the list of providers filtered by name. |
+| `GET` | `/api/hiecm/gateway/v3/providers/{provider-id}` | Fetch the record for provider details for requested provider ID. |
+| `POST` | `/api/hiecm/gateway/v3/sessions` | Generate Keycloak token/access token. |
+| `POST` | `/api/v3/hiu/consent/on-fetch` | This is a callback API called by CM to provide fetched consent artefact details… |
+| `POST` | `/api/v3/hiu/consent/request/notify` | This is a callback API to notify HIU when consent is APPROVED, DENIED or REVOKE… |
+| `POST` | `/api/v3/hiu/consent/request/on-init` | Callback API of consent request for patient HIU. |
+| `POST` | `/api/v3/hiu/consent/request/on-status` | Callback API of consent status request. |
+| `POST` | `/api/v3/hiu/health-information/on-request` | Health information data request acknowledgement to HIU. |
 ## Headers
 
 | Header | What it is |
 | --- | --- |
-| `REQUEST-ID` | A fresh UUID that you generate for this request. The callback that answers it carries the same value. In M3 a… |
-| `TIMESTAMP` | The current time in ISO 8601 UTC, with milliseconds and the `Z` suffix. The gateway rejects a request whose t… |
-| `X-CM-ID` | Which consent manager you are talking to. `sbx` on the sandbox and `abdm` in production. |
-| `X-HIU-ID` | Identifier of the health information user the request or callback is intended for. This is per facility, and … |
+| `REQUEST-ID` | Unique UUID for track the end to end request transaction |
+| `TIMESTAMP` | Actual time of the request was initiated, ISO 8601 represents date and time by starting with the year, follow… |
+| `X-CM-ID` | Suffix of the consent manager to which the request was intended |
+| `X-HIU-ID` | Identifier of the health information user to which the request was intended |
 ## A request, in full
 
 ```bash
 curl --request POST \
-  --url https://dev.abdm.gov.in/v4/int/v1/bridges/MutipleHRPAddUpdateServices \
+  --url https://dev.abdm.gov.in/api/hiecm/consent/v3/fetch \
   --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-HIU-ID: IN2810014366' \
   --header 'Content-Type: application/json' \
   --data '{
-  "facilityId": "IN07100XXXXX",
-  "facilityName": "City Health HIU",
-  "HRP": [
-    {
-      "bridgeId": "BRIDGE_HIU_001",
-      "hipName": "City Health HIU",
-      "type": "HIU",
-      "active": true
-    }
-  ]
+  "consentId": "5f7a535d-a3fd-416b-b069-c97d021fbacd"
 }'
 ```

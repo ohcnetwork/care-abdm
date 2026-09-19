@@ -1,0 +1,41 @@
+meta {
+  name: 2. Create a consent request
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{careUrl}}/api/abdm/patients/{{patientId}}/abha/consent-requests
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "facility_id": "{{facilityId}}",
+    "purpose_code": "CAREMGT",
+    "hi_types": ["OPConsultation", "Prescription", "DiagnosticReport", "DischargeSummary"],
+    "date_from": "2025-09-19T00:00:00.000Z",
+    "date_to": "{{timestamp}}",
+    "data_erase_at": "2026-12-31T00:00:00.000Z",
+    "hip_id": "",
+    "hip_name": ""
+  }
+}
+
+vars:post-response {
+  consentRequestRowId: res.body.created
+}
+
+docs {
+  Sends `consent/v3/request/init` with `X-HIU-ID` (the facility's gateway service id). Every field
+  but `facility_id` is optional: the defaults are CAREMGT, the 7 clinical types, the last 12 months
+  and 30 days of validity. Leave `hip_id` empty to ask every facility; set both `hip_id` and
+  `hip_name` (from `5. Search providers`) to ask 1 facility. 202 = accepted; the request id arrives
+  on `on-init`. 502 = ABDM refused the init; the row carries the failure block.
+}

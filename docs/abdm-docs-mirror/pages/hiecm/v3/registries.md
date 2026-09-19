@@ -12,7 +12,7 @@ There are two, because ABDM separates the person receiving care from the people 
 
 ## The order they arrive in
 
-The HFR create call takes a professional token in its header, generated from an HPR ID and password. Someone in your organisation needs an HPR ID with facility manager rights before you can register a facility, and a facility has to be in the HFR before it can act as a [HIP](/docs/hiecm/v3/getting-started/glossary#hip) or [HIU](/docs/hiecm/v3/getting-started/glossary#hiu) on [HIE-CM](/docs/hiecm/v3/getting-started/glossary#hie-cm).
+The HFR create call takes the HPR token in the `x-hprid-auth` header, generated from an HPR ID and password. Someone in your organisation needs an HPR ID with facility manager rights before you can register a facility, and a facility has to be in the HFR before it can act as a [HIP](/docs/hiecm/v3/getting-started/glossary#hip) or [HIU](/docs/hiecm/v3/getting-started/glossary#hiu) on [HIE-CM](/docs/hiecm/v3/getting-started/glossary#hie-cm).
 
 ## Next
 

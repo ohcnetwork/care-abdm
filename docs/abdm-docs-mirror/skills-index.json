@@ -1,7 +1,17 @@
 {
-  "catalogue_version": "2026.08.24",
-  "built": "2026-09-15",
+  "catalogue_version": "2026.09.16",
+  "built": "2026-09-16",
   "skills": [
+    {
+      "name": "abdm-gateway",
+      "title": "Gateway, sessions and the bridge registry",
+      "files": [
+        "SKILL.md",
+        "references/scaffold.md",
+        "references/integrate.md",
+        "references/debug.md"
+      ]
+    },
     {
       "name": "abdm-m1",
       "title": "M1, ABHA identity",
@@ -9,8 +19,7 @@
         "SKILL.md",
         "references/scaffold.md",
         "references/integrate.md",
-        "references/debug.md",
-        "references/test.md"
+        "references/debug.md"
       ]
     },
     {
@@ -20,8 +29,7 @@
         "SKILL.md",
         "references/scaffold.md",
         "references/integrate.md",
-        "references/debug.md",
-        "references/test.md"
+        "references/debug.md"
       ]
     },
     {
@@ -31,8 +39,7 @@
         "SKILL.md",
         "references/scaffold.md",
         "references/integrate.md",
-        "references/debug.md",
-        "references/test.md"
+        "references/debug.md"
       ]
     },
     {
@@ -42,51 +49,67 @@
         "SKILL.md",
         "references/scaffold.md",
         "references/integrate.md",
-        "references/debug.md",
-        "references/test.md"
+        "references/debug.md"
       ]
     },
     {
       "name": "abdm-p1",
-      "title": "P1, PHR identity and profile",
+      "title": "P1, PHR registration and login",
       "files": [
         "SKILL.md",
         "references/scaffold.md",
         "references/integrate.md",
-        "references/debug.md",
-        "references/test.md"
+        "references/debug.md"
       ]
     },
     {
       "name": "abdm-p2",
-      "title": "P2, PHR linking and records",
+      "title": "P2, PHR management",
       "files": [
         "SKILL.md",
         "references/scaffold.md",
         "references/integrate.md",
-        "references/debug.md",
-        "references/test.md"
+        "references/debug.md"
       ]
     },
     {
       "name": "abdm-p3",
-      "title": "P3, PHR consent and notifications",
+      "title": "P3, PHR subscriptions",
       "files": [
         "SKILL.md",
         "references/scaffold.md",
         "references/integrate.md",
-        "references/debug.md",
-        "references/test.md"
+        "references/debug.md"
       ]
     },
     {
-      "name": "abdm-phr-services",
-      "title": "PHR application services",
+      "name": "abdm-p4",
+      "title": "P4, health lockers",
       "files": [
         "SKILL.md",
+        "references/scaffold.md",
         "references/integrate.md",
-        "references/debug.md",
-        "references/test.md"
+        "references/debug.md"
+      ]
+    },
+    {
+      "name": "abdm-subscription",
+      "title": "Subscriptions",
+      "files": [
+        "SKILL.md",
+        "references/scaffold.md",
+        "references/integrate.md",
+        "references/debug.md"
+      ]
+    },
+    {
+      "name": "abdm-scan-and-pay",
+      "title": "Scan and pay",
+      "files": [
+        "SKILL.md",
+        "references/scaffold.md",
+        "references/integrate.md",
+        "references/debug.md"
       ]
     },
     {

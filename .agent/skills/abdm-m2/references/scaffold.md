@@ -1,222 +1,432 @@
-# HIE-CM M2 build
+# HIE-CM m2 build
 
-Scaffolds an ABDM M2 integration one flow at a time. M2 covers care contexts, HIP initiated linking, discovery, and pushing encrypted records to a requester.
+Scaffolds an ABDM m2 integration one journey at a time. It covers care contexts, HIP initiated linking, discovery, and pushing encrypted records to a requester.
 
 ## How this skill runs
 
-Every flow below is an OODA loop, not a recipe: observe the actual state (last response, last error), orient against the flow step matched below, decide the cheapest next action, act, and return to observe. A flow step is done only when its exit condition is observed against the sandbox, never because it "should have worked."
+Every journey below is an OODA loop, not a recipe: observe the actual state (last response, last error), orient against the step matched below, decide the cheapest next action, act, and return to observe. A step is done only when its exit condition is observed against the sandbox, never because it "should have worked."
 
-Loop limit: 8 passes per flow step. Hitting the limit is an escalation: state what was observed, what was tried, and which atom to read, then ask one question.
+Loop limit: 8 passes per step. Hitting the limit is an escalation: state what was observed, what was tried, and which operation page to read, then ask one question.
 
-## Rules to hold before you call anything
+## Journeys
 
-#### Proving a callback really came from ABDM (`hiecm.concept.callback-authenticity`)
+### Hip-initiated-linking (`m2-abdm-hip-initiated-linking-hip`)
 
-To receive callbacks you register a URL that ABDM can reach. Reachable by
-ABDM means reachable by everyone, because it is an ordinary address on the
-public internet. Nothing about receiving a POST at that URL tells you the
-POST came from ABDM.
+**Act: the calls in this journey, in order**
 
-This matters more here than in most integrations. The callbacks you host
-carry instructions about a named person's health records: a request to
-discover what you hold, a consent artefact saying somebody agreed, an
-instruction to transfer records to a given address. A system that acts on
-whatever arrives will act on whatever an attacker sends.
-
-ABDM signs the callbacks it sends. The gateway publishes its public keys as
-a JSON Web Key Set, usually shortened to JWKS. You fetch those keys, and you
-use them to check the signature on every callback before your handler does
-any work.
-
-This is separate from the signature you may already have met inside a
-consent artefact (hiecm.concept.consent-artefact). That one signs the artefact's
-contents, so it travels with the artefact and proves the artefact was not
-altered. The one on this page signs the delivery, and proves who sent it.
-Verifying one does not verify the other.
-
-Fetch the key set from the gateway. The response is a standard JWKS, so any
-JWT library in your language can consume it directly.
+#### 1. Perform HIP initiated linking (`m2_post_hip_v3_link_carecontext`)
 
 ```bash
-curl --request GET \
-  --url https://dev.abdm.gov.in/api/hiecm/gateway/v3/certs \
-  --header 'REQUEST-ID: <REQUEST_ID>' \
-  --header 'TIMESTAMP: <TIMESTAMP>'
-```
-
-Each key in the set carries a `kid` that identifies it, `kty: RSA`, `use:
-sig`, and an `alg` the specification gives as `RS256`. The `n` and `e`
-fields are the RSA modulus and exponent, Base64URL encoded. Some keys also
-carry `x5c`, a certificate chain.
-
-The same key set is discoverable through the OIDC document at
-`/api/hiecm/gateway/v3/.well-known/openid-configuration`, which names it in
-`jwks_uri`. Reading the discovery document first is the more durable choice,
-because it survives the key set moving.
-
-Cache the keys rather than fetching them per callback, and key your cache by
-`kid`. When a callback presents a `kid` you have not seen, refetch once
-before rejecting it, because that is what key rotation looks like from your
-side.
-
-Verification is then the ordinary JWT check your library already does:
-signature against the key named by `kid`, algorithm pinned to `RS256`, and
-the expiry and issuer claims if the token carries them.
-
-```observation schema=exit-condition
-channel: response
-path: /api/hiecm/gateway/v3/certs
-match:
-  status: 200
-  body_contains: keys
-timeout_seconds: 30
-```
-
-#### What this catalogue cannot yet tell you
-
-The gateway specification says the key set exists and says what it is for.
-It does not say which header carries the signed token on an inbound
-callback, and none of the webhook definitions in the M2 or M3 specifications
-declare a header or a security scheme at all. So the transport is documented
-and the field that carries it is not.
-
-Two things follow. Confirm the header name against the sandbox before you
-write the lookup, by logging the full header set of the first real callback
-you receive. And treat this page as unverified until somebody has done that,
-which is what its status says.
-
-Pin the algorithm to `RS256` when you verify, and reject `none`. A verifier
-that accepts whatever algorithm the token names accepts a token an attacker
-signed, and that is a defect in the verifier rather than in ABDM.
-
-## Flows
-
-### Link a care context to a patient's ABHA (`hiecm.flow.m2-link-care-context`)
-
-**Before you start**
-
-Three things must already be true, each checkable:
-
-- Your facility holds a facility ID from the
-  HFR (shared.glossary.hfr) and a bridge linked with type `HIP`. See
-  link a facility to its bridge.
-- You hold a gateway session token from the sessions endpoint
-  (gateway_sessions_create in the gateway reference).
-- The patient has an ABHA address, which is the M1 module's job.
-
-**Act: the calls in this flow, in order**
-
-#### Generate Link Token (`hiecm.endpoint.m2-generate-link-token`)
-
-```bash
-curl -X POST 'https://dev.abdm.gov.in/api/hiecm/v3/token/generate-token' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'X-CM-ID: sbx' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "abhaNumber": <PATIENT_ABHA_NUMBER_14_DIGITS>,
-    "abhaAddress": "<PATIENT_ABHA_ADDRESS>",
-    "name": "<PATIENT_NAME_AS_HELD>",
-    "gender": "<M_F_OR_O>",
-    "yearOfBirth": <PATIENT_YEAR_OF_BIRTH>
-  }'
-```
-
-#### Link care contexts to an ABHA address (`hiecm.endpoint.m2-hip-link-care-context`)
-
-```bash
-curl -X POST 'https://dev.abdm.gov.in/api/hiecm/hip/v3/link/carecontext' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'X-CM-ID: sbx' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "abhaNumber": "<PATIENT_ABHA_NUMBER_14_DIGITS>",
-    "abhaAddress": "<PATIENT_ABHA_ADDRESS>",
-    "patient": [
-      {
-        "referenceNumber": "<YOUR_PATIENT_REFERENCE>",
-        "display": "<PATIENT_NAME_AS_HELD>",
-        "careContexts": [
-          {
-            "referenceNumber": "<YOUR_VISIT_REFERENCE>",
-            "display": "<WHAT_THE_PATIENT_WILL_SEE>"
-          }
-        ],
-        "hiType": ["<HI_TYPE>"],
-        "count": 1
-      }
-    ]
-  }'
-```
-
-#### Link Care Context Notify (`hiecm.endpoint.m2-link-care-context-notify`)
-
-```bash
-curl -X POST 'https://dev.abdm.gov.in/api/hiecm/hip/v3/link/context/notify' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'X-CM-ID: sbx' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "notification": {
-      "patient": {"id": "<PATIENT_ABHA_ADDRESS>"},
-      "careContext": {
-        "patientReference": "<PATIENT_ABHA_ADDRESS>",
-        "careContextReference": "<YOUR_VISIT_REFERENCE>"
-      },
-      "hiTypes": ["<HI_TYPE>"],
-      "date": "<ISO_8601_TIMESTAMP>",
-      "hip": {
-        "id": "<YOUR_HIP_ID>",
-        "name": "<YOUR_FACILITY_NAME>",
-        "type": "HIP"
-      }
+curl --request POST \
+  --url https://dev.abdm.gov.in/api/hiecm/hip/v3/link/carecontext \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-HIP-ID: IN2810014366' \
+  --header 'X-LINK-TOKEN: <TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "abhaNumber": 12345678901234,
+  "abhaAddress": "<ABHA_ADDRESS>",
+  "patient": [
+    {
+      "referenceNumber": "TMH-PUID-001",
+      "display": "String",
+      "careContexts": [
+        {
+          "referenceNumber": "TMH-PUID-001",
+          "display": "display 1"
+        }
+      ],
+      "hiTypes": "DiagnosticReport",
+      "count": 1
     }
-  }'
+  ]
+}'
+```
+
+#### 2. Link on carecontext (`m2_post_v3_link_on_carecontext`)
+
+Inbound to your bridge at `/api/v3/link/on_carecontext`. Acknowledge it and continue.
+
+#### 3. Notify a change to a linked care context (`m2_post_hip_v3_link_context_notify`)
+
+```bash
+curl --request POST \
+  --url https://dev.abdm.gov.in/api/hiecm/hip/v3/link/context/notify \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-HIP-ID: IN2810014366' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "notification": {
+    "patient": {
+      "id": "<ABHA_ADDRESS>"
+    },
+    "careContext": {
+      "patientReference": "<ABHA_ADDRESS>",
+      "careContextReference": "b009a970-8b04-4779-abd1-b50f113245bf"
+    },
+    "hiTypes": [
+      "DiagnosticReport"
+    ],
+    "date": "2024-05-09T10:34:00.387Z",
+    "hip": {
+      "id": "ABDM_HIP"
+    }
+  }
+}'
+```
+
+#### 4. Receive the links context on notify (`m2_post_v3_links_context_on_notify`)
+
+Inbound to your bridge at `/api/v3/links/context/on-notify`. Acknowledge it and continue.
+
+#### 5. Send SMS notification to patient that a care context is linked (`m2_post_hip_v3_link_patient_links_sms_notify2`)
+
+```bash
+curl --request POST \
+  --url https://dev.abdm.gov.in/api/hiecm/hip/v3/link/patient/links/sms/notify2 \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "notification": {
+    "phoneNo": "986543***",
+    "hip": {
+      "id": "ABDM_HIP",
+      "name": "ABC Hospital"
+    }
+  }
+}'
+```
+
+#### 6. Receive the patients SMS on notify (`m2_post_v3_patients_sms_on_notify`)
+
+Inbound to your bridge at `/api/v3/patients/sms/on-notify`. Acknowledge it and continue.
+
+**Exit condition (Observe until this is true)**
+
+A 200 response. The specification gives no body for it, so read what comes back.
+
+### User-initiated-linking (`m2-abdm-user-initiated-linking-hip`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Discover care contexts associated with a patient (`m2_post_v3_hip_patient_care_context_discover`)
+
+Inbound to your bridge at `/api/v3/hip/patient/care-context/discover`. Acknowledge it and continue.
+
+#### 2. Answer the care context discovery (`m2_post_user_initiated_linking_v3_patient_care_context_on_8c9340`)
+
+```bash
+curl --request POST \
+  --url https://dev.abdm.gov.in/api/hiecm/user-initiated-linking/v3/patient/care-context/on-discover \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "transactionId": "f901b782-bfdf-4224-9f8d-da2cadc20c0d",
+  "patient": [
+    {
+      "referenceNumber": "<ABHA_ADDRESS>",
+      "display": "12345",
+      "careContexts": [
+        {
+          "referenceNumber": "abc123",
+          "display": "12345"
+        }
+      ],
+      "hiType": "Prescription",
+      "count": 1
+    }
+  ],
+  "matchedBy": [
+    "MR"
+  ],
+  "error": {
+    "code": "ABDM-9999",
+    "message": "Unknown exception"
+  },
+  "response": {
+    "requestId": "f29f0e59-8388-4698-9fe6-05db67aeac46"
+  }
+}'
+```
+
+#### 3. Initiate the linking of care contexts for a patient (`m2_post_v3_hip_link_care_context_init`)
+
+Inbound to your bridge at `/api/v3/hip/link/care-context/init`. Acknowledge it and continue.
+
+#### 4. Link care context on init (`m2_post_user_initiated_linking_v3_link_care_context_on_init`)
+
+```bash
+curl --request POST \
+  --url https://dev.abdm.gov.in/api/hiecm/user-initiated-linking/v3/link/care-context/on-init \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "transactionId": "f901b782-bfdf-4224-9f8d-da2cadc20c0d",
+  "link": {
+    "referenceNumber": "d353b782-bfdf-4224-9f8d-da2cadc20c0d",
+    "authenticationType": "DIRECT",
+    "meta": {
+      "communicationMedium": "MOBILE",
+      "communicationHint": "OTP",
+      "communicationExpiry": "2024-05-01T05:22:34.123Z"
+    }
+  },
+  "error": {
+    "code": "ABDM-1001",
+    "message": "No data found"
+  },
+  "response": {
+    "requestId": "f29f0e59-8388-4698-9fe6-05db67aeac46"
+  }
+}'
+```
+
+#### 5. Confirm the linking of care contexts for a patient (`m2_post_v3_hip_link_care_context_confirm`)
+
+Inbound to your bridge at `/api/v3/hip/link/care-context/confirm`. Acknowledge it and continue.
+
+#### 6. Link care context on confirm (`m2_post_user_initiated_linking_v3_link_care_context_on_confirm`)
+
+```bash
+curl --request POST \
+  --url https://dev.abdm.gov.in/api/hiecm/user-initiated-linking/v3/link/care-context/on-confirm \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "patient": [
+    {
+      "referenceNumber": "<ABHA_ADDRESS>",
+      "display": "12345",
+      "careContexts": [
+        {
+          "referenceNumber": "abc123",
+          "display": "12345"
+        }
+      ],
+      "hiType": "Prescription",
+      "count": 1
+    }
+  ],
+  "error": {
+    "code": "ABDM-1001",
+    "message": "No data found"
+  },
+  "response": {
+    "requestId": "f29f0e59-8388-4698-9fe6-05db67aeac46"
+  }
+}'
 ```
 
 **Exit condition (Observe until this is true)**
 
-Your bridge receives a POST at `/v3/link/on_carecontext` whose
-`response.requestId` matches the `REQUEST-ID` you sent on the link call,
-carrying a success `status` rather than an `error`. The care context then
-appears when the patient's PHR app runs discovery against your facility.
+A 202 response. The specification gives no body for it, so read what comes back.
 
-Do not treat the synchronous acknowledgement on the link call as success.
-It says the request was accepted, not that anything was linked.
+### Link-token (`m2-abdm-link-token-hip`)
 
-```observation schema=exit-condition
-channel: callback
-path: <YOUR_BRIDGE_URL>/v3/link/on_carecontext
-match:
-  response.requestId: <THE_REQUEST_ID_YOU_SENT>
-  status: SUCCESS
-timeout_seconds: unknown
-note: >
-  The timeout is not published. Wait on the callback rather than on a
-  deadline of your own.
+**Act: the calls in this journey, in order**
+
+#### 1. Generate link token to link the health records (`m2_post_v3_token_generate_token`)
+
+```bash
+curl --request POST \
+  --url https://dev.abdm.gov.in/api/hiecm/v3/token/generate-token \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-HIP-ID: IN2810014366' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "abhaNumber": 12345678901234,
+  "abhaAddress": "<ABHA_ADDRESS>",
+  "name": "first_name + middle_name + last_name",
+  "gender": "M",
+  "yearOfBirth": 9999
+}'
 ```
 
-**If it goes wrong**
+#### 2. Receive the HIP token on generate token (`m2_post_v3_hip_token_on_generate_token`)
 
-The frequent failures, in rough order of frequency, each with its fix in
-the linked error atom:
+Inbound to your bridge at `/api/v3/hip/token/on-generate-token`. Acknowledge it and continue.
 
-- hiecm.error.abdm-1056 when the care context is already linked or the
-  link reference number is invalid.
-- hiecm.error.abdm-1062 when the ABHA number does not match the link
-  token.
-- hiecm.error.abdm-1063 when the HIP id does not match the link token.
-- hiecm.error.abdm-2406 when calls are made out of the logical sequence.
+**Exit condition (Observe until this is true)**
+
+A 200 response. The specification gives no body for it, so read what comes back.
+
+### Patient-share (`m2-abdm-patient-share-hip`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Share HIP patient (`m2_post_v3_hip_patient_share`)
+
+Inbound to your bridge at `/api/v3/hip/patient/share`. Acknowledge it and continue.
+
+#### 2. Answer the patient share request (`m2_post_patient_share_v3_on_share`)
+
+```bash
+curl --request POST \
+  --url https://dev.abdm.gov.in/api/hiecm/patient-share/v3/on-share \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'Content-Type: application/json' \
+  --data '"<VALUE>"'
+```
+
+**Exit condition (Observe until this is true)**
+
+A 202 response. The specification gives no body for it, so read what comes back.
+
+### Consent-management-data-flow (`m2-consent-management-data-flow-hip`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Receive the consent decision (`m2_post_v3_consent_request_hip_notify`)
+
+```bash
+curl --request POST \
+  --url https://dev.abdm.gov.in/api/v3/consent/request/hip/notify \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-HIP-ID: IN2810014366' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "notification": {
+    "status": "GRANTED",
+    "consentId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "consentDetail": {
+      "schemaVersion": "v3",
+      "consentId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "createdAt": "2024-05-01T05:10:20.123Z",
+      "patient": {
+        "id": "<ABHA_ADDRESS>"
+      },
+      "careContexts": [
+        {
+          "patientReference": "batman@tmh",
+          "careContextReference": "Episode1"
+        }
+      ],
+      "purpose": {
+        "text": "Care Management",
+        "code": "CAREMGT",
+        "refUri": "www.abc.com"
+      },
+      "hip": {
+        "id": "cowin_hip_01",
+        "name": "Cowin",
+        "type": "HIP"
+      },
+      "hiu": {
+        "id": "cowin_hiu_01",
+        "name": "Cowin",
+        "type": "HIU"
+      },
+      "consentManager": {
+        "id": "abdm"
+      },
+      "requester": {
+        "name": "<ABHA_ADDRESS>",
+        "identifier": {
+          "value": "REG1",
+          "type": "MH1001",
+          "system": "https://www.sample.com"
+        }
+      },
+      "hiTypes": [
+        "Prescription"
+      ],
+      "permission": {
+        "accessMode": "VIEW",
+        "dateRange": {
+          "from": "2021-09-28T12:30:08.573Z",
+          "to": "2021-09-28T12:30:08.573Z"
+        },
+        "dataEraseAt": "2021-09-28T12:30:08.573Z",
+        "frequency": {
+          "unit": "HOUR",
+          "value": 1,
+          "repeats": 0
+        }
+      }
+    },
+    "signature": "e8nY601CYDsC0FKoDjSp+7GeQ2s2R8oZncLCz5ce+pEuDOr5bZV0aaHjwJg4b9S9V+twjt4hbojx3fl7egrt8+0c+lfPTi5/bBUAQXCABTfFmtFU7jn65HlTt8kgkiONx26ZBhJ0wX3xjYI72PPtzYIiT5Q08YtDoILA62KceioV7lwuKssw7wC4ECbBAvRuXT121TmtrPhf+0myJATSnaajS06S6OthrKfZLNTUFf3pFiJzqouSTrjNblOX6DT2+JuO3rom1Szz/03c0HQG+wWASv+PO3J6uRs0UI4JvKmM/4tP+Z+/HPKM15K5U5K+4pqf6czKrbIDpkT/kP8bGg==",
+    "grantAcknowledgement": false
+  }
+}'
+```
+
+#### 2. Acknowledge the consent notification (`m2_post_consent_v3_request_hip_on_notify`)
+
+```bash
+curl --request POST \
+  --url https://dev.abdm.gov.in/api/hiecm/consent/v3/request/hip/on-notify \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "acknowledgement": {
+    "status": "OK",
+    "consentId": "e3c74829-3f82-4f94-959e-e10f57bcd57b"
+  },
+  "error": {
+    "code": "ABDM-1001",
+    "message": "unable to connect database"
+  },
+  "response": {
+    "requestId": "6f0b4665-a915-4c92-aa36-65afb4a2cd71"
+  }
+}'
+```
+
+#### 3. Receive the health information data request to HIP (`m2_post_v3_hip_health_information_request`)
+
+Inbound to your bridge at `/api/v3/hip/health-information/request`. Acknowledge it and continue.
+
+#### 4. Submit the health information data request acknowledgement from HIP (`m2_post_data_flow_v3_health_information_hip_on_request`)
+
+```bash
+curl --request POST \
+  --url https://dev.abdm.gov.in/api/hiecm/data-flow/v3/health-information/hip/on-request \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'Content-Type: application/json' \
+  --data '"<VALUE>"'
+```
+
+#### 5. Receive the transferred health information (`m2_post_health_information_transfer`)
+
+Inbound to your bridge at `/health-information/transfer`. Acknowledge it and continue.
+
+**Exit condition (Observe until this is true)**
+
+A 202 response. The specification gives no body for it, so read what comes back.
 
 ## Where the detail is
 
-- Every operation in this milestone, with its body fields and responses: /docs/hiecm/v3/api/m2
-- The flows as diagrams: /docs/hiecm/v3/milestones/m2
-- Every error code across milestones: /docs/hiecm/v3/reference/error-codes
-- Terms: /docs/hiecm/v3/getting-started/glossary
+- Every operation, with its body fields and responses: /docs/hiecm/v3/api/m2
+- Error codes: /docs/hiecm/v3/api/m2/errors

@@ -34,6 +34,16 @@ CALLBACK_OPERATION_BY_PATH = {
     "/v0.5/consents/hip/notify": "m2-consent-hip-notify",
     "/v3/hip/health-information/request": "m2-on-health-information-request",
     "/v0.5/health-information/hip/request": "m2-on-health-information-request",
+    # M3 answers to calls this HIU made, and the gateway's consent notify (abdm/hiu/service.py).
+    # Paths from the 12 pages under api/m3/endpoints/m3-consent-management-data-flow-hiu/.
+    "/v3/hiu/consent/request/on-init": "m3-on-consent-request-init",
+    "/v3/hiu/consent/request/on-status": "m3-on-consent-request-status",
+    "/v3/hiu/consent/request/notify": "m3-hiu-consent-notify",
+    "/v3/hiu/consent/on-fetch": "m3-on-consent-fetch",
+    "/v3/hiu/health-information/on-request": "m3-on-health-information-request",
+    # Our own data push URL (`hiRequest.dataPushUrl`): the HIP posts the encrypted bundles here,
+    # directly and not through the gateway (m2 .../05-m2-post-health-information-transfer).
+    "/v3/hiu/health-information/transfer": "m3-health-information-transfer",
 }
 
 

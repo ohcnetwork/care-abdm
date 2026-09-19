@@ -6,29 +6,34 @@ You create a test [ABHA](/docs/hiecm/v3/getting-started/glossary#abha) here, wit
 
 Have your `clientId` and `clientSecret` ([get them](/docs/hiecm/v3/getting-started/sandbox)) and a sandbox test identity: an Aadhaar number issued to you for sandbox use, with access to the mobile number registered against it, because that is where the OTP goes.
 
+1.
+2.
+3.
+4.
+
 ### Create a gateway session
 
 Exchange your sandbox client id and secret for the access token every later call carries.
 
-clientIdclientSecret sensitiveHeld in this page only while the tab is open. It is never written to storage and never put in a URL.
+Client IDClient secret sensitiveHeld in this page only while the tab is open. It is never written to storage and never put in a URL.
 
 ### Encrypt the Aadhaar number
 
 Fetch NHA's public certificate, then encrypt the number here in your browser. NHA never accepts a raw Aadhaar number.
 
-Create a session first. Fetching the certificate needs the access token.
+What you type is encrypted in this browser with NHA's public key and posted only to NHA's sandbox host. This site has no server of its own and stores nothing you type. Use a sandbox test identity, not a real person's Aadhaar number. NHA does not publish a test Aadhaar number, so bring one issued to you for sandbox use.
+
+Aadhaar number sensitiveMasked as you type, kept in this page's memory only, cleared when you close the tab.
 
 ### Request the OTP
 
 NHA sends a one time password to the mobile number registered against that Aadhaar, and hands you a transaction id.
 
-Encrypt the Aadhaar number first. This call takes the encrypted value, never the raw one.
-
 ### Create the ABHA
 
 Send the OTP with the transaction id. This call creates a real account on the sandbox, so send it once.
 
-Request an OTP first. This call needs the transaction id that came back with it.
+OTP sensitiveEncrypted with the same certificate before it is sent.Mobile numberThe number to attach to the new account. The specification requires it on this call and its example shows it unencrypted.
 
 ## How this fits your product
 
@@ -43,9 +48,9 @@ The registration desk is where most of this lands. Your intake screen either fin
 
 ## If a call fails
 
-Under the four steps you get the request each call sent and the response it got back, including the error body. A 401 on the session call usually means the credentials or the `X-CM-ID` header, so see [Everything returns 401](/docs/hiecm/v3/troubleshooting/everything-returns-401).
+Under the four steps you get the request each call sent and the response it got back, including the error body. A 401 on the session call means the request was not authorised, so see [Everything returns 401](/docs/hiecm/v3/troubleshooting/everything-returns-401).
 
-A rejected `loginId` may be the encryption rather than the number. The runner uses RSA-OAEP, which is the only RSA encryption a browser offers, and leaves the digest as a control you can change. [Encryption](/docs/hiecm/v3/concepts/encryption) sets out what is confirmed and what is not.
+A rejected `loginId` may be the encryption rather than the number. The runner encrypts with the padding the certificate declares rather than one you pick, and the certificate's own response is in the log below, so you can read which one it asked for. [Encryption](/docs/hiecm/v3/concepts/encryption) sets out what is confirmed and what is not.
 
 ## Next
 

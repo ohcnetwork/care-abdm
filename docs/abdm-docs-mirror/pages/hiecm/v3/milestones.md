@@ -1,10 +1,10 @@
 # Milestones
 
-Four milestones. You certify them one at a time, in order, and together they spell CARE.
+ABDM integration is divided into milestones. These cover creation and verification of ABHA, linking of health records with an ABHA Address, consent-based exchange of health records, and native registration through the National Healthcare Professionals Registry. Integrators should implement the milestones applicable to their software. The four milestones spell CARE.
 
 ## In short
 
-[M1Create and verify the patient's ABHA, the identity every record hangs on.](/docs/hiecm/v3/milestones/m1)[M2Attach the records you hold to that identity: care contexts, linking, and sharing as a HIP.](/docs/hiecm/v3/milestones/m2)[M3Retrieve records held elsewhere, with the patient's consent, as an HIU.](/docs/hiecm/v3/milestones/m3)[M4Enrol your facility and your professionals in the registries, so you can go live.](/docs/hiecm/v3/milestones/m4)
+[M1 CreateABHA Creation and Verification](/docs/hiecm/v3/milestones/m1)[M2 AttachHealth Information Provider Services](/docs/hiecm/v3/milestones/m2)[M3 RetrieveHealth Information User Services](/docs/hiecm/v3/milestones/m3)[M4 EnrolNational Healthcare Providers Registry](/docs/hiecm/v3/milestones/m4)
 
 M2 needs a facility ID and registration in the HIP role before it can share a record. That ID does not have to come from M4. A facility can be registered by hand on the NHPR portal, and many products do exactly that and never build M4. Build M4 when you want to register facilities or professionals from your own software instead. Either way, get the facility ID early, because M2 cannot be tested end to end without one.
 
@@ -38,7 +38,7 @@ Meera arrives at your clinic. Each card below is one thing your system has to be
 
 ## The same story from Meera's own app
 
-If you are building the patient's app rather than the clinic's system, you are building a [PHR](/docs/hiecm/v3/getting-started/glossary#phr) application. The work splits into three, and each part mirrors a milestone on the provider side.
+Building the patient's app ([PHR](/docs/hiecm/v3/getting-started/glossary#phr))? Implement the applicable ABHA and PHR services to allow individuals to manage their ABHA details, discover and link health records, and manage consent for sharing health information. The work splits into three, and each part mirrors a milestone on the provider side.
 
 1. PHR 1 · Identity and profileMeera signs up and holds her own profile
 
@@ -58,24 +58,24 @@ If you are building the patient's app rather than the clinic's system, you are b
 
    [Build P3](/docs/hiecm/v3/milestones/p3)
 
-## Which milestones you need
+## Select milestones based on the requirement of your software
 
-Each row below is the entity you build for. HIP and HIU are roles that entity takes, not kinds of software: whoever holds a record and publishes it is the HIP, and whoever asks to read records they did not create is the HIU.
+The milestones required for integration depend on the role of the software. A Health Information Provider holds health records and makes them available for consent-based sharing. A Health Information User requests access to health records after obtaining the individual's consent. A software application may perform one or both roles. Applicable milestones depend on the functions and services offered.
 
-| Who you build for                                      | M1                                                   | M2                                                   | M3                                                   | M4                                                                                          |
-| ------------------------------------------------------ | ---------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| A facility                                             | Required                                             | The bulk of your build                               | Where it also reads records it did not create        | Required                                                                                    |
-| An insurer, a referral service or an analytics service | Required                                             | Not needed                                           | The bulk of your build                               | [Confirm at onboarding](/docs/hiecm/v3/concepts/participants/insurer#confirm-at-onboarding) |
-| A citizen                                              | [P1](/docs/hiecm/v3/milestones/p1), the patient side | [P2](/docs/hiecm/v3/milestones/p2), the patient side | [P3](/docs/hiecm/v3/milestones/p3), the patient side | Not needed                                                                                  |
+| Who you build for                                                                                                                                                                                 | M1                                                   | M2                                                   | M3                                                   | M4                                                                                          |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| **Health Facility or Health Facility Software.** May create and verify ABHA, link and share health records, access records with consent, and support NHPR registration.                           | Required                                             | The bulk of your build                               | Where it also reads records it did not create        | Required                                                                                    |
+| **Health Information User**, such as an insurer, a referral service or an analytics service. May request and view health records held by another entity after receiving the individual's consent. | Required                                             | Not needed                                           | The bulk of your build                               | [Confirm at onboarding](/docs/hiecm/v3/concepts/participants/insurer#confirm-at-onboarding) |
+| **Personal Health Record Application.** Enables individuals to manage their ABHA details, discover and link health records, and control consent for sharing them.                                 | [P1](/docs/hiecm/v3/milestones/p1), the patient side | [P2](/docs/hiecm/v3/milestones/p2), the patient side | [P3](/docs/hiecm/v3/milestones/p3), the patient side | Not needed                                                                                  |
 
 ## What each milestone gets you
 
-| Milestone                                   | What you get                                | Who needs it                                                   |
-| ------------------------------------------- | ------------------------------------------- | -------------------------------------------------------------- |
-| [M1 Create](/docs/hiecm/v3/milestones/m1)   | Identity and the session token              | Everyone                                                       |
-| [M2 Attach](/docs/hiecm/v3/milestones/m2)   | Linking and sharing records                 | A facility publishing records, and a citizen pushing their own |
-| [M3 Retrieve](/docs/hiecm/v3/milestones/m3) | Consent and record fetching                 | Anyone reading records they did not create, and every PHR app  |
-| [M4 Enrol](/docs/hiecm/v3/milestones/m4)    | A facility ID and professional registration | Anyone going live as a facility                                |
+| Milestone                                                                        | What you get                                | Who needs it                                                   |
+| -------------------------------------------------------------------------------- | ------------------------------------------- | -------------------------------------------------------------- |
+| [M1 Create: ABHA Creation and Verification](/docs/hiecm/v3/milestones/m1)        | Identity and the session token              | Everyone                                                       |
+| [M2 Attach: Health Information Provider Services](/docs/hiecm/v3/milestones/m2)  | Linking and sharing records                 | A facility publishing records, and a citizen pushing their own |
+| [M3 Retrieve: Health Information User Services](/docs/hiecm/v3/milestones/m3)    | Consent and record fetching                 | Anyone reading records they did not create, and every PHR app  |
+| [M4 Enrol: National Healthcare Providers Registry](/docs/hiecm/v3/milestones/m4) | A facility ID and professional registration | Anyone going live as a facility                                |
 
 These pages give the steps, the order to build them in and the failure modes. Every request URL, header and body sits on the [API reference](/docs/hiecm/v3/api) pages, one page per call.
 

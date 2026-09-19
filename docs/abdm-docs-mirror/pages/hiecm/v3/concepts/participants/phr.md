@@ -16,7 +16,7 @@ To be listed for deep links, submit three things at sandbox exit: your applicati
 
 | Build                              | What it gives the user                                                                                                         |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| [P1](/docs/hiecm/v3/milestones/p1) | Create or link an ABHA address, four login routes, profile, card and QR code                                                   |
+| [P1](/docs/hiecm/v3/milestones/p1) | Create or link an ABHA address, eight login routes, profile, card and QR code                                                  |
 | [P2](/docs/hiecm/v3/milestones/p2) | Scan and share at a facility, discover old records, link [care contexts](/docs/hiecm/v3/getting-started/glossary#care-context) |
 | [P3](/docs/hiecm/v3/milestones/p3) | Subscriptions, notifications, consent decisions, auto approval, fetching and storing records                                   |
 
@@ -26,7 +26,7 @@ Accepting uploads makes you a health locker, and that needs [M2](/docs/hiecm/v3/
 
 You are the only participant the citizen actually sees. Every consent request raised anywhere on the network arrives in your app, and the decision is made there.
 
-The [HIE-CM](/docs/hiecm/v3/getting-started/glossary#hie-cm) tells you when a care context is created or updated for a subscribed address, so records reach your user without them chasing a facility. You then store those records for the long term, which no other participant does on the citizen's behalf.
+The [HIE-CM](/docs/hiecm/v3/getting-started/glossary#hie-cm) tells you when a care context is linked or updated for a subscribed address, so records reach your user without them chasing a facility. You then store those records for the long term, which no other participant does on the citizen's behalf.
 
 ## Next
 

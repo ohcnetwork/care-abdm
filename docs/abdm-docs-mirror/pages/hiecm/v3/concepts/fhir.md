@@ -30,9 +30,7 @@ There are eight record types. Implementing all of them is mandatory for an [HMIS
 | Wellness Record          | Vitals, physical examination and general health data, often captured in a [PHR](/docs/hiecm/v3/getting-started/glossary#phr) app | `WellnessRecord`                                                |
 | Invoice Record           | Pharmacy invoices, consultation invoices and other billing                                                                       | `Invoice`                                                       |
 
-The names come from M2, the codes from the M3 HI type table and the M2 error message for an invalid HI type. The two lists are not published as one table; they are paired here by name, one to one.
-
-Two mismatches. The M3 table displays `HealthDocumentRecord` as "Record artifact" rather than as a health document, and omits `Invoice`, which appears only in the M2 error message. Check the swagger before you send `Invoice` in a consent request.
+The codes are the eight `hiTypes` values the linking and consent requests accept, `Invoice` included.
 
 ## Which resources a record carries
 
@@ -51,7 +49,7 @@ Every record is a `Bundle` of `type: document`, and the first entry must be a `C
 {  "resourceType": "Bundle",  "id": "bundle01",  "timestamp": "2020-01-01T15:32:26.605+05:30",  "type": "document",  "entry": [    {      "fullUrl": "Composition/1",      "resource": {        "resourceType": "Composition",        "id": "1",        "status": "final",        "type": {          "coding": [            {              "system": "https://ndhm.gov.in/sct",              "code": "440545006",              "display": "Prescription record"            }          ]        }      }    }  ]}
 ```
 
-That is the skeleton. The full sample, with the Organization, the Encounter and the section entries, is on [M2 use cases](/reference/hiecm-m2).
+That is the skeleton.
 
 ### Why the Composition comes first
 
@@ -92,7 +90,7 @@ It checks structural correctness, conformance to the NRCES profiles, and require
 
 ## Where this is implemented
 
-- [M2 use cases](/reference/hiecm-m2), the full bundle sample and validation in context.
+- [M2 use cases](/reference/hiecm-m2), the transfer call that carries the encrypted bundle.
 - [How a record travels](/docs/hiecm/v3/concepts/data-flow), what happens to the bundle after you build it.
 - [Care contexts and linking](/docs/hiecm/v3/concepts/linking), how records are grouped and made findable.
 - [Consent](/docs/hiecm/v3/concepts/consent), where the HI type codes above are chosen and read.

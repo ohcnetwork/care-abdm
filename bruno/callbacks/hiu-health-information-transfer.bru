@@ -1,0 +1,52 @@
+meta {
+  name: 21. HIP data push (our dataPushUrl)
+  type: http
+  seq: 21
+}
+
+post {
+  url: {{careUrl}}/api/abdm/v3/hiu/health-information/transfer
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{callbackToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "pageNumber": 1,
+    "pageCount": 1,
+    "transactionId": "{{transactionId}}",
+    "entries": [
+      {
+        "content": "{{encryptedContent}}",
+        "media": "application/fhir+json",
+        "checksum": "{{contentChecksum}}",
+        "careContextReference": "EPISODE-1"
+      }
+    ],
+    "keyMaterial": {
+      "cryptoAlg": "ECDH",
+      "curve": "Curve25519",
+      "dhPublicKey": {
+        "expiry": "2026-12-31T00:00:00.000Z",
+        "parameters": "Curve25519/32byte random key",
+        "keyValue": "{{hipPublicKey}}"
+      },
+      "nonce": "{{hipNonce}}"
+    }
+  }
+}
+
+docs {
+  The HIP posts here directly, not through the gateway (m2 .../05-m2-post-health-information-transfer).
+  `dataPushUrl` = `${ABDM_CALLBACK_BASE_URL}/api/abdm/v3/hiu/health-information/transfer`.
+  Operation id `m3-health-information-transfer`. The plug decrypts each entry with the key of the
+  transaction (X25519 + HKDF-SHA256 + AES-256-GCM), checks the MD5, stores the bundle, scrubs the
+  ciphertext from the stored callback and notifies RECEIVED or FAILED.
+  `encryptedContent`, `contentChecksum`, `hipPublicKey`, `hipNonce`: build them with
+  `abdm.hip.crypto` against the `keyMaterial` the plug sent (see the smoke script).
+}

@@ -1,228 +1,1133 @@
-# HIE-CM P2 build
+# HIE-CM p2 build
 
-Scaffolds an ABDM P2 integration one flow at a time. P2 covers discovering records held elsewhere, linking care contexts to a health address, and sharing a profile at a facility.
+Scaffolds an ABDM p2 integration one journey at a time. It covers the PHR profile, linking an ABHA number, switching profiles, and linking, sharing and consent for the patient.
 
 ## How this skill runs
 
-Every flow below is an OODA loop, not a recipe: observe the actual state (last response, last error), orient against the flow step matched below, decide the cheapest next action, act, and return to observe. A flow step is done only when its exit condition is observed against the sandbox, never because it "should have worked."
+Every journey below is an OODA loop, not a recipe: observe the actual state (last response, last error), orient against the step matched below, decide the cheapest next action, act, and return to observe. A step is done only when its exit condition is observed against the sandbox, never because it "should have worked."
 
-Loop limit: 8 passes per flow step. Hitting the limit is an escalation: state what was observed, what was tried, and which atom to read, then ask one question.
+Loop limit: 8 passes per step. Hitting the limit is an escalation: state what was observed, what was tried, and which operation page to read, then ask one question.
 
-## Flows
+## Journeys
 
-### Find records held elsewhere and link them (`hiecm.flow.p2-discover-and-link`)
+### PHR profile, update email (`p2-update-email`)
 
-**Before you start**
+**Act: the calls in this journey, in order**
 
-Four things must already be true, each checkable:
-
-- The person is signed in and holds an
-  ABHA address (shared.glossary.abha-address). See
-  sign a user in.
-- You hold a verified mobile number for them. Discovery carries it.
-- You can show only participating facilities in the search. A facility
-  qualifies when it is registered in the HIP (shared.glossary.hip) role
-  with an active bridge link.
-- You can hold a request open across a callback. Discovery is answered
-  asynchronously. See
-  asynchronous callbacks (hiecm.concept.asynchronous-callbacks).
-
-**Act: the calls in this flow, in order**
-
-#### Ask a facility what records it holds (`hiecm.endpoint.p2-care-context-discover`)
+#### 1. Request profile OTP (`p2_post_v3_phr_app_login_profile_request_otp`)
 
 ```bash
-curl -X POST 'https://dev.abdm.gov.in/api/hiecm/user-initiated-linking/v3/patient/care-context/discover' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'Content-Type: application/json' \
-  -d '{ "hipId": "ABDM\_HIP", "unverifiedIdentifiers": [ { "type": "ABHA\_ADDRESS", "value": "shaik.XXXX@sbx" } ] }'
-```
-
-#### Start linking the care contexts the person chose (`hiecm.endpoint.p2-link-care-context-init`)
-
-```bash
-curl -X POST 'https://dev.abdm.gov.in/api/hiecm/user-initiated-linking/v3/link/care-context/init' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'Content-Type: application/json' \
-  -d '{ "transactionId": "66446ece-396b-4f22-a1a6-756196fdffc9", "abhaAddress": "user\_123@sbx", "patient": [ { "referenceNumber": "example01", "careContexts": [ { "referenceNumber": "123" } ], "hiType": "PRESCRIPTION", "count": 1 } ] }'
-```
-
-#### Confirm the link with the code the person received (`hiecm.endpoint.p2-link-care-context-confirm`)
-
-```bash
-curl -X POST 'https://dev.abdm.gov.in/api/hiecm/user-initiated-linking/v3/link/care-context/confirm' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "token": 123456,
-  "linkRefNumber": "4336268d-89a3-4c84-8674-aef42092d9fc"
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile/request/otp \
+  --header 'X-token: Bearer <JWT TOKEN>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-address-profile",
+    "email-verify"
+  ],
+  "loginHint": "email",
+  "loginId": "{{encryptedData}}",
+  "otpSystem": "abdm"
 }'
 ```
 
-#### HIE-CM all-providers (`hiecm.endpoint.p2-all-providers`)
+#### 2. Login profile verify (`p2_post_v3_phr_app_login_profile_verify`)
 
 ```bash
-curl -X GET 'https://dev.abdm.gov.inapi/hiecm/gateway/v3/providers?stateCode=-1&districtCode=-1&name=test' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'Content-Type: application/json' \
-  -d '<REQUEST_BODY>'
-```
-
-#### HIE-CM provider-by-provider-id (`hiecm.endpoint.p2-provider-by-provider-id`)
-
-```bash
-curl -X GET 'https://dev.abdm.gov.in/api/hiecm/gateway/v3/providers/{{hip-id}}' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'Content-Type: application/json' \
-  -d '<REQUEST_BODY>'
-```
-
-#### HIE-CM Govt Programs (`hiecm.endpoint.p2-govt-programs`)
-
-```bash
-curl -X GET 'https://dev.abdm.gov.in/api/hiecm/gateway/v3/govt-programs' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'Content-Type: application/json' \
-  -d '<REQUEST_BODY>'
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile/verify \
+  --header 'X-token: Bearer <JWT TOKEN>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-address-profile",
+    "email-verify"
+  ],
+  "authData": {
+    "authMethods": [
+      "otp"
+    ],
+    "otp": {
+      "txnId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa",
+      "otpValue": "{{encryptedData}}"
+    }
+  }
+}'
 ```
 
 **Exit condition (Observe until this is true)**
 
-The care contexts the person selected are linked to their ABHA address,
-and running discovery against that facility again returns them as already
-linked rather than as new. The records themselves should arrive within
-two hours.
+A 200 whose body matches:
 
-A linked care context is not a record in hand. Fetching what a link
-points at is a consent flow. See
-fetch the records.
+```json
+{
+  "txnId": "e10ca603-97f5-4cf2-8191-d51ea7db3845",
+  "message": "Entered OTP is incorrect. Kindly re-enter valid OTP.",
+  "authResult": "failed",
+  "users": []
+}
+```
 
-**If it goes wrong**
+### PHR profile, update mobile (`p2-update-mobile`)
 
-The failures these sources document, in rough order of frequency:
+**Act: the calls in this journey, in order**
 
-- The facility does not answer inside the expected 10 seconds, which is
-  the unreachable case and has its own specified wording.
-- Nothing comes back, because the person gave a different name or date of
-  birth at the facility than they hold in their profile.
-- Everything comes back already linked, which is the third specified
-  message and not an error.
-- The OTP goes to the mobile number the facility registered, which the
-  person may no longer use.
-
-### Share a profile at a facility by scanning its code (`hiecm.flow.p2-scan-and-share`)
-
-**Before you start**
-
-Three things must already be true, each checkable:
-
-- The person is signed in and holds an
-  ABHA address (shared.glossary.abha-address). See
-  sign a user in.
-- Your application can read a code and take the two parameters out of the
-  URL it holds: the HIP id and a facility defined context such as a
-  counter code.
-- You can hold a screen open for up to 30 seconds while the facility
-  answers, and say what is happening while it does.
-
-**Act: the calls in this flow, in order**
-
-#### Share the profile with the facility whose code was scanned (`hiecm.endpoint.p2-patient-share`)
+#### 1. Request profile OTP (`p2_post_v3_phr_app_login_profile_request_otp`)
 
 ```bash
-curl -X POST 'https://dev.abdm.gov.in/api/hiecm/patient-share/v3/share' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'Content-Type: application/json' \
-  -d '{
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile/request/otp \
+  --header 'X-token: Bearer <JWT TOKEN>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-address-profile",
+    "mobile-verify"
+  ],
+  "loginHint": "mobile-number",
+  "loginId": "{{encryptedData}}",
+  "otpSystem": "abdm"
+}'
+```
+
+#### 2. Login profile verify (`p2_post_v3_phr_app_login_profile_verify`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile/verify \
+  --header 'X-token: Bearer <JWT TOKEN>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-address-profile",
+    "mobile-verify"
+  ],
+  "authData": {
+    "authMethods": [
+      "otp"
+    ],
+    "otp": {
+      "txnId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa",
+      "otpValue": "{{encryptedData}}"
+    }
+  }
+}'
+```
+
+**Exit condition (Observe until this is true)**
+
+A 200 whose body matches:
+
+```json
+{
+  "txnId": "e10ca603-97f5-4cf2-8191-d51ea7db3845",
+  "message": "Entered OTP is incorrect. Kindly re-enter valid OTP.",
+  "authResult": "failed",
+  "users": []
+}
+```
+
+### PHR profile, update password (`p2-update-password`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Login profile verify (`p2_post_v3_phr_app_login_profile_verify`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile/verify \
+  --header 'X-token: Bearer <JWT TOKEN>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-address-profile",
+    "password-verify"
+  ],
+  "authData": {
+    "authMethods": [
+      "password"
+    ],
+    "password": {
+      "abhaAddress": "<ABHA_ADDRESS>",
+      "password": "{{encryptedData}}"
+    }
+  }
+}'
+```
+
+**Exit condition (Observe until this is true)**
+
+A 200 whose body matches:
+
+```json
+{
+  "txnId": "e10ca603-97f5-4cf2-8191-d51ea7db3845",
+  "message": "Entered OTP is incorrect. Kindly re-enter valid OTP.",
+  "authResult": "failed",
+  "users": []
+}
+```
+
+### Link ABHA number, ABHA OTP (`p2-link-abha-number-abha-otp`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Request profile OTP (`p2_post_v3_phr_app_login_profile_request_otp`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile/request/otp \
+  --header 'X-token: Bearer <JWT TOKEN>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-login",
+    "mobile-verify"
+  ],
+  "loginHint": "abha-number",
+  "loginId": "<BASE64_PHOTO>",
+  "otpSystem": "abdm"
+}'
+```
+
+#### 2. Login profile verify (`p2_post_v3_phr_app_login_profile_verify`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile/verify \
+  --header 'X-token: Bearer <JWT TOKEN>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-login",
+    "mobile-verify"
+  ],
+  "authData": {
+    "authMethods": [
+      "otp"
+    ],
+    "otp": {
+      "txnId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa",
+      "otpValue": "{{encryptedData}}"
+    }
+  }
+}'
+```
+
+#### 3. Link request (`p2_post_v3_phr_app_login_profile_link`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile/link \
+  --header 'X-token: Bearer <JWT TOKEN>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "action": "LINK",
+  "transactionId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa"
+}'
+```
+
+**Exit condition (Observe until this is true)**
+
+A 200 whose body matches:
+
+```json
+{
+  "message": "ABHA number is securely linked to ABHA address",
+  "authResult": "success"
+}
+```
+
+### Link ABHA number, Aadhaar OTP (`p2-link-abha-number-aadhaar-otp`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Request profile OTP (`p2_post_v3_phr_app_login_profile_request_otp`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile/request/otp \
+  --header 'X-token: Bearer <JWT TOKEN>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-login",
+    "aadhaar-verify"
+  ],
+  "loginHint": "abha-number",
+  "loginId": "<BASE64_PHOTO>",
+  "otpSystem": "aadhaar"
+}'
+```
+
+#### 2. Login profile verify (`p2_post_v3_phr_app_login_profile_verify`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile/verify \
+  --header 'X-token: Bearer <JWT TOKEN>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "scope": [
+    "abha-login",
+    "aadhaar-verify"
+  ],
+  "authData": {
+    "authMethods": [
+      "otp"
+    ],
+    "otp": {
+      "txnId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa",
+      "otpValue": "<BASE64_PHOTO>"
+    }
+  }
+}'
+```
+
+#### 3. Link request (`p2_post_v3_phr_app_login_profile_link`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile/link \
+  --header 'X-token: Bearer <JWT TOKEN>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "action": "LINK",
+  "transactionId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa"
+}'
+```
+
+**Exit condition (Observe until this is true)**
+
+A 200 whose body matches:
+
+```json
+{
+  "message": "ABHA number is securely linked to ABHA address",
+  "authResult": "success"
+}
+```
+
+### PHR profile, switch profile (`p2-switch-profile`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Switch profile (`p2_get_v3_phr_app_login_profile_switch_profile`)
+
+```bash
+curl --request GET \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile/switch-profile \
+  --header 'X-token: Bearer <JWT TOKEN>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z'
+```
+
+#### 2. Verify user switch profile (`p2_post_v3_phr_app_login_profile_verify_switch_profile_user`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile/verify/switch-profile/user \
+  --header 'T-token: Bearer <JWT TOKEN>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "abhaAddress": "<ABHA_ADDRESS>",
+  "txnId": "37d8d312-35a0-41e7-a6e4-1074eb18a5fa"
+}'
+```
+
+**Exit condition (Observe until this is true)**
+
+A 200 whose body matches:
+
+```json
+{
+  "token": "<JWT TOKEN>",
+  "expiresIn": 1800,
+  "refreshToken": "<JWT TOKEN>",
+  "refreshExpiresIn": 1296000
+}
+```
+
+### PHR profile, card, QR code and session (`p2-profile`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Get profile (`p2_get_v3_phr_app_login_profile`)
+
+```bash
+curl --request GET \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile \
+  --header 'X-token: Bearer <JWT TOKEN>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z'
+```
+
+#### 2. Get QR code (`p2_get_v3_phr_app_login_profile_qrcode`)
+
+```bash
+curl --request GET \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile/qrCode \
+  --header 'X-token: Bearer <JWT TOKEN>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z'
+```
+
+#### 3. Get PHR card (`p2_get_v3_phr_app_login_profile_phrcard`)
+
+```bash
+curl --request GET \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile/phrCard \
+  --header 'X-token: Bearer <JWT TOKEN>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z'
+```
+
+#### 4. Update profile (`p2_post_v3_phr_app_login_profile_updateprofile`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile/updateProfile \
+  --header 'X-token: Bearer <JWT TOKEN>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "profilePhoto": "",
+  "firstName": "John",
+  "middleName": "",
+  "lastName": "Doe",
+  "dayOfBirth": "<DOB>",
+  "monthOfBirth": "<DOB>",
+  "yearOfBirth": "<DOB>",
+  "gender": "M",
+  "email": "<EMAIL>",
+  "mobile": "******0903",
+  "address": "<ADDRESS>",
+  "stateName": "Maharashtra",
+  "districtName": "<ADDRESS>",
+  "pinCode": "<PINCODE>",
+  "stateCode": "27",
+  "districtCode": "12"
+}'
+```
+
+#### 5. Refresh token (`p2_get_v3_phr_app_login_profile_request_token`)
+
+```bash
+curl --request GET \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile/request/token \
+  --header 'R-token: Bearer <JWT TOKEN>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z'
+```
+
+#### 6. Logout (`p2_get_v3_phr_app_login_profile_request_logout`)
+
+```bash
+curl --request GET \
+  --url https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/login/profile/request/logout \
+  --header 'X-token: Bearer <JWT TOKEN>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z'
+```
+
+**Exit condition (Observe until this is true)**
+
+A 200 whose body matches:
+
+```json
+{
+  "message": "You have been logged out",
+  "timestamp": "2023-07-27T13:36:28.000Z"
+}
+```
+
+### Patient share (`p2-abdm-hiecm-patient-share-phr`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Share patient share (`p2_post_patient_share_v3_share`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/api/hiecm/patient-share/v3/share \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-HIU-ID: HIU_ID' \
+  --header 'X-AUTH-TOKEN: Bearer <TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
   "intent": "PROFILE_SHARE",
   "metaData": {
-    "hipId": "MAYUR_HIP",
-    "context": "ABC123",
-    "hprId": "abdulkalam@abdm",
-    "latitude": "-38.679",
-    "longitude": "58.498"
+    "hipId": "HIP_1",
+    "context": "6",
+    "hprId": "<EMAIL>",
+    "latitude": 20.5937,
+    "longitude": 78.9629
   },
   "profile": {
     "patient": {
-      "abhaNumber": 91178386101251,
-      "abhaAddress": "9117838@sbx",
-      "name": "User 1",
+      "abhaNumber": "<ABHA_NUMBER>",
+      "abhaAddress": "<ABHA_ADDRESS>",
+      "name": "<NAME>",
       "gender": "M",
-      "dayOfBirth": "10",
-      "monthOfBirth": "10",
-      "yearOfBirth": "1994",
+      "dayOfBirth": "<DOB>",
+      "monthOfBirth": "<DOB>",
+      "yearOfBirth": "9999",
       "address": {
-        "line": "C/O Sandipan Kshirsagar Ambejogai Road Renuka Nagar",
-        "district": null,
-        "state": null,
-        "pincode": null
+        "line": "Address line 1",
+        "district": "Coimbatore",
+        "state": "Tamil Nadu",
+        "pincode": "<PINCODE>"
       },
-      "phoneNumber": "9876543210"
+      "phoneNumber": "<MOBILE_NUMBER>"
     }
   }
 }'
 ```
 
-#### Profile on share (`hiecm.endpoint.p2-profile-on-share`)
+#### 2. Receive the HIU patient on share (`p2_post_v3_hiu_patient_on_share`)
+
+Inbound to your bridge at `/api/v3/hiu/patient/on-share`. Acknowledge it and continue.
+
+#### 3. Get the historical token numbers of the patient (`p2_get_patient_share_v3_profile_gettokendetails`)
 
 ```bash
-curl -X POST 'https://dev.abdm.gov.in/api/hiecm/patient-share/v3/on-share' \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'REQUEST-ID: <FRESH_UUID>' \
-  -H 'TIMESTAMP: <ISO_8601_TIMESTAMP>' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "acknowledgement": {
-    "abhaAddress": "abc@abdm",
-    "status": "success",
-    "profile": {
-      "context": "43",
-      "tokenNumber": "3",
-      "expiry": "180"
+curl --request GET \
+  --url https://abhasbx.abdm.gov.in/api/hiecm/patient-share/v3/profile/getTokenDetails \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-AUTH-TOKEN: Bearer <TOKEN>'
+```
+
+**Exit condition (Observe until this is true)**
+
+A 200 whose body matches:
+
+```json
+"<VALUE>"
+```
+
+### User initiated linking (`p2-abdm-user-initiated-linking-phr`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Fetch the list of providers filtered by name (`gateway_get_gateway_v3_providers`)
+
+```bash
+curl --request GET \
+  --url https://dev.abdm.gov.in/api/hiecm/gateway/v3/providers \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx'
+```
+
+#### 2. Fetch the record for provider details for requested provider ID (`gateway_get_gateway_v3_providers_provider_id`)
+
+```bash
+curl --request GET \
+  --url https://dev.abdm.gov.in/api/hiecm/gateway/v3/providers/{provider-id} \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx'
+```
+
+#### 3. Discover his/her health records (`p2_post_user_initiated_linking_v3_patient_care_context_discover`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/api/hiecm/user-initiated-linking/v3/patient/care-context/discover \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-HIU-ID: IN2810014366' \
+  --header 'X-AUTH-TOKEN: <TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "hip": {
+    "id": "cowin_hip_01"
+  },
+  "unverifiedIdentifiers": [
+    {
+      "type": "MOBILE",
+      "value": "+9198765*****"
     }
+  ]
+}'
+```
+
+#### 4. Receive the discovered care contexts of a patient (`p2_post_v3_hiu_patient_care_context_on_discover`)
+
+Inbound to your bridge at `/api/v3/hiu/patient/care-context/on-discover`. Acknowledge it and continue.
+
+#### 5. Link his/her health records (`p2_post_user_initiated_linking_v3_link_care_context_init`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/api/hiecm/user-initiated-linking/v3/link/care-context/init \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-HIU-ID: IN2810014366' \
+  --header 'X-AUTH-TOKEN: <TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "transactionId": "f901b782-bfdf-4224-9f8d-da2cadc20c0d",
+  "patient": [
+    {
+      "referenceNumber": "<ABHA_ADDRESS>",
+      "display": "Test",
+      "careContexts": [
+        {
+          "referenceNumber": "abc123",
+          "display": "Sugar Test"
+        }
+      ],
+      "hiType": "OPConsultation",
+      "count": 1
+    }
+  ]
+}'
+```
+
+#### 6. Receive the initial linking of care contexts for a patient (`p2_post_v3_hiu_patient_care_context_on_init`)
+
+Inbound to your bridge at `/api/v3/hiu/patient/care-context/on-init`. Acknowledge it and continue.
+
+#### 7. Confirm his/her health records (`p2_post_user_initiated_linking_v3_link_care_context_confirm`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/api/hiecm/user-initiated-linking/v3/link/care-context/confirm \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-HIU-ID: IN2810014366' \
+  --header 'X-AUTH-TOKEN: <TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "token": 123456,
+  "linkRefNumber": "d353b782-bfdf-4224-9f8d-da2cadc20c0d"
+}'
+```
+
+#### 8. Receive confirmation of the linked care contexts for a patient (`p2_post_v3_hiu_patient_care_context_on_confirm`)
+
+Inbound to your bridge at `/api/v3/hiu/patient/care-context/on-confirm`. Acknowledge it and continue.
+
+**Exit condition (Observe until this is true)**
+
+A 200 response. The specification gives no body for it, so read what comes back.
+
+### Consent manager, HIU and HIP (`p2-consent-manager-hiu-hip`)
+
+**Act: the calls in this journey, in order**
+
+#### 1. Link patient links  (`p2_get_hip_v3_link_patient_links`)
+
+```bash
+curl --request GET \
+  --url https://abhasbx.abdm.gov.in/api/hiecm/hip/v3/link/patient/links \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-AUTH-TOKEN: <X_AUTH_TOKEN>'
+```
+
+#### 2. Initiate the consent request (`m3_post_consent_v3_request_init`)
+
+```bash
+curl --request POST \
+  --url https://dev.abdm.gov.in/api/hiecm/consent/v3/request/init \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "consent": {
+    "purpose": {
+      "text": "Care Management",
+      "code": "CAREMGT",
+      "refUri": "www.abc.com"
+    },
+    "patient": {
+      "id": "<ABHA_ADDRESS>"
+    },
+    "hip": {
+      "id": "cowin_hip_01",
+      "name": "Cowin",
+      "type": "HIP"
+    },
+    "hiu": {
+      "id": "cowin_hiu_01",
+      "name": "Cowin",
+      "type": "HIU"
+    },
+    "careContexts": [
+      {
+        "patientReference": "batman@tmh",
+        "careContextReference": "Episode1"
+      }
+    ],
+    "requester": {
+      "name": "<ABHA_ADDRESS>",
+      "identifier": {
+        "value": "REG1",
+        "type": "MH1001",
+        "system": "https://www.sample.com"
+      }
+    },
+    "hiTypes": [
+      "Prescription"
+    ],
+    "permission": {
+      "accessMode": "VIEW",
+      "dateRange": {
+        "from": "2021-09-28T12:30:08.573Z",
+        "to": "2021-09-28T12:30:08.573Z"
+      },
+      "dataEraseAt": "2021-09-28T12:30:08.573Z",
+      "frequency": {
+        "unit": "HOUR",
+        "value": 1,
+        "repeats": 0
+      }
+    }
+  }
+}'
+```
+
+#### 3. Get consent request status (`m3_post_consent_v3_request_status`)
+
+```bash
+curl --request POST \
+  --url https://dev.abdm.gov.in/api/hiecm/consent/v3/request/status \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-HIU-ID: IN2810014366' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "consentRequestId": "5f7a535d-a3fd-416b-b069-c97d021fbacd"
+}'
+```
+
+#### 4. Acknowledge the consent notification (`m2_post_consent_v3_request_hip_on_notify`)
+
+```bash
+curl --request POST \
+  --url https://dev.abdm.gov.in/api/hiecm/consent/v3/request/hip/on-notify \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "acknowledgement": {
+    "status": "OK",
+    "consentId": "e3c74829-3f82-4f94-959e-e10f57bcd57b"
+  },
+  "error": {
+    "code": "ABDM-1001",
+    "message": "unable to connect database"
   },
   "response": {
-    "requestId": "f29f0e59-8388-4698-9fe6-05db67aeac46"
+    "requestId": "6f0b4665-a915-4c92-aa36-65afb4a2cd71"
   }
+}'
+```
+
+#### 5. Acknowledge the consent notification (`m3_post_consent_v3_request_hiu_on_notify`)
+
+```bash
+curl --request POST \
+  --url https://dev.abdm.gov.in/api/hiecm/consent/v3/request/hiu/on-notify \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "acknowledgement": [
+    {
+      "status": "OK",
+      "consentId": "e3c74829-3f82-4f94-959e-e10f57bcd57b"
+    }
+  ],
+  "error": {
+    "code": "ABDM-1001",
+    "message": "unable to connect database"
+  },
+  "response": {
+    "requestId": "6f0b4665-a915-4c92-aa36-65afb4a2cd71"
+  }
+}'
+```
+
+#### 6. Fetch the consent details (`m3_post_consent_v3_fetch`)
+
+```bash
+curl --request POST \
+  --url https://dev.abdm.gov.in/api/hiecm/consent/v3/fetch \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-HIU-ID: IN2810014366' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "consentId": "5f7a535d-a3fd-416b-b069-c97d021fbacd"
 }'
 ```
 
 **Exit condition (Observe until this is true)**
 
-The facility answers inside the 30 second window, and where it returns a
-token number your application shows it. The person is registered at that
-facility without giving their details at the desk, and records from that
-visit arrive already linked rather than needing discovery.
+A 202 response. The specification gives no body for it, so read what comes back.
 
-**If it goes wrong**
+### Consent manager, fetch and manage consent requests (`p2-consent-management-data-flow-phr`)
 
-The failures these sources document, in rough order of frequency:
+**Act: the calls in this journey, in order**
 
-- No answer inside 30 seconds, which needs a screen that says so rather
-  than a spinner that never ends.
-- A counter name that is really the facility id or the HIP name, which
-  the rules exclude and which makes the counter unidentifiable to the
-  person.
-- Consent taken in your own wording rather than the specified wording,
-  which is a certification problem rather than a technical one.
+#### 1. Setup an auto-approval policy for given HIU (`p2_post_consent_v3_auto_approve`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/api/hiecm/consent/v3/auto/approve \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-AUTH-TOKEN: <TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "isApplicableForAllHIPs": false,
+  "hiu": {
+    "id": "cowin_hiu_01",
+    "name": "Cowin",
+    "type": "HIU"
+  },
+  "includedSources": [
+    {
+      "hiTypes": [
+        "Prescription"
+      ],
+      "purpose": {
+        "text": "Care Management",
+        "code": "CAREMGT",
+        "refUri": "www.abc.com"
+      },
+      "hip": {
+        "id": "cowin_hip_01",
+        "name": "Cowin",
+        "type": "HIP"
+      },
+      "period": {
+        "from": "2021-09-28T12:30:08.573Z",
+        "to": "2021-09-28T12:30:08.573Z"
+      }
+    }
+  ],
+  "excludedSources": [
+    {
+      "hiTypes": [
+        "Prescription"
+      ],
+      "purpose": {
+        "text": "Care Management",
+        "code": "CAREMGT",
+        "refUri": "www.abc.com"
+      },
+      "hip": {
+        "id": "cowin_hip_01",
+        "name": "Cowin",
+        "type": "HIP"
+      },
+      "period": {
+        "from": "2021-09-28T12:30:08.573Z",
+        "to": "2021-09-28T12:30:08.573Z"
+      }
+    }
+  ]
+}'
+```
+
+#### 2. Disable the auto-approval policy (`p2_post_consent_v3_auto_approve_auto_approval_id_disable`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/api/hiecm/consent/v3/auto/approve/{auto-approval-id}/disable \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-AUTH-TOKEN: <TOKEN>'
+```
+
+#### 3. Enable the auto-approval policy (`p2_post_consent_v3_auto_approve_auto_approval_id_enable`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/api/hiecm/consent/v3/auto/approve/{auto-approval-id}/enable \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-AUTH-TOKEN: <TOKEN>'
+```
+
+#### 4. Fetch all the consent request details of a patient (`p2_get_consent_v3_request`)
+
+```bash
+curl --request GET \
+  --url https://abhasbx.abdm.gov.in/api/hiecm/consent/v3/request \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-AUTH-TOKEN: <TOKEN>'
+```
+
+#### 5. Get the consent request details by REQUEST-ID (`p2_get_consent_v3_request_request_id`)
+
+```bash
+curl --request GET \
+  --url https://abhasbx.abdm.gov.in/api/hiecm/consent/v3/request/{request-id} \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-AUTH-TOKEN: <TOKEN>'
+```
+
+#### 6. Approve the consent request raised by HIU from PHR/mobile application (`p2_post_consent_v3_request_request_id_approve`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/api/hiecm/consent/v3/request/{request-id}/approve \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-AUTH-TOKEN: <TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "consents": [
+    {
+      "hiTypes": [
+        "Prescription"
+      ],
+      "hip": {
+        "id": "ABCD_12345",
+        "name": "ABCD Hospital",
+        "type": "HIP"
+      },
+      "careContexts": [
+        {
+          "patientReference": "batman@tmh",
+          "careContextReference": "Episode1"
+        }
+      ],
+      "permission": {
+        "dateRange": {
+          "from": "2021-09-28T12:30:08.573Z",
+          "to": "2021-09-28T12:30:08.573Z"
+        },
+        "frequency": {
+          "unit": "HOUR",
+          "value": 1,
+          "repeats": 0
+        },
+        "accessMode": "VIEW",
+        "dataEraseAt": "2021-09-28T12:30:08.573Z"
+      }
+    }
+  ]
+}'
+```
+
+#### 7. Deny the consent request raised by HIU from PHR/mobile application (`p2_post_consent_v3_request_request_id_deny`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/api/hiecm/consent/v3/request/{request-id}/deny \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-AUTH-TOKEN: <TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "reason": "Not authorized"
+}'
+```
+
+#### 8. Revoke the granted consent from PHR/mobile application (`p2_post_consent_v3_revoke`)
+
+```bash
+curl --request POST \
+  --url https://abhasbx.abdm.gov.in/api/hiecm/consent/v3/revoke \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-AUTH-TOKEN: <TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "consents": [
+    "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+  ]
+}'
+```
+
+#### 9. Request artefact by REQUEST-ID (`p2_get_consent_v3_artefact_request_request_id`)
+
+```bash
+curl --request GET \
+  --url https://abhasbx.abdm.gov.in/api/hiecm/consent/v3/artefact/request/{request-id} \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-AUTH-TOKEN: <TOKEN>'
+```
+
+#### 10. Fetch the consent artefact details associated with the artefact-ID (`p2_get_consent_v3_artefact_artefact_id`)
+
+```bash
+curl --request GET \
+  --url https://abhasbx.abdm.gov.in/api/hiecm/consent/v3/artefact/{artefact-id} \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-AUTH-TOKEN: <TOKEN>'
+```
+
+#### 11. Fetch all the consent artefact details of a patient (`p2_get_consent_v3_artefact`)
+
+```bash
+curl --request GET \
+  --url https://abhasbx.abdm.gov.in/api/hiecm/consent/v3/artefact \
+  --header 'Authorization: Bearer <ACCESS_TOKEN_FROM_SESSIONS_CALL>' \
+  --header 'REQUEST-ID: 18235d89-cb13-479d-ad71-7a57d5f669a8' \
+  --header 'TIMESTAMP: 2022-10-06T15:10:00.587Z' \
+  --header 'X-CM-ID: sbx' \
+  --header 'X-AUTH-TOKEN: <TOKEN>'
+```
+
+**Exit condition (Observe until this is true)**
+
+A 200 whose body matches:
+
+```json
+{
+  "size": 10,
+  "limit": 10,
+  "offset": 0,
+  "consentArtefacts": [
+    {
+      "status": "GRANTED",
+      "consentDetail": {
+        "consentId": "e5ec415f-c098-40f6-a0db-faa162fc5295",
+        "purpose": {
+          "text": "Care Management",
+          "code": "CAREMGT",
+          "refUri": "www.abc.com"
+        },
+        "patient": {
+          "id": "<ABHA_ADDRESS>"
+        },
+        "hip": {
+          "id": "cowin_hip_01",
+          "name": "Cowin",
+          "type": "HIP"
+        },
+        "hiu": {
+          "id": "cowin_hiu_01",
+          "name": "Cowin",
+          "type": "HIU"
+        },
+        "careContexts": [
+          {
+            "patientReference": "batman@tmh",
+            "careContextReference": "Episode1"
+          }
+        ],
+        "requester": {
+          "name": "<ABHA_ADDRESS>",
+          "identifier": {
+            "value": "REG1",
+            "type": "MH1001",
+            "system": "https://www.sample.com"
+          }
+        },
+        "createdAt": "2021-09-28T12:30:08.573Z",
+        "lastUpdated": "2021-09-28T12:30:08.573Z",
+        "schemaVersion": "v3",
+        "consentManager": {
+          "id": "abdm"
+        },
+        "hiTypes": [
+          "Prescription"
+        ],
+        "permission": {
+          "accessMode": "VIEW",
+          "dateRange": {
+            "from": "2021-09-28T12:30:08.573Z",
+            "to": "2021-09-28T12:30:08.573Z"
+          },
+          "dataEraseAt": "2021-09-28T12:30:08.573Z",
+          "frequency": {
+            "unit": "HOUR",
+            "value": 1,
+            "repeats": 0
+          }
+        }
+      },
+      "signature": "e8nY601CYDsC0FKoDjSp+7GeQ2s2R8oZncLCz5ce+pEuDOr5bZV0aaHjwJg4b9S9V+twjt4hbojx3fl7egrt8+0c+lfPTi5/bBUAQXCABTfFmtFU7jn65HlTt8kgkiONx26ZBhJ0wX3xjYI72PPtzYIiT5Q08YtDoILA62KceioV7lwuKssw7wC4ECbBAvRuXT121TmtrPhf+0myJATSnaajS06S6OthrKfZLNTUFf3pFiJzqouSTrjNblOX6DT2+JuO3rom1Szz/03c0HQG+wWASv+PO3J6uRs0UI4JvKmM/4tP+Z+/HPKM15K5U5K+4pqf6czKrbIDpkT/kP8bGg=="
+    }
+  ]
+}
+```
 
 ## Where the detail is
 
-- Every operation in this milestone, with its body fields and responses: /docs/hiecm/v3/api/p2
-- The flows as diagrams: /docs/hiecm/v3/milestones/p2
-- Every error code across milestones: /docs/hiecm/v3/reference/error-codes
-- Terms: /docs/hiecm/v3/getting-started/glossary
+- Every operation, with its body fields and responses: /docs/hiecm/v3/api/p2
+- Error codes: /docs/hiecm/v3/api/p2/errors

@@ -1,0 +1,25 @@
+meta {
+  name: 3. Refresh (status call)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{careUrl}}/api/abdm/patients/{{patientId}}/abha/consent-requests/{{consentRequestRowId}}/refresh
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {}
+}
+
+docs {
+  While the request is open: `consent/v3/request/status` (answer on `on-status`). For every
+  transfer that has a transaction id and no push yet: `GET health-information/request/status/{id}`.
+}

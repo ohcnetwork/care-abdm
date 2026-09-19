@@ -455,3 +455,179 @@ class AbdmDataRequest(BaseModel):
 
     def __str__(self):
         return f"data-request:{self.transaction_id}:{self.status}"
+
+
+# --- M3: HIU consent requests and fetched records ------------------------------------------------
+
+
+class AbdmConsentRequest(BaseModel):
+    """
+    1 consent request this HIU raised for 1 patient at 1 facility (M3 journey 1, ADR-014).
+
+    `consent_request_id` is the HIE-CM id that arrives on `/v3/hiu/consent/request/on-init`;
+    every later callback names it. The request is the ask; the artefacts are the permission.
+    """
+
+    class Status(models.TextChoices):
+        REQUESTED = "REQUESTED"  # init accepted; the patient has not decided
+        GRANTED = "GRANTED"
+        DENIED = "DENIED"
+        EXPIRED = "EXPIRED"  # the patient did not act inside the request window
+        REVOKED = "REVOKED"  # every artefact of the grant was withdrawn
+        FAILED = "failed"  # init refused, or on-init carried an error
+
+    OPEN_STATUSES = (Status.REQUESTED,)
+
+    patient = models.ForeignKey("emr.Patient", on_delete=models.CASCADE)
+    facility = models.ForeignKey("facility.Facility", on_delete=models.CASCADE)
+    requested_by = models.ForeignKey("users.User", null=True, blank=True, on_delete=models.SET_NULL)
+    abha_address = models.CharField(max_length=128, db_index=True)
+    purpose_code = models.CharField(max_length=16)
+    hi_types = models.JSONField(default=list, blank=True)
+    date_from = models.DateTimeField()
+    date_to = models.DateTimeField()
+    data_erase_at = models.DateTimeField()
+    # The provider the desk picked, or empty for every HIP the patient has records at.
+    hip_id = models.CharField(max_length=128, blank=True, default="")
+    hip_name = models.CharField(max_length=256, blank=True, default="")
+    consent_request_id = models.CharField(max_length=128, blank=True, default="", db_index=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.REQUESTED, db_index=True)
+    init_request = models.ForeignKey(
+        AbdmOutboundRequest, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    status_request = models.ForeignKey(
+        AbdmOutboundRequest, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    status_checked_at = models.DateTimeField(null=True, blank=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    reason = models.CharField(max_length=512, blank=True, default="")
+    error_code = models.CharField(max_length=64, blank=True, default="")
+    error_message = models.CharField(max_length=512, blank=True, default="")
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["patient", "facility", "created_date"]),
+            models.Index(fields=["status", "created_date"]),
+        ]
+
+    def __str__(self):
+        return f"consent-request:{self.consent_request_id or self.external_id}:{self.status}"
+
+
+class AbdmConsentArtefact(BaseModel):
+    """
+    1 consent artefact the HIE-CM created for a request we raised (HIU side). The grant names
+    the ids on `/v3/hiu/consent/request/notify`; `consent/fetch` brings the detail back on
+    `/v3/hiu/consent/on-fetch`. The signature is stored, not verified (no published algorithm).
+    """
+
+    class Status(models.TextChoices):
+        GRANTED = "GRANTED"
+        DENIED = "DENIED"
+        EXPIRED = "EXPIRED"
+        REVOKED = "REVOKED"
+
+    consent_request = models.ForeignKey(AbdmConsentRequest, on_delete=models.CASCADE, related_name="artefacts")
+    artefact_id = models.CharField(max_length=128, unique=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.GRANTED, db_index=True)
+    hip_id = models.CharField(max_length=128, blank=True, default="")
+    hip_name = models.CharField(max_length=256, blank=True, default="")
+    hi_types = models.JSONField(default=list, blank=True)
+    care_context_references = models.JSONField(default=list, blank=True)
+    date_from = models.DateTimeField(null=True, blank=True)
+    date_to = models.DateTimeField(null=True, blank=True)
+    data_erase_at = models.DateTimeField(null=True, blank=True)
+    detail = models.JSONField(default=dict, blank=True)
+    signature = models.TextField(blank=True, default="")
+    fetch_request = models.ForeignKey(
+        AbdmOutboundRequest, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    fetched_at = models.DateTimeField(null=True, blank=True)
+    status_changed_at = models.DateTimeField(null=True, blank=True)
+    error_code = models.CharField(max_length=64, blank=True, default="")
+    error_message = models.CharField(max_length=512, blank=True, default="")
+
+    def __str__(self):
+        return f"artefact:{self.artefact_id}:{self.status}"
+
+
+class AbdmFetchRequest(BaseModel):
+    """
+    1 health-information request this HIU sent under 1 artefact (M3 journey 3).
+
+    Holds the ephemeral X25519 private key and our nonce until the HIP push is decrypted or the
+    20-minute window passes; then the key is blanked. The HIE-CM names the `transaction_id` on
+    `/v3/hiu/health-information/on-request`; the push carries it.
+    """
+
+    class Status(models.TextChoices):
+        REQUESTED = "requested"  # 202 on the request; waiting for on-request
+        ACKNOWLEDGED = "acknowledged"  # transaction id known; waiting for the push
+        RECEIVED = "received"  # every entry decrypted and stored
+        PARTIAL = "partial"  # some entries failed the checksum or the decryption
+        FAILED = "failed"  # refused, errored, or nothing arrived inside the window
+
+    IN_FLIGHT = (Status.REQUESTED, Status.ACKNOWLEDGED)
+
+    artefact = models.ForeignKey(AbdmConsentArtefact, on_delete=models.CASCADE, related_name="fetches")
+    transaction_id = models.CharField(max_length=128, blank=True, default="", db_index=True)
+    date_from = models.DateTimeField()
+    date_to = models.DateTimeField()
+    data_push_url = models.URLField(max_length=1024)
+    private_key = models.TextField(blank=True, default="")  # base64 raw 32 bytes; blank once used
+    nonce = models.TextField(blank=True, default="")  # base64 32 bytes, RAND(U)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.REQUESTED, db_index=True)
+    hi_request = models.ForeignKey(
+        AbdmOutboundRequest, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    notify_request = models.ForeignKey(
+        AbdmOutboundRequest, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    requested_at = models.DateTimeField()
+    deadline_at = models.DateTimeField(db_index=True)
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    received_at = models.DateTimeField(null=True, blank=True)
+    pages_expected = models.PositiveSmallIntegerField(default=1)
+    pages_received = models.PositiveSmallIntegerField(default=0)
+    # 1 entry per pushed item: {careContextReference, hiStatus, description}. No ciphertext.
+    entries = models.JSONField(default=list, blank=True)
+    error_code = models.CharField(max_length=64, blank=True, default="")
+    error_message = models.CharField(max_length=512, blank=True, default="")
+
+    def __str__(self):
+        return f"fetch:{self.transaction_id or self.external_id}:{self.status}"
+
+
+class AbdmFetchedRecord(BaseModel):
+    """
+    1 decrypted FHIR bundle another facility pushed to this HIU. `bundle` is emptied at
+    `erase_at` (the consent `dataEraseAt`) or when the consent is revoked or expires
+    (milestones/m3 step 6; Rithvik 2026-09-19). The row stays as the audit trail.
+    """
+
+    fetch = models.ForeignKey(AbdmFetchRequest, on_delete=models.CASCADE, related_name="records")
+    artefact = models.ForeignKey(AbdmConsentArtefact, on_delete=models.CASCADE, related_name="records")
+    patient = models.ForeignKey("emr.Patient", on_delete=models.CASCADE)
+    facility = models.ForeignKey("facility.Facility", on_delete=models.CASCADE)
+    care_context_reference = models.CharField(max_length=256, blank=True, default="")
+    hi_type = models.CharField(max_length=32, blank=True, default="")
+    title = models.CharField(max_length=256, blank=True, default="")
+    authored_at = models.DateTimeField(null=True, blank=True)
+    hip_id = models.CharField(max_length=128, blank=True, default="")
+    hip_name = models.CharField(max_length=256, blank=True, default="")
+    checksum_ok = models.BooleanField(default=False)
+    resource_count = models.PositiveIntegerField(default=0)
+    bundle = models.JSONField(default=dict, blank=True)
+    received_at = models.DateTimeField(db_index=True)
+    erase_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    erased_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["patient", "facility", "received_at"])]
+
+    @property
+    def available(self) -> bool:
+        return self.erased_at is None and bool(self.bundle)
+
+    def __str__(self):
+        return f"record:{self.hi_type or '?'}:{self.care_context_reference}"

@@ -13,10 +13,10 @@ cd ~/ohc.network/care && set -a && . ./.env && set +a
 (cd ~/ohc.network/care-abdm-sbx/backend && ~/ohc.network/care/.venv/bin/ruff check src tests && ~/ohc.network/care/.venv/bin/ruff format --check src tests)
 ```
 
-`manage.py check` cannot run on this machine since 2026-09-17: Care imports weasyprint, which needs
-`libgobject-2.0-0`, and glib is not installed. This is a Care environment gap, not a plug problem. To
-prove the plug's Django modules load, stub weasyprint and import them, then run `makemigrations --check`
-in the same process (see the scratch script pattern below).
+`manage.py check` could not run on this machine on 2026-09-17 (Care imports weasyprint, which needs
+`libgobject-2.0-0`). On 2026-09-19 it ran again: `System check identified no issues (0 silenced).` If it
+fails on weasyprint again, stub weasyprint and import the plug modules, then run `makemigrations --check`
+in the same process.
 
 Ruff reads `backend/pyproject.toml` (line length 120, `abdm` first-party, migrations excluded), so run it
 from the `backend` directory; run from the Care directory it silently picks up Care's config instead.
@@ -58,6 +58,23 @@ bridge registration; Scan and Share token `OPD1-001`. It snapshots every plug ta
 deleted all outbound and callback rows; do not use it), then restores the facility extension. Expected last lines: `M2 SMOKE OK — outbound calls: 31 callbacks: 54`
 and `cleanup done`.
 
+M3 uses `m3_smoke.py` (session `f18b6f36…`, 2026-09-19). Run it after `manage.py migrate abdm`:
+
+```sh
+.venv/bin/python manage.py shell < ~/.copilot/session-state/f18b6f36-94a4-4be3-968f-8a0ed28422c9/files/m3_smoke.py
+```
+
+It patches only `gateway.outbound.requests.request`, `gateway.outbound.get_access_token`,
+`callbacks.views.verify_callback_signature` and `dispatch_callback.delay`. The script plays the HIP: it
+reads the key material the plug sent in the health-information request, encrypts 2 bundles with
+`abdm.hip.crypto` and posts them to the data push URL. It drives 17 stages: init body and headers; on-init;
+refresh and on-status; GRANTED notify (ack, fetch); on-fetch (HI request); on-request; the push (decrypt,
+MD5, records, notify RECEIVED, scrub); state and record detail; duplicate push; fetch again; housekeeping
+on a stale request; REVOKED (erase, 410); DENIED; a refused init; erase-at housekeeping; validation and
+the providers proxy; 403 without `can_view_clinical_data`. It snapshots every plug table first and
+deletes only what it created. Expected last lines: `M3 SMOKE OK — outbound calls: 16 callbacks: 11` and
+`cleanup done`.
+
 FHIR bundles use `fhir_smoke.py` in the same directory. It builds the 3 record types from fixture
 CARE data, writes them to files and runs MCP `validate_fhir` on each
 (`python3 /tmp/mcp_tool.py validate_fhir '{"record_type":"<type>"}' --file <bundle>`; the helper
@@ -83,10 +100,11 @@ Observed 2026-09-17: 54 tests. Result: OK (`test_callback_paths.py`: the `/api` 
 Observed 2026-09-17 (later): 78 tests. Result: OK (`test_errors.py`: the ADR-012 classifier; `test_hip_rules.py` freshness test replaced).
 
 Observed 2026-09-18: 90 tests. Result: OK (`test_sharing_rules.py` added for ADR-013).
+Observed 2026-09-19: 118 tests in 0.8 s. Result: OK (`test_hiu_rules.py` added for ADR-014: every M3 parser is run on the example body of its docs page; the 6 M3 paths in `test_callback_paths.py`).
 
 The tests run without Django. Pure rules must live in a module with no Django import
-(`abha/checksums.py`, `share/rules.py`, `facility/rules.py`, `hip/rules.py`, `hip/crypto.py`, `fhir/bundle.py`,
-`callbacks/paths.py`).
+(`abha/checksums.py`, `share/rules.py`, `facility/rules.py`, `hip/rules.py`, `hip/crypto.py`, `hiu/rules.py`,
+`fhir/bundle.py`, `callbacks/paths.py`).
 
 ## Frontend
 
@@ -134,3 +152,4 @@ if(f.endsWith(".bru")&&f!=="collection.bru"&&f!=="folder.bru")bruToJsonV2(fs.rea
 ```
 
 Observed 2026-09-15: 59 files parsed, 47 requests, and the request paths matched `urls.py` both ways.
+Observed 2026-09-19: 60 requests parsed (`hiu/` folder and 6 M3 callbacks added); the route diff against `urls.py` is empty both ways.

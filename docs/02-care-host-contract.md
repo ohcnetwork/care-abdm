@@ -179,6 +179,15 @@ No model named `Immunization` or `Procedure` was found under `care/emr/models/` 
 | Show a consent and transfer log. | `encounterTabs` | `~/ohc.network/care_fe/src/pluginTypes.ts:212-215`; `~/ohc.network/care_fe/src/pages/Encounters/EncounterShow.tsx:80` |
 | Show the ADR-007 facility link form. | `FacilityHomeActions` | `~/ohc.network/care_fe/src/pluginTypes.ts:50-53`; `~/ohc.network/care_fe/src/components/Facility/FacilityHome.tsx:253-257` |
 
+### M3 host facts (read 2026-09-19; ADR-014)
+
+| Host fact | Source |
+|---|---|
+| `User.doctor_medical_council_registration` (CharField 255, nullable) is the clinician's council registration. The consent `requester.identifier` sends it when set. | `~/ohc.network/care/care/users/models.py:158-163` |
+| `can_view_clinical_data(user, patient)` is the patient-level gate for clinical data; a superuser passes. Every HIU route uses it. | `~/ohc.network/care/care/security/authorization/patient.py:94-101` |
+| The encounter tab receives `{encounter: EncounterRead, patient: PatientRead}`; `encounter.facility.id` and `patient.id` feed the HIU card. | `~/ohc.network/care_fe/src/pages/Encounters/EncounterShow.tsx:49-52` |
+| care_fe has no patient-level tab slot; the Demography slot and the encounter tabs are the 2 patient surfaces. | `~/ohc.network/care_fe/src/pluginTypes.ts:157,231-233` |
+
 ### Callback ingress and auth
 
 | Host fact | Source |

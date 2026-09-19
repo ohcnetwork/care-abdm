@@ -50,7 +50,12 @@ export type AbdmBridgeState = {
 
 /** GET /api/abdm/admin/overview (superuser): the bridge state plus the gateway session and the HIP facilities. */
 export type AbdmAdminOverview = AbdmBridgeState & {
-  gateway: { ok: boolean; token_prefix?: string; status_code?: number; request_id?: string };
+  gateway: {
+    ok: boolean;
+    token_prefix?: string;
+    status_code?: number;
+    request_id?: string;
+  };
   facilities: {
     id: string;
     name: string;
@@ -99,10 +104,7 @@ export type AbdmOutboundSummary = {
 };
 
 export type AbdmCareContextStatus =
-  | "pending"
-  | "link_requested"
-  | "linked"
-  | "failed";
+  "pending" | "link_requested" | "linked" | "failed";
 
 /** GET /api/abdm/encounters/{encounterId}/care-context */
 export type AbdmCareContextState = {
@@ -144,11 +146,7 @@ export type AbdmCareContextState = {
 };
 
 export type AbdmShareItemStatus =
-  | "staged"
-  | "queued"
-  | "linked"
-  | "failed"
-  | "excluded";
+  "staged" | "queued" | "linked" | "failed" | "excluded";
 
 export type AbdmShareItem = {
   id: string;
@@ -201,6 +199,131 @@ export type AbdmDataRequestSummary = {
   errorCode: string;
   errorMessage: string;
 };
+
+// --- M3 (HIU, ADR-014): consent requests this facility raised and the records it received ---
+
+export type AbdmFailureBlock = AbdmCareContextState["failure"];
+
+export type AbdmConsentRequestStatus =
+  "REQUESTED" | "GRANTED" | "DENIED" | "EXPIRED" | "REVOKED" | "failed";
+
+export type AbdmFetchStatus =
+  "requested" | "acknowledged" | "received" | "partial" | "failed";
+
+/** 1 decrypted bundle another facility pushed. `bundle` is only on the detail route. */
+export type AbdmFetchedRecord = {
+  id: string;
+  careContextReference: string;
+  hiType: string;
+  title: string;
+  authoredAt: string | null;
+  hipId: string;
+  hipName: string;
+  checksumOk: boolean;
+  resourceCount: number;
+  receivedAt: string;
+  eraseAt: string | null;
+  erasedAt: string | null;
+  available: boolean;
+};
+
+export type AbdmFetchedRecordDetail = AbdmFetchedRecord & {
+  bundle: Record<string, unknown> | null;
+};
+
+/** 1 health-information request under an artefact (20-minute window). */
+export type AbdmFetchRequest = {
+  id: string;
+  transactionId: string;
+  status: AbdmFetchStatus;
+  requestedAt: string;
+  deadlineAt: string;
+  acknowledgedAt: string | null;
+  receivedAt: string | null;
+  pages: string;
+  entries: {
+    careContextReference: string;
+    hiStatus: "OK" | "ERRORED";
+    description: string;
+  }[];
+  requestId: string;
+  failure: AbdmFailureBlock;
+};
+
+/** 1 consent artefact the HIE-CM created for a request of ours. */
+export type AbdmConsentArtefact = {
+  id: string;
+  artefactId: string;
+  status: "GRANTED" | "DENIED" | "EXPIRED" | "REVOKED";
+  live: boolean;
+  hipId: string;
+  hipName: string;
+  hiTypes: string[];
+  careContextReferences: string[];
+  dateFrom: string | null;
+  dateTo: string | null;
+  dataEraseAt: string | null;
+  fetchedAt: string | null;
+  failure: AbdmFailureBlock;
+  fetches: AbdmFetchRequest[];
+  records: AbdmFetchedRecord[];
+};
+
+/** 1 consent request (the ask). The artefacts are the permission. */
+export type AbdmConsentRequest = {
+  id: string;
+  consentRequestId: string;
+  status: AbdmConsentRequestStatus;
+  open: boolean;
+  purposeCode: string;
+  purposeText: string;
+  hiTypes: string[];
+  dateFrom: string;
+  dateTo: string;
+  dataEraseAt: string;
+  hipId: string;
+  hipName: string;
+  requestedBy: string;
+  requestedAt: string;
+  statusCheckedAt: string | null;
+  decidedAt: string | null;
+  reason: string;
+  requestId: string;
+  failure: AbdmFailureBlock;
+  artefacts: AbdmConsentArtefact[];
+};
+
+/** GET /api/abdm/patients/{patientId}/abha/consent-requests?facility= */
+export type AbdmHiuState = {
+  facilityConfigured: boolean;
+  callbackUrlSet: boolean;
+  patientAbhaAddress: string;
+  purposes: { code: string; text: string }[];
+  hiTypes: string[];
+  defaults: {
+    purposeCode: string;
+    hiTypes: string[];
+    dateFrom: string;
+    dateTo: string;
+    dataEraseAt: string;
+  };
+  requests: AbdmConsentRequest[];
+  /** Set on the POST answer: the id of the request just created. */
+  created?: string;
+};
+
+export type AbdmConsentRequestCreate = {
+  facility_id: string;
+  purpose_code?: string;
+  hi_types?: string[];
+  date_from?: string;
+  date_to?: string;
+  data_erase_at?: string;
+  hip_id?: string;
+  hip_name?: string;
+};
+
+export type AbdmProvider = { id: string; name: string; isHip: boolean };
 
 export type FacilityBridgeActionResponse = {
   config: AbdmFacilityConfig;
@@ -533,6 +656,34 @@ const routes = apiRoutes({
       consents: AbdmConsentSummary[];
       dataRequests: AbdmDataRequestSummary[];
     },
+  },
+  // --- M3 (HIU): consent requests, fetched records, provider search ---
+  consentRequests: {
+    path: "/api/abdm/patients/{patientId}/abha/consent-requests",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmHiuState,
+  },
+  createConsentRequest: {
+    path: "/api/abdm/patients/{patientId}/abha/consent-requests",
+    method: HttpMethod.POST,
+    TRequest: {} as AbdmConsentRequestCreate,
+    TResponse: {} as AbdmHiuState,
+  },
+  consentRequestAction: {
+    path: "/api/abdm/patients/{patientId}/abha/consent-requests/{requestId}/{action}",
+    method: HttpMethod.POST,
+    TRequest: {} as Record<string, never>,
+    TResponse: {} as AbdmHiuState,
+  },
+  fetchedRecord: {
+    path: "/api/abdm/patients/{patientId}/abha/records/{recordId}",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmFetchedRecordDetail,
+  },
+  providers: {
+    path: "/api/abdm/providers",
+    method: HttpMethod.GET,
+    TResponse: {} as { results: AbdmProvider[] },
   },
   // --- M1 Journey 1: ABHA creation by Aadhaar OTP ---
   requestAadhaarOtp: {

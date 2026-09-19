@@ -9,7 +9,7 @@ Every user needs an ABHA address, `username@abdm`. Consent, notifications and re
 | Job                            | What the user sees                                                                                                                                                    |
 | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Create or link an ABHA address | Register with a mobile number, or with an existing 14 digit ABHA number                                                                                               |
-| Log in                         | Mobile number, ABHA address, default `14digit@abdm` address, or ABHA number                                                                                           |
+| Log in                         | Mobile number, ABHA address, or ABHA number                                                                                                                           |
 | Manage a profile               | Demographics, photo, password, QR code, downloadable ABHA card                                                                                                        |
 | Share a profile at a facility  | Scan the facility QR code, consent, receive a queue token                                                                                                             |
 | Find and link past records     | Search a facility, discover [care contexts](/docs/hiecm/v3/getting-started/glossary#care-context), verify by [OTP](/docs/hiecm/v3/getting-started/glossary#otp), link |
@@ -21,47 +21,42 @@ A PHR app is two parts, whatever it looks like to the user. The app on the phone
 
 ## What you build in M1
 
-ABHA base URLs are `https://abhasbx.abdm.gov.in/abha/api/v3/` for sandbox and `https://abha.abdm.gov.in/api/abha/v3/` for production. PHR enrolment uses `https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/request/otp`.
+The ABHA sandbox base URL is `https://abhasbx.abdm.gov.in/abha/api/v3/`. PHR enrolment uses `https://abhasbx.abdm.gov.in/abha/api/v3/phr/app/enrollment/request/otp`.
 
 ### Creating an ABHA address
 
 Build both paths.
 
-| Path                 | Validated by              | Profile details             | Result                                                                   |
-| -------------------- | ------------------------- | --------------------------- | ------------------------------------------------------------------------ |
-| Mobile number        | Mobile OTP                | The user types them         | **Self-Declared**, no [KYC](/docs/hiecm/v3/getting-started/glossary#kyc) |
-| 14 digit ABHA number | Aadhaar OTP or mobile OTP | Returned by the ABHA system | **KYC Verified**                                                         |
-
-On the mobile number path, first name, year of birth, gender, address, state, district and pin code are mandatory; middle name, last name, day and month of birth are optional.
+| Path                 | Validated by            | Profile details             | Result                                                                   |
+| -------------------- | ----------------------- | --------------------------- | ------------------------------------------------------------------------ |
+| Mobile number        | Mobile OTP              | The user types them         | **Self-Declared**, no [KYC](/docs/hiecm/v3/getting-started/glossary#kyc) |
+| 14 digit ABHA number | Aadhaar OTP or ABHA OTP | Returned by the ABHA system | **KYC Verified**                                                         |
 
 After validation on either path, show the ABHA addresses already linked to that mobile number or ABHA number, so the user picks one instead of creating a duplicate. ABDM wants one address per person.
 
 Address rules:
 
-- Letters, numbers and a dot only.
-- Cannot begin with a number, and cannot begin or end with a dot.
-- All numeric is allowed only for the `14digit@abdm` form.
+- Letters, numbers, one optional dot and one optional underscore.
+- Starts and ends with a letter or number, 8 to 18 characters long.
 - Creating a `10digitmobile@abdm` address is currently blocked.
 - Creating a `14digit@abdm` address is not allowed, but a user can log in with one. Every 14 digit ABHA number is issued a default address of this shape, written as `14digit@sbx` or `14digit@abdm`. Which environment uses which suffix is not documented yet.
-- Minimum length is stated twice and the statements disagree: 4 characters in the prose and the ABHA number test cases, 8 in the mobile number test case table. Unresolved against the sandbox, so validate against the API response.
-- Password, where you collect one: 8 characters or longer, one A to Z, one a to z, one digit, one symbol, no spaces, no more than 2 consecutive characters or keyboard keys. Password validation is now optional.
+- Password, where you collect one: 8 characters or longer, one A to Z, one digit, one special character from `!@#$^*_-`, no spaces, no more than 2 consecutive characters or keyboard keys. Password validation is now optional.
 
 ### Linking an ABHA number to an ABHA address
 
 The ABHA number is the KYC verified identity; the ABHA address is what shares records. A user can hold several ABHA addresses but only one ABHA number.
 
-A Self-Declared profile needs a "Link ABHA number" action: enter the 14 digit number, validate by Aadhaar OTP or mobile OTP. Profile details then follow the ABHA number, the number becomes visible, and the status changes to KYC Verified.
+A Self-Declared profile needs a "Link ABHA number" action: enter the 14 digit number, validate by Aadhaar OTP or ABHA OTP. Profile details then follow the ABHA number, the number becomes visible, and the status changes to KYC Verified.
 
 ### Login
 
-All four routes are mandatory.
+All these routes are mandatory.
 
-| Route                                           | Validated by                                                            |
-| ----------------------------------------------- | ----------------------------------------------------------------------- |
-| Mobile number                                   | Mobile OTP, then the user picks which linked ABHA address to sign in as |
-| An easy to remember address such as `name@abdm` | Password, mobile OTP or Aadhaar OTP, by auth mode                       |
-| The default `14digit@abdm` address              | Mobile OTP or Aadhaar OTP                                               |
-| The 14 digit ABHA number                        | Mobile OTP or Aadhaar OTP                                               |
+| Route                                           | Validated by                                                                |
+| ----------------------------------------------- | --------------------------------------------------------------------------- |
+| Mobile number                                   | Mobile OTP, then the user picks which linked ABHA address to sign in as     |
+| An easy to remember address such as `name@abdm` | Password, mobile OTP or email OTP, by the auth methods the address supports |
+| The 14 digit ABHA number                        | ABHA OTP or Aadhaar OTP                                                     |
 
 Resend OTP unlocks after 60 seconds in every flow. You also need a reset password screen behind login with a confirmation message, secure storage of the refresh token to extend the session, and more than one user profile per install with sign in and sign out.
 
@@ -85,9 +80,7 @@ The facility displays a QR code holding a URL with two parameters: the [HIP](/do
 4. Waits for the facility, currently expected to respond within 30 seconds.
 5. Displays the token number if the facility returned one.
 
-Two time limits are in the source and we have tested neither: the functionality overview blocks a second token for 60 minutes, the test cases show the token as valid for the next 30 minutes and configurable.
-
-Counter names arrive in the QR code: up to 20 alphanumeric characters, no special characters, examples OPD, OPD1, OPD cardio, IPD1, Pharmacy. A counter name cannot be the [HFR](/docs/hiecm/v3/getting-started/glossary#hfr) facility ID, the [HPID](/docs/hiecm/v3/getting-started/glossary#hpid), the HIP ID or the HIP name.
+Counter names arrive in the QR code: 1 to 250 characters, letters, digits and spaces, with `.`, `-` or `_` allowed inside the name, examples OPD, OPD1, OPD cardio, IPD1, Pharmacy. A counter name cannot be the [HFR](/docs/hiecm/v3/getting-started/glossary#hfr) facility ID, the [HPID](/docs/hiecm/v3/getting-started/glossary#hpid), the HIP ID or the HIP name.
 
 Opened from a third party scanner or the phone camera, go to the share profile screen if the user is signed in, to login first if not.
 
@@ -99,7 +92,7 @@ A citizen fetching records is the [HIU](/docs/hiecm/v3/getting-started/glossary#
 
 A subscription is how your app hears about changes to a user's ABHA address. Set one up when you create an ABHA address, and when a user logs in with an address your install has not seen. Ask the user for consent first.
 
-An approved subscription notifies your app of a new care context, a modified care context, a new consent request and a new subscription request. Surface these as device notifications, for example through Firebase on Android. You need screens to list subscriptions, approve, deny and edit them, where editing covers health information types, types of visit and the time period.
+An approved subscription notifies your app when a care context is linked or updated. Surface these as device notifications, for example through Firebase on Android. You need screens to list subscriptions, approve, deny and edit them, where editing covers health information types, purpose, categories and the time period.
 
 ### Auto approval
 
@@ -136,15 +129,13 @@ Once a care context is linked to the user's ABHA address:
 5. The HIP sends the records across the network.
 6. Your app stores them for long term access and displays them, preferably in chronological order.
 
-The test cases cover fetching each health information type structured and unstructured: diagnostic report, prescription, discharge summary, consultation note, immunisation record, wellness record and health document record.
-
 ## Subscriptions, and why you need one
 
 A care context can be linked to a person's address by any facility they visit, without your application being part of it. A subscription is how you find out: a standing watch on one address, delivering to your callback whenever something changes.
 
 NHA expects a PHR app to set one up at two moments, when it creates an address and when a person signs in with an address it has not seen before. The person must be asked to consent to it; signing in does not imply it.
 
-Once approved, four events arrive: a new care context, a modified care context, a new consent request, and a new subscription request. Showing them on the device is your job, and NHA names a push service as the example rather than a requirement.
+Once approved, a notification arrives when a care context is linked or updated. Showing it on the device is your job.
 
 A request sits in exactly one state, and the same five carry consent requests, subscription requests and health locker requests, so one screen serves all three.
 
@@ -162,13 +153,13 @@ A subscription is not consent and gives nobody a record. It tells you a record e
 
 For a facility the user visited without giving an ABHA address, or for old records.
 
-The user searches for the facility by name. Only facilities participating in ABDM appear, and the facility must be a HIP linked to an [HRP](/docs/hiecm/v3/getting-started/glossary#hrp). Your app sends a discovery request to the HIE-CM carrying name, year or date of birth, gender, verified mobile number, ABHA address, and optionally a patient registration number issued by that provider. The HIP is expected to respond within 10 seconds.
+The user searches for the facility by name. Only facilities participating in ABDM appear, and the facility must be a HIP linked to an [HRP](/docs/hiecm/v3/getting-started/glossary#hrp). Your app sends a discovery request to the HIE-CM carrying name, year of birth, gender, verified identifiers such as mobile number or ABHA address, and optionally unverified identifiers such as a medical record number issued by that provider. The HIP is expected to respond within 10 seconds.
 
 Care contexts already linked must not be shown again. When everything is linked, show the message "All your existing records are linked. No additional records available for linking".
 
 The user selects care contexts and confirms, the HIP sends an OTP to the registered mobile number, and on successful verification the care contexts link to the ABHA address.
 
-The same flow works for government health programmes such as CoWIN, AB-PMJAY, e-Sanjeevani OPD, e-Sanjeevani HWC and RCH, with a programme specific optional field such as the PMJAY ID or the CoWIN registered mobile number.
+The same flow works for government health programmes such as CoWIN, AB-PMJAY, e-Sanjeevani OPD, e-Sanjeevani HWC and RCH.
 
 Three failures have specified copy:
 

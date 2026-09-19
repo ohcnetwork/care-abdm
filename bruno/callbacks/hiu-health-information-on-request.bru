@@ -1,0 +1,32 @@
+meta {
+  name: 20. HIU health-information on-request
+  type: http
+  seq: 20
+}
+
+post {
+  url: {{careUrl}}/api/abdm/api/v3/hiu/health-information/on-request
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{callbackToken}}
+  REQUEST-ID: {{requestId}}
+  TIMESTAMP: {{timestamp}}
+  X-HIU-ID: {{hipId}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "hiRequest": { "transactionId": "{{transactionId}}", "sessionStatus": "REQUESTED" },
+    "error": null,
+    "response": { "requestId": "{{outboundRequestId}}" }
+  }
+}
+
+docs {
+  Answers `health-information/request`; set `outboundRequestId` to its REQUEST-ID. The plug stores the
+  `transactionId` the push will carry. Operation id `m3-on-health-information-request`. Body: .../10.
+}

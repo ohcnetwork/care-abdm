@@ -1,0 +1,24 @@
+meta {
+  name: 5. Search providers
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{careUrl}}/api/abdm/providers?name=hospital
+  body: none
+  auth: none
+}
+
+params:query {
+  name: hospital
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  Proxies `GET gateway/v3/providers?name=`. At least 3 characters. Returns `{id, name, isHip}` rows
+  for the optional facility picker of the request dialog.
+}

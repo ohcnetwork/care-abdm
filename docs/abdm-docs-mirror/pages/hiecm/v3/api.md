@@ -6,68 +6,78 @@ This page lists every module, including any that the role you have chosen does n
 
 In M2 and M3 a call is acknowledged now and answered later. The answer arrives as a callback, a POST from ABDM to the URL you registered, declared in the specification as a webhook. Each callback is shown on the call it belongs to, and has a page of its own under that module.
 
-A page carries a Mandatory or Conditional badge where a certification case names that call, with the case ids beside it. No badge means no published certification requirement for that module, which is not the same as optional.
-
 ## Gateway session
 
-11 endpoints across 4 use cases: Session and tokens, Gateway & Bridge, Bridge, Provider directory. Each endpoint has its own page in the sidebar.
+11 endpoints across 2 use cases: Bridge and providers, Session and certificates. Each endpoint has its own page in the sidebar.
 
 [Read the whole specification](/reference/hiecm-gateway)
 
 ## M1 ABHA identity
 
-44 endpoints across 14 use cases: ABHA creation, ABHA verification, Share patient profile, Profile update, ABHA QR code, Session and tokens, Fetch ABHA by mobile number, Fetch ABHA by Aadhaar number, Authentication, Login & Verification, ABHA Profile, PHR & ABHA Address, Gateway & Bridge, Scan & Share. Each endpoint has its own page in the sidebar.
+109 endpoints across 7 use cases: Session, tokens and certificate, ABHA creation, ABHA login, Find ABHA, Profile management, Benefit programmes, Other operations. Each endpoint has its own page in the sidebar.
 
 [Read the whole specification](/reference/hiecm-m1)
 
 ## M2 Linking and sharing
 
-20 endpoints across 5 use cases: Hip linking, Deep linking, User linking, Data transfer, Webhooks. Each endpoint has its own page in the sidebar.
+21 endpoints across 5 use cases: HIP initiated linking, User initiated linking, Link token, Patient share, Consent and data flow. Each endpoint has its own page in the sidebar.
 
 [Read the whole specification](/reference/hiecm-m2)
 
 ## M3 Consent and fetching
 
-14 endpoints across 3 use cases: Consent, Data retrieval, Webhooks. Each endpoint has its own page in the sidebar.
+12 endpoints across 1 use case: Consent and data flow. Each endpoint has its own page in the sidebar.
 
 [Read the whole specification](/reference/hiecm-m3)
 
 ## M4 HPR and HFR
 
-2 endpoints across 2 use cases: HPR login, HFR master data. Each endpoint has its own page in the sidebar.
+100 endpoints across 4 use cases: HPID, HFR, HRP bridge services, HPR. Each endpoint has its own page in the sidebar.
 
 [Read the whole specification](/reference/hiecm-m4)
 
-## P1 PHR identity and profile
+## P1 Registration and login
 
-63 endpoints across 6 use cases: Login, Family\_management, Global\_collection, Profile, Registration, Digilocker\_apis. Each endpoint has its own page in the sidebar.
+48 endpoints across 4 use cases: Create ABHA number, Aadhaar OTP, Create ABHA address, PHR login, PHR certificate and session token. Each endpoint has its own page in the sidebar.
 
 [Read the whole specification](/reference/hiecm-p1)
 
-## P2 PHR linking and records
+## P2 Management
 
-49 endpoints across 4 use cases: Care\_context\_link, Health\_locker, Scan\_and\_share, User\_initiated\_linking. Each endpoint has its own page in the sidebar.
+47 endpoints across 5 use cases: PHR profile, Link ABHA number, Patient share, User initiated linking, Consent manager. Each endpoint has its own page in the sidebar.
 
 [Read the whole specification](/reference/hiecm-p2)
 
-## P3 PHR consent and notifications
+## P3 Subscription
 
-35 endpoints across 2 use cases: Consent\_management, Notification\_collection. Each endpoint has its own page in the sidebar.
+8 endpoints across 1 use case: Subscription approval and management, PHR side. Each endpoint has its own page in the sidebar.
 
 [Read the whole specification](/reference/hiecm-p3)
 
-## PHR application services
+## P4 Locker
 
-61 endpoints across 7 use cases: Ambulance, Blood\_bank, Nearby\_health\_search, Pmjay\_panel\_facility\_discovery, Teleconsulting, Nhcx, Scan\_and\_pay. Each endpoint has its own page in the sidebar.
+4 endpoints across 1 use case: Locker. Each endpoint has its own page in the sidebar.
 
-[Read the whole specification](/reference/hiecm-phr-services)
+[Read the whole specification](/reference/hiecm-p4)
+
+## Subscriptions
+
+6 endpoints across 1 use case: Subscription request and notifications, HIU side. Each endpoint has its own page in the sidebar.
+
+[Read the whole specification](/reference/hiecm-subscription)
+
+## Scan and Pay
+
+18 endpoints across 2 use cases: Scan and pay, Scan and pay details and version update. Each endpoint has its own page in the sidebar.
+
+[Read the whole specification](/reference/hiecm-scan-and-pay)
 
 ## Callbacks with no documented trigger
 
 3 callbacks are declared at module level with no call named against them. Which call produces each one is not documented, so this page does not say.
 
-| Module                  | Method | Arrives at                                                                                               | What it carries                                                                   |
-| ----------------------- | ------ | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| M2 Linking and sharing  | POST   | [`/api-hiu/data/notification`](/docs/hiecm/v3/api/m2/endpoints/m2-on-data-notification)                  | The provider pushes encrypted health information to the URL named in the request. |
-| M3 Consent and fetching | POST   | [`/api/v3/consent/request/hip/notify`](/docs/hiecm/v3/api/m3/endpoints/m3-on-consent-request-notify-hip) | The patient's decision, sent to the record holder                                 |
-| M3 Consent and fetching | POST   | [`/health-information/transfer`](/docs/hiecm/v3/api/m3/endpoints/m3-on-health-information-transfer)      | The encrypted health data itself, pushed to the URL you supplied                  |
+| Module                 | Method | Arrives at                                                                                                                                                        | What it carries                                                                                                                                                                           |
+| ---------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M2 Linking and sharing | POST   | [`/api/v3/hip/patient/care-context/discover`](/docs/hiecm/v3/api/m2/endpoints/m2-abdm-user-initiated-linking-hip/01-m2-post-v3-hip-patient-care-context-discover) | This API endpoint is used to discover care contexts associated with a patient. It allows healthcare information providers (HIPs) to retrieve and manage patient care context information. |
+| M2 Linking and sharing | POST   | [`/api/v3/hip/patient/share`](/docs/hiecm/v3/api/m2/endpoints/m2-abdm-patient-share-hip/01-m2-post-v3-hip-patient-share)                                          | This API will be invoked to the HIP for sharing the response of HIECM's /api/hiecm/patient-share/v3/share API                                                                             |
+| Scan and Pay           | POST   | [`/v3/patient/share/open-order`](/docs/hiecm/v3/api/scan-and-pay/endpoints/scan-and-pay-abdm-scan-pay-hip/01-scan-and-pay-post-v3-patient-share-open-order)       | This is an API is called by HIU to check the status of reports.                                                                                                                           |

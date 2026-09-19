@@ -1,0 +1,33 @@
+meta {
+  name: 16. HIU consent on-init
+  type: http
+  seq: 16
+}
+
+post {
+  url: {{careUrl}}/api/abdm/api/v3/hiu/consent/request/on-init
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{callbackToken}}
+  REQUEST-ID: {{requestId}}
+  TIMESTAMP: {{timestamp}}
+  X-HIU-ID: {{hipId}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "consentRequest": { "id": "{{consentRequestId}}" },
+    "error": null,
+    "response": { "requestId": "{{outboundRequestId}}" }
+  }
+}
+
+docs {
+  M3 journey 1. Answers `consent/v3/request/init`. Operation id `m3-on-consent-request-init`.
+  Set `outboundRequestId` to the REQUEST-ID of the init call (`requestId` in hiu > 1). The plug stores
+  `consentRequestId`. Body: api/m3/endpoints/m3-consent-management-data-flow-hiu/02.
+}

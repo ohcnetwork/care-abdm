@@ -1,0 +1,30 @@
+meta {
+  name: 1. List consent requests
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{careUrl}}/api/abdm/patients/{{patientId}}/abha/consent-requests?facility={{facilityId}}
+  body: none
+  auth: none
+}
+
+params:query {
+  facility: {{facilityId}}
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+vars:post-response {
+  consentRequestRowId: res.body.requests[0] ? res.body.requests[0].id : ""
+  fetchedRecordId: res.body.requests[0] && res.body.requests[0].artefacts[0] && res.body.requests[0].artefacts[0].records[0] ? res.body.requests[0].artefacts[0].records[0].id : ""
+}
+
+docs {
+  The state the 3rd card of the ABDM Records tab reads: defaults, purposes, the 8 record types,
+  and every request of this patient at this facility with its artefacts, transfers and records.
+  Saves `consentRequestRowId` (newest request) and `fetchedRecordId` (its newest record).
+}

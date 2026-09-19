@@ -158,6 +158,14 @@ PLUG_CODES: dict[str, _Rule] = {
     ),
     "NO_ANSWER": _Rule(RETRY, "ABDM did not answer.", "Try again."),
     "NO_PERMISSION": _Rule(RETRY, "ABDM did not give permission to share for this patient.", "Try again."),
+    # M3 (HIU). A repeat is a new health-information request under the same permission.
+    "NO_DATA": _Rule(RETRY, "The other facility sent no records inside the time limit.", "Fetch again."),
+    "CHECKSUM": _Rule(RETRY, "A record arrived damaged.", "Fetch again."),
+    "DECRYPT_FAILED": _Rule(RETRY, "A record could not be decrypted.", "Fetch again."),
+    "CONSENT_NOT_LIVE": _Rule(
+        NEW_CONSENT, "The patient permission has ended.", "Ask the patient for a new permission."
+    ),
+    "NO_CALLBACK_URL": _Rule(CANNOT_PROCEED, "The ABDM callback URL is not set.", ADMIN_LINE),
 }
 
 # --- per-code desk sentences -------------------------------------------------------------

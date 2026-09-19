@@ -1,0 +1,33 @@
+meta {
+  name: 17. HIU consent on-status
+  type: http
+  seq: 17
+}
+
+post {
+  url: {{careUrl}}/api/abdm/api/v3/hiu/consent/request/on-status
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{callbackToken}}
+  REQUEST-ID: {{requestId}}
+  TIMESTAMP: {{timestamp}}
+  X-HIU-ID: {{hipId}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "consentRequest": { "id": "{{consentRequestId}}", "status": "REQUESTED" },
+    "error": null,
+    "response": { "requestId": "{{outboundRequestId}}" },
+    "resp": null
+  }
+}
+
+docs {
+  Answers `consent/v3/request/status` (hiu > 3). `status` in REQUESTED | DENIED | EXPIRED | REVOKED.
+  Operation id `m3-on-consent-request-status`. Body: .../04.
+}

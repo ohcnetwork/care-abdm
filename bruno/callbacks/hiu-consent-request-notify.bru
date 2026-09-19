@@ -1,0 +1,36 @@
+meta {
+  name: 18. HIU consent notify (GRANTED)
+  type: http
+  seq: 18
+}
+
+post {
+  url: {{careUrl}}/api/abdm/api/v3/hiu/consent/request/notify
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{callbackToken}}
+  REQUEST-ID: {{requestId}}
+  TIMESTAMP: {{timestamp}}
+  X-HIU-ID: {{hipId}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "notification": {
+      "consentRequestId": "{{consentRequestId}}",
+      "status": "GRANTED",
+      "reason": null,
+      "consentArtefacts": [ { "id": "{{consentId}}" } ]
+    }
+  }
+}
+
+docs {
+  M3 journey 2: the patient decided. GRANTED carries the artefact ids; DENIED and EXPIRED carry none;
+  REVOKED names the revoked artefact ids. Operation id `m3-hiu-consent-notify`. The plug acks with
+  `consent/v3/request/hiu/on-notify` and, for GRANTED, sends `consent/v3/fetch` per artefact. Body: .../05.
+}

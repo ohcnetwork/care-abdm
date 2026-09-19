@@ -21,6 +21,13 @@ class CallbackPathTests(unittest.TestCase):
             "/api/v3/hip/health-information/request": "m2-on-health-information-request",
             "/patient-share/v3/share": "m1-receive-patient-share",
             "/api/v3/hip/patient/share": "m1-receive-patient-share",
+            # M3 (HIU): the 5 callbacks of the flow pages, plus our own data push URL.
+            "/api/v3/hiu/consent/request/on-init": "m3-on-consent-request-init",
+            "/api/v3/hiu/consent/request/on-status": "m3-on-consent-request-status",
+            "/api/v3/hiu/consent/request/notify": "m3-hiu-consent-notify",
+            "/api/v3/hiu/consent/on-fetch": "m3-on-consent-fetch",
+            "/api/v3/hiu/health-information/on-request": "m3-on-health-information-request",
+            "/v3/hiu/health-information/transfer": "m3-health-information-transfer",
         }
         for path, operation in cases.items():
             with self.subTest(path=path):

@@ -2,19 +2,32 @@
 
 Every [ABDM](/docs/hiecm/v3/getting-started/glossary#abdm) call carries a token, and every token starts with a client id and a client secret. Here is how you get them.
 
+## How sandbox integration works
+
+Complete the integration process in 6 stages. Use a single workspace to manage the integration from account creation to production review. The integrating entity and the National Health Authority review team can access the relevant submissions, supporting evidence, queries and decisions.
+
+| Stage                                                | What happens                                                                                                                         | Where                                                    |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| 01. Send Request                                     | Submit a request to access the ABDM Sandbox APIs.                                                                                    | [Step 1](#1-send-a-request-for-sandbox-access)           |
+| 02. Get Access                                       | Receive Sandbox access after approval by the [Health Tech Committee](/docs/hiecm/v3/getting-started/glossary#health-tech-committee). | [Step 2](#2-get-access-your-client-id-and-client-secret) |
+| 03. Integrate APIs                                   | Integrate the applicable ABDM APIs with your software solution.                                                                      | [Milestones](/docs/hiecm/v3/milestones)                  |
+| 04. Complete Functional Testing and Security Audit   | Test the integrated solution and complete the required security audit.                                                               | [Go live](/docs/hiecm/v3/getting-started/going-live)     |
+| 05. Complete the Health Tech Committee Demonstration | Present the integrated solution to the Health Tech Committee and obtain approval for production access.                              | [Go live](/docs/hiecm/v3/getting-started/going-live)     |
+| 06. Go Live                                          | Move the approved integration to the production environment and begin using ABDM services.                                           | [Go live](/docs/hiecm/v3/getting-started/going-live)     |
+
 ## Before you start
 
 You need an organisation to register, and a URL we can post callbacks to. Step 3 says what that URL has to do.
 
-## 1. Register on the sandbox
+## 1. Send a request for sandbox access
 
-Create an account on the sandbox application and register your organisation.
+Submit a request to access the ABDM Sandbox APIs. Eligible entities may apply for access to the ABDM Sandbox to integrate and test their software with ABDM APIs. Provide the required organisation, product and contact details and select the applicable integration category while submitting the request.
 
-[Register on the sandbox](https://sandbox.abdm.gov.in/sandbox/v3/sandbox-registration)
+[Apply for Sandbox Integration](https://sandbox.abdm.gov.in/sandbox/v3/sandbox-registration)
 
-## 2. Get your client id and client secret
+## 2. Get access: your client id and client secret
 
-Sign in to the sandbox application. Your `clientId` and `clientSecret` are issued there.
+Sandbox access is granted after approval by the [Health Tech Committee](/docs/hiecm/v3/getting-started/glossary#health-tech-committee). Once approved, sign in to the sandbox application. Your `clientId` and `clientSecret` are issued there.
 
 Store the secret the way you store any other production credential. Never commit it, and never send it to a browser.
 
@@ -24,7 +37,7 @@ Store the secret the way you store any other production credential. Never commit
 
 In [M1](/docs/hiecm/v3/api/m1) the answer comes back in the response to your call. In [M2](/docs/hiecm/v3/api/m2) and [M3](/docs/hiecm/v3/api/m3) it does not. The response only acknowledges your request, and the answer arrives afterwards as a POST to a URL you registered.
 
-Register one base URL. We post to paths under it, and every callback carries the `REQUEST-ID` you sent on the original call, so you can match the answer to the question. Each path is named on the page of the call it belongs to, in the [API reference](/docs/hiecm/v3/api).
+Register one base URL. We post to paths under it, and each callback that answers a call carries the `REQUEST-ID` you sent on it in `response.requestId`, so you can match the answer to the question. Each path is named on the page of the call it belongs to, in the [API reference](/docs/hiecm/v3/api).
 
 One URL covers your whole integration, however many facilities it serves. It belongs to your bridge, never to a facility, and the callback names the facility it is for in its own header. See [one bridge, many facilities](/docs/hiecm/v3/concepts/how-it-fits#one-bridge-many-facilities).
 

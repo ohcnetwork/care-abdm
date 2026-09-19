@@ -11,6 +11,7 @@ from abdm.callbacks import views as callbacks
 from abdm.facility import views as facility_views
 from abdm.gateway import views as gateway_views
 from abdm.hip import views as hip_views
+from abdm.hiu import views as hiu_views
 from abdm.share import views as share_views
 
 
@@ -47,6 +48,14 @@ urlpatterns = [
     ),
     path("patients/<uuid:patient_id>/abha/sms-link", hip_views.PatientSmsLink.as_view()),
     path("patients/<uuid:patient_id>/abha/consents", hip_views.PatientConsents.as_view()),
+    # --- M3 desk endpoints (ADR-014): consent requests this HIU raised, the records it received ---
+    path("patients/<uuid:patient_id>/abha/consent-requests", hiu_views.PatientConsentRequests.as_view()),
+    path(
+        "patients/<uuid:patient_id>/abha/consent-requests/<uuid:request_id>/<str:action>",
+        hiu_views.ConsentRequestAction.as_view(),
+    ),
+    path("patients/<uuid:patient_id>/abha/records/<uuid:record_id>", hiu_views.FetchedRecordDetail.as_view()),
+    path("providers", hiu_views.ProviderSearch.as_view()),
     # --- M1 Journey 1: ABHA creation by Aadhaar OTP ---
     path("abha/enrol/aadhaar/request-otp", abha.RequestAadhaarOtp.as_view()),
     path("abha/enrol/aadhaar/verify", abha.EnrolByAadhaar.as_view()),

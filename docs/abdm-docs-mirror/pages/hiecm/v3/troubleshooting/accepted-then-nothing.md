@@ -19,7 +19,7 @@ For linking, the care context appears when the patient's PHR app runs discovery 
 
 ## When it goes wrong
 
-If you have identified which callback in the chain is missing and ruled out a callback URL problem, escalate on the [NHA dev forum](https://devforum.abdm.gov.in). Report which step of the chain stopped, the `REQUEST-ID` from the call that started it, the `TIMESTAMP`, and every response and callback body you did receive up to the point it stalled. See [Support](/docs/support) for the full report format.
+If you have identified which callback in the chain is missing and ruled out a callback URL problem, raise a request on the [support ticketing platform](https://sandboxsupport.abdm.gov.in/). Report which step of the chain stopped, the `REQUEST-ID` from the call that started it, the `TIMESTAMP`, and every response and callback body you did receive up to the point it stalled. See [what to put in a support request](/docs/hiecm/v3/troubleshooting#what-to-put-in-a-support-request) for the full report format.
 
 This symptom can surface as a duplicate or invalid link reference, or a call made out of the logical sequence, both on the [M2 errors reference](/docs/hiecm/v3/api/m2/errors).
 

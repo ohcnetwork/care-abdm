@@ -26,3 +26,7 @@ auth, benefits, re-KYC are out.
 - The plug is useful after Phase 2 alone (ABHA capture at registration).
 - M2 cannot be verified end-to-end until a sandbox facility ID exists (M4).
 - P1–P3 (PHR app side) and UHI/NHCX are out of scope entirely.
+
+## Amendment — 2026-09-19: M3 built
+M2 reached the sandbox on 2026-09-18 (link, result, notify observed). Rithvik asked for M3 on
+2026-09-19; it is built as ADR-014 and waits for its sandbox proofs (`03-roadmap.md` Phase 4).

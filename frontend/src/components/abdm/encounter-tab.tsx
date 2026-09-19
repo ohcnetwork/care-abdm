@@ -9,6 +9,7 @@ import {
   useCareContext,
   viewFor,
 } from "@/components/abdm/care-context-state";
+import FetchRecordsCard from "@/components/abdm/fetch-records-card";
 import PluginComponent from "@/components/common/plugin-component";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -107,7 +108,9 @@ function ItemRow({
           )}
         </div>
       </TableCell>
-      <TableCell className="whitespace-nowrap">{hiTypeLabel(t, item.hiType)}</TableCell>
+      <TableCell className="whitespace-nowrap">
+        {hiTypeLabel(t, item.hiType)}
+      </TableCell>
       <TableCell>
         <div className="grid gap-0.5">
           <Badge variant={itemTone(item.status)} size="sm">
@@ -137,7 +140,9 @@ function ItemRow({
             disabled={busy}
             onClick={onToggleExclude}
           >
-            {item.status === "excluded" ? t("abdm_item_include") : t("abdm_item_exclude")}
+            {item.status === "excluded"
+              ? t("abdm_item_include")
+              : t("abdm_item_exclude")}
           </Button>
         )}
       </TableCell>
@@ -147,9 +152,10 @@ function ItemRow({
 
 export default function AbdmEncounterTab({
   encounter,
+  patient,
 }: {
-  encounter: { id: string };
-  patient: unknown;
+  encounter: { id: string; facility: { id: string } };
+  patient: { id: string };
 }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -161,14 +167,19 @@ export default function AbdmEncounterTab({
     qc.setQueryData(careContextQueryKey(encounter.id), next);
     setSelected(new Set());
   };
-  const link = useMutation<AbdmCareContextState, unknown, { items?: string[]; all?: boolean }>({
+  const link = useMutation<
+    AbdmCareContextState,
+    unknown,
+    { items?: string[]; all?: boolean }
+  >({
     mutationFn: mutate(careApi.encounterCareContextLink, {
       pathParams: { encounterId: encounter.id },
       silent: true,
     }),
     onMutate: () => setActionError(undefined),
     onSuccess: apply,
-    onError: (error) => setActionError(errorMessage(error, t("abdm_cc_link_failed"))),
+    onError: (error) =>
+      setActionError(errorMessage(error, t("abdm_cc_link_failed"))),
   });
   const toggle = useMutation<
     AbdmCareContextState,
@@ -182,7 +193,8 @@ export default function AbdmEncounterTab({
       })({}),
     onMutate: () => setActionError(undefined),
     onSuccess: apply,
-    onError: (error) => setActionError(errorMessage(error, t("abdm_item_action_failed"))),
+    onError: (error) =>
+      setActionError(errorMessage(error, t("abdm_item_action_failed"))),
   });
 
   const items = useMemo(() => data?.shareItems ?? [], [data?.shareItems]);
@@ -197,64 +209,113 @@ export default function AbdmEncounterTab({
     for (const item of items) c[item.status] += 1;
     return c;
   }, [items]);
-  const selectableIds = items.filter((i) => SELECTABLE.includes(i.status)).map((i) => i.id);
+  const selectableIds = items
+    .filter((i) => SELECTABLE.includes(i.status))
+    .map((i) => i.id);
   const busy = link.isPending || toggle.isPending;
   const view = data ? viewFor(data) : undefined;
   const waitUntil = data ? retryAfter(data) : null;
   const canLink =
-    Boolean(data?.facilityConfigured) && Boolean(data?.patientAbhaAddress) && !waitUntil;
+    Boolean(data?.facilityConfigured) &&
+    Boolean(data?.patientAbhaAddress) &&
+    !waitUntil;
 
   return (
     <PluginComponent>
-      <div className="grid gap-4">
-        <Card>
+      <div className="grid gap-4 p-1">
+        {/*
+         * Hero card. The visit summary carries the gradient, so the desk reads the
+         * ABHA address and the share state first. `isolate` holds the decorative
+         * layers in this card, and the card's own `overflow-hidden` trims them.
+         */}
+        <Card className="text-primary-50 shadow-primary-950/25 relative isolate ring-white/10 shadow-lg">
+          <div
+            aria-hidden
+            className="from-primary-700 via-primary-900 to-primary-950 pointer-events-none absolute inset-0 -z-10 bg-linear-to-br"
+          />
+          <div
+            aria-hidden
+            className="bg-primary-300/25 pointer-events-none absolute -top-24 -right-12 -z-10 size-72 rounded-full blur-3xl"
+          />
+          <div
+            aria-hidden
+            className="bg-primary-400/15 pointer-events-none absolute -bottom-28 -left-16 -z-10 size-72 rounded-full blur-3xl"
+          />
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Link2 className="text-muted-foreground size-4" />
-              {data?.careContext?.display ?? t("abdm_care_context")}
+            <CardTitle className="flex items-center gap-3">
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/10 ring-1 ring-white/20">
+                <Link2 className="size-4.5 text-white" />
+              </span>
+              <span className="text-base font-semibold text-white">
+                {data?.careContext?.display ?? t("abdm_care_context")}
+              </span>
               {view && (
-                <Badge variant={toneFor(view)} size="sm" className="ml-auto">
+                <Badge
+                  variant={toneFor(view)}
+                  size="sm"
+                  className="ml-auto border-white/25 bg-white/15 text-white backdrop-blur-sm"
+                >
                   {t(statusKey(view))}
                 </Badge>
               )}
             </CardTitle>
-            <CardDescription>{t("abdm_tab_intro")}</CardDescription>
+            <CardDescription className="text-primary-100/85 max-w-3xl">
+              {t("abdm_tab_intro")}
+            </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 text-sm md:grid-cols-4">
-            <div className="grid gap-0.5">
-              <span className="text-muted-foreground text-xs">{t("abdm_abha_address")}</span>
-              <span className="font-mono text-xs">{data?.patientAbhaAddress || "\u2014"}</span>
+          <CardContent className="grid gap-3 md:grid-cols-4">
+            <div className="grid gap-1 rounded-lg bg-white/5 p-3 ring-1 ring-white/10">
+              <span className="text-primary-200 text-[11px] font-medium tracking-wide uppercase">
+                {t("abdm_abha_address")}
+              </span>
+              <span className="font-mono text-xs break-all text-white">
+                {data?.patientAbhaAddress || "\u2014"}
+              </span>
             </div>
-            <div className="grid gap-0.5">
-              <span className="text-muted-foreground text-xs">{t("abdm_cc_reference")}</span>
-              <span className="font-mono text-xs break-all">
+            <div className="grid gap-1 rounded-lg bg-white/5 p-3 ring-1 ring-white/10">
+              <span className="text-primary-200 text-[11px] font-medium tracking-wide uppercase">
+                {t("abdm_cc_reference")}
+              </span>
+              <span className="font-mono text-xs break-all text-white">
                 {data?.careContext?.referenceNumber ?? "\u2014"}
               </span>
             </div>
-            <div className="grid gap-0.5">
-              <span className="text-muted-foreground text-xs">{t("abdm_tab_shared_types")}</span>
-              <span className="text-xs">
+            <div className="grid gap-1 rounded-lg bg-white/5 p-3 ring-1 ring-white/10">
+              <span className="text-primary-200 text-[11px] font-medium tracking-wide uppercase">
+                {t("abdm_tab_shared_types")}
+              </span>
+              <span className="text-xs text-white">
                 {data?.careContext?.hiTypes.length
-                  ? data.careContext.hiTypes.map((h) => hiTypeLabel(t, h)).join(", ")
+                  ? data.careContext.hiTypes
+                      .map((h) => hiTypeLabel(t, h))
+                      .join(", ")
                   : "\u2014"}
               </span>
             </div>
-            <div className="grid gap-0.5">
-              <span className="text-muted-foreground text-xs">{t("abdm_tab_counts")}</span>
-              <span className="text-xs tabular-nums">
-                {counts.linked} {t("abdm_item_status_linked").toLowerCase()} · {counts.staged}{" "}
-                {t("abdm_item_status_staged").toLowerCase()} · {counts.queued}{" "}
-                {t("abdm_item_status_queued").toLowerCase()}
+            <div className="grid gap-1 rounded-lg bg-white/5 p-3 ring-1 ring-white/10">
+              <span className="text-primary-200 text-[11px] font-medium tracking-wide uppercase">
+                {t("abdm_tab_counts")}
+              </span>
+              <span className="text-xs tabular-nums text-white">
+                {counts.linked} {t("abdm_item_status_linked").toLowerCase()} ·{" "}
+                {counts.staged} {t("abdm_item_status_staged").toLowerCase()} ·{" "}
+                {counts.queued} {t("abdm_item_status_queued").toLowerCase()}
                 {counts.failed > 0 &&
                   ` · ${counts.failed} ${t("abdm_item_status_failed").toLowerCase()}`}
               </span>
             </div>
           </CardContent>
-          {(actionError || isError || data?.failure || (data && !data.facilityConfigured) || (data && !data.patientAbhaAddress)) && (
-            <CardFooter className="grid gap-2 border-t">
+          {(actionError ||
+            isError ||
+            data?.failure ||
+            (data && !data.facilityConfigured) ||
+            (data && !data.patientAbhaAddress)) && (
+            <CardFooter className="grid gap-2 border-t border-white/15">
               {isError && (
                 <Alert variant="destructive">
-                  <AlertDescription>{t("abdm_tab_load_failed")}</AlertDescription>
+                  <AlertDescription>
+                    {t("abdm_tab_load_failed")}
+                  </AlertDescription>
                 </Alert>
               )}
               {actionError && (
@@ -264,7 +325,9 @@ export default function AbdmEncounterTab({
               )}
               {data && !data.facilityConfigured && (
                 <Alert variant="warning">
-                  <AlertDescription>{t("abdm_cc_status_facility_not_setup")}</AlertDescription>
+                  <AlertDescription>
+                    {t("abdm_cc_status_facility_not_setup")}
+                  </AlertDescription>
                 </Alert>
               )}
               {data && data.facilityConfigured && !data.patientAbhaAddress && (
@@ -273,14 +336,21 @@ export default function AbdmEncounterTab({
                 </Alert>
               )}
               {data?.failure && (
-                <Alert variant={data.failure.retry === "after" ? "warning" : "destructive"}>
+                <Alert
+                  variant={
+                    data.failure.retry === "after" ? "warning" : "destructive"
+                  }
+                >
                   <AlertDescription className="grid gap-0.5">
                     <span>
                       {data.failure.what} {data.failure.nextStep}
                     </span>
                     {waitUntil && (
                       <span className="text-xs">
-                        {t("abdm_cc_retry_after").replace("{{time}}", formatTime(waitUntil))}
+                        {t("abdm_cc_retry_after").replace(
+                          "{{time}}",
+                          formatTime(waitUntil),
+                        )}
                       </span>
                     )}
                   </AlertDescription>
@@ -297,14 +367,18 @@ export default function AbdmEncounterTab({
               {t("abdm_tab_records")}
             </CardTitle>
             <CardDescription>
-              {data?.encounterClosed ? t("abdm_tab_records_closed_help") : t("abdm_tab_records_help")}
+              {data?.encounterClosed
+                ? t("abdm_tab_records_closed_help")
+                : t("abdm_tab_records_help")}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <Skeleton className="h-32 w-full rounded-md" />
             ) : items.length === 0 ? (
-              <p className="text-muted-foreground text-sm">{t("abdm_tab_no_records")}</p>
+              <p className="text-muted-foreground text-sm">
+                {t("abdm_tab_no_records")}
+              </p>
             ) : (
               <Table>
                 <TableHeader>
@@ -312,11 +386,14 @@ export default function AbdmEncounterTab({
                     <TableHead className="w-8">
                       <Checkbox
                         checked={
-                          selectableIds.length > 0 && selectableIds.every((id) => selected.has(id))
+                          selectableIds.length > 0 &&
+                          selectableIds.every((id) => selected.has(id))
                         }
                         disabled={selectableIds.length === 0 || busy}
                         onCheckedChange={(value) =>
-                          setSelected(value ? new Set(selectableIds) : new Set())
+                          setSelected(
+                            value ? new Set(selectableIds) : new Set(),
+                          )
                         }
                         aria-label={t("abdm_tab_select_all")}
                       />
@@ -347,7 +424,8 @@ export default function AbdmEncounterTab({
                       onToggleExclude={() =>
                         toggle.mutate({
                           itemId: item.id,
-                          action: item.status === "excluded" ? "include" : "exclude",
+                          action:
+                            item.status === "excluded" ? "include" : "exclude",
                         })
                       }
                     />
@@ -367,7 +445,9 @@ export default function AbdmEncounterTab({
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={!canLink || busy || counts.staged + counts.failed === 0}
+                disabled={
+                  !canLink || busy || counts.staged + counts.failed === 0
+                }
                 onClick={() => link.mutate({ all: true })}
               >
                 {t("abdm_tab_link_all")}
@@ -378,12 +458,22 @@ export default function AbdmEncounterTab({
                 disabled={!canLink || busy || selected.size === 0}
                 onClick={() => link.mutate({ items: [...selected] })}
               >
-                {busy ? <Loader2 className="size-4 animate-spin" /> : <Share2 className="size-4" />}
+                {busy ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Share2 className="size-4" />
+                )}
                 {t("abdm_tab_link_selected")}
               </Button>
             </div>
           </CardFooter>
         </Card>
+
+        {/* ADR-014: M3 as HIU. Consent requests are per patient; the entry point is the visit. */}
+        <FetchRecordsCard
+          patientId={patient.id}
+          facilityId={encounter.facility.id}
+        />
       </div>
     </PluginComponent>
   );

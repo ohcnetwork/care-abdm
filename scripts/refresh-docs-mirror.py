@@ -8,7 +8,7 @@ The script writes:
 - docs/abdm-docs-mirror/skills-index.json, agent-setup-prompt.md
 - docs/abdm-docs-mirror/pages/<url path without /docs/>.md, 1 file per page
   in the sitemap under /docs/hiecm/v3/ and /docs/whats-new/
-- .agent/skills/<name>/... for each skill in skills/index.json
+- .agent/skills/<name>/... for each skill in skills/index.json (stale skill files are removed)
 - docs/abdm-docs-mirror/MANIFEST.json with the fetch date and the counts
 
 Usage:
@@ -122,6 +122,13 @@ def main() -> int:
         for rel in s["files"]
     ]
 
+    # A skill file on disk that the index no longer lists is stale (a withdrawn skill or reference).
+    stale_skills = sorted(
+        str(p.relative_to(REPO))
+        for p in SKILLS.rglob("*")
+        if p.is_file() and p not in {target for _, target in skill_jobs}
+    ) if SKILLS.exists() else []
+
     if not diff_only:
         MIRROR.mkdir(parents=True, exist_ok=True)
         for name, body in bodies.items():
@@ -130,6 +137,12 @@ def main() -> int:
         if PAGES.exists():
             shutil.rmtree(PAGES)
         PAGES.mkdir(parents=True)
+        # Prune the skills tree for the same reason.
+        for rel in stale_skills:
+            (REPO / rel).unlink()
+        for d in sorted((p for p in SKILLS.rglob("*") if p.is_dir()), reverse=True):
+            if not any(d.iterdir()):
+                d.rmdir()
 
     written, changed_pages, failed_pages = refresh_tree(page_jobs, diff_only)
     skills_written, changed_skills, failed_skills = refresh_tree(skill_jobs, diff_only)
@@ -157,6 +170,9 @@ def main() -> int:
         print(f"  {path}")
     print(f"skill files changed or new: {len(changed_skills)}")
     for path in changed_skills:
+        print(f"  {path}")
+    print(f"skill files stale{' (removed)' if not diff_only else ''}: {len(stale_skills)}")
+    for path in stale_skills:
         print(f"  {path}")
     if failed_pages or failed_skills:
         print("failed:")

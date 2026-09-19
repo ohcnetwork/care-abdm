@@ -101,9 +101,14 @@ const HI_TYPE_KEYS: Record<string, string> = {
   DischargeSummary: "abdm_hi_type_discharge_summary",
   WellnessRecord: "abdm_hi_type_wellness_record",
   ImmunizationRecord: "abdm_hi_type_immunization_record",
+  HealthDocumentRecord: "abdm_hi_type_health_document_record",
+  Invoice: "abdm_hi_type_invoice",
 };
 
-export function hiTypeLabel(t: (key: string) => string, hiType: string): string {
+export function hiTypeLabel(
+  t: (key: string) => string,
+  hiType: string,
+): string {
   const key = HI_TYPE_KEYS[hiType];
   return key ? t(key) : hiType;
 }

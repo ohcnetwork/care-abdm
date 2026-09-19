@@ -31,6 +31,13 @@ docs {
   | `shareItemId` | `id` of a share item from the care-context GET |
   | `consentId` | Consent artefact id from a consent notification |
   | `hiuPublicKey`, `hiuNonce` | Base64 X25519 public key and 32-byte nonce of a test HIU |
+  | `consentRequestRowId` | `id` of a consent request row (hiu > 1 and 2 save it) |
+  | `consentRequestId` | The HIE-CM consent request id, from the `on-init` callback |
+  | `outboundRequestId` | REQUEST-ID of the plug call a callback answers (`response.requestId`) |
+  | `otherHipId` | Service id of the facility that holds the records (the HIP in an artefact) |
+  | `transactionId` | Health-information transaction id, from the `on-request` callback |
+  | `fetchedRecordId` | `id` of a fetched record (hiu > 1 saves the newest) |
+  | `encryptedContent`, `contentChecksum`, `hipPublicKey`, `hipNonce` | A HIP-side encrypted entry for the data push probe |
 
   The pre-request script of this collection sets 2 more variables for each request:
   `requestId` is a new UUID, and `timestamp` is the time now in UTC with milliseconds.

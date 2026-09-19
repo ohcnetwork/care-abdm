@@ -132,16 +132,20 @@ def send(
     encounter=None,
     extra_headers: dict[str, str] | None = None,
     request_id: str | None = None,
+    role: str = "hip",
 ) -> AbdmOutboundRequest:
     """Send 1 call to ABDM (or to an HIU data-push URL) and record it as an AbdmOutboundRequest.
 
-    `request_id` lets a caller reuse the REQUEST-ID it already put in the body (SMS deep link)."""
+    `request_id` lets a caller reuse the REQUEST-ID it already put in the body (SMS deep link).
+    `role` names the header that carries the facility's gateway service id: `X-HIP-ID` for the HIP
+    calls (M2), `X-HIU-ID` for the HIU calls (M3). The sandbox issues 1 service id with both types
+    (findings B18), so the value is the same and only the header name changes."""
     headers = gateway_headers(get_access_token())
     if request_id:
         headers["REQUEST-ID"] = request_id
-    hip_id = hip_id_for(facility)
-    if hip_id:
-        headers["X-HIP-ID"] = hip_id
+    service_id = hip_id_for(facility)
+    if service_id:
+        headers["X-HIU-ID" if role == "hiu" else "X-HIP-ID"] = service_id
     if extra_headers:
         headers.update(extra_headers)
     full_url = url if url.startswith(("http://", "https://")) else f"{plugin_settings.GATEWAY_URL}{url}"

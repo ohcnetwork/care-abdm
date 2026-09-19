@@ -1,0 +1,13 @@
+meta {
+  name: hiu
+  seq: 11
+}
+
+docs {
+  M3 as HIU (ADR-014): ask a patient for permission to read the records other facilities hold,
+  and read what they push. Set `patientId` and `facilityId`. Every route needs
+  `can_view_clinical_data` for the patient.
+
+  The answers arrive as callbacks (folder `callbacks`, requests 16 to 21). The GET updates by
+  itself in the MFE; here, send it again.
+}

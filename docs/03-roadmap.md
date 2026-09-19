@@ -17,6 +17,7 @@ an **observed sandbox result**, per the docs' own scaffold loops
 - [x] 2026-09-15 Docs mirror rebuilt from the sitemap by `scripts/refresh-docs-mirror.py`: 382 pages (was 55), 9 skills at the 2026-09-14 build, `MANIFEST.json`. Observed: `pages in sitemap: 382`, `pages_failed: []`, `skill_files_failed: []`. 42 of the 55 old pages had changed; the code-relevant changes are in `findings.md` rows A8, B6, B17, C11, C12, E1, F3.
 - [x] 2026-09-14 Bruno collection (`bruno/`) — 47 files that cover every route in `backend/src/abdm/urls.py`: Care login and refresh, 2 probes, 5 facility routes, 6 enrol steps, 3 login steps, the transaction read-back, 3 patient routes, the 2 callback probes, and all 13 callback receiver paths. Bodies come from the docs mirror; the 3 bodies that the docs do not publish are marked as placeholders (see `docs/findings.md`, 2026-09-10). Observed: `@usebruno/lang` parsed 47/47 files with 0 failures; `bru run probes --env local` gave `health 200` with the assertion passed and `gateway-status 403` without a token; `bru run callbacks/link-on-carecontext.bru --env-var careUrl=http://localhost:8099` reached a local echo server on path `/api/abdm/v3/link/on_carecontext` with a fresh `REQUEST-ID` UUID and a UTC `TIMESTAMP` with milliseconds. Not yet run against the sandbox with real credentials (user-driven).
 - [x] 2026-09-15 Bruno collection updated to the ADR-011 routes: 58 files parse (`@usebruno/lang`), 46 requests; the route diff against `backend/src/abdm/urls.py` is empty both ways. The 7 files that carried a pasted `Authorization: ******` were fixed; the 2 Care JWTs that sat in `environments/local.bru` were removed and the variables are now secret.
+- [x] 2026-09-19 Docs mirror rebuilt after the site republished on 2026-09-16 (catalogue 2026.09.16). Observed: `pages in sitemap: 450`, `pages_failed: []`, `skill_files_written: 47`, `skill files stale (removed): 11`. 441 of 450 pages changed or are new; 320 old files left (299 flat endpoint pages, `api/m1/apis`, `api/m4/undocumented`, `resources/testing/*`, 6 `whats-new` pages). `scripts/generate-error-catalogue.py` refused the new `reference/error-codes` page (exit 2, "no `What to do` column"), so `error_catalogue.py` is unchanged. The code-relevant changes are in `01-sources.md` §What changed and in `findings.md` rows A10–A12, B19, E15.
 
 ## Phase 1 — Gateway session (prerequisite to everything)  [~]
 Docs: `/docs/hiecm/v3/api/gateway`, `/concepts/gateway`, `/getting-started/first-fifteen-minutes`.
@@ -61,7 +62,6 @@ Optional for a private integrator (`milestones/m1`, rewritten after NHA's review
 - [x] 2026-09-17 A login with no ABHA offers the create journey — the desk sees `ABDM-1114` ("No ABHA user registered with this Aadhaar number.") or an empty account list, and the error now carries one action, "Create a new ABHA" (`abha-wizard.tsx::createFromLink`, `AlertAction` slot, so the dialog layout does not shift). The action drops the failed login transaction, moves to the create journey and carries what the desk typed: the Aadhaar for the `aadhaar` identifier, the mobile for the `mobile` identifier. The back arrow returns to the link step. The action shows for all 4 identifiers. Observed: `npm run build` → `dist/assets/remoteEntry.js`, built in 1.03 s; `npx eslint src` 0 errors (10 pre-existing warnings); locale check 217 keys, 158 used, 0 missing.
   - [ ] USER: on the sandbox, run a link by Aadhaar for an Aadhaar with no ABHA, press "Create a new ABHA", and confirm the Aadhaar is already filled and the create journey completes. Screenshot.
 
-Pending sandbox observations (user-driven):
 - [x] 2026-09-19 A refused ABHA link answers HTTP 400, never HTTP 500. The desk used to read
       "Something went wrong": `LinkError` was a plain exception, and the `post_save(Patient)`
       receiver raises it inside Care's own patient viewset. `LinkError` is now a DRF
@@ -96,6 +96,7 @@ Pending sandbox observations (user-driven):
   - [ ] USER: on the sandbox, link an ABHA to a patient from the Demography tab and confirm the
         dialog closes and the panel shows the ABHA. Screenshot.
 
+Pending sandbox observations (user-driven):
 - [x] Real Aadhaar enrol run.
 - [x] Login by ABHA number, ABHA address, and Aadhaar with real OTPs.
 - [ ] X-token refresh, including the `R-token` prefix conflict (findings #6).
@@ -167,8 +168,24 @@ and the spinner never stopped.
 - The consent artefact signature is stored, not verified (findings H2).
 - The link-confirm OTP is fixed (`123456`) outside production, like Care core's login OTP.
 
-## Phase 4 — M3 Retrieve (HIU)  [ ]
-Consent request creation, status callbacks, fetch, decrypt, store, show in an `encounterTabs` tab. Docs: `/milestones/m3`, `/api/m3`, skill `abdm-m3`.
+## Phase 4 — M3 Retrieve (HIU)  [~]
+Design: ADR-014. Docs: `/milestones/m3`, the 12 flow pages under `/api/m3/endpoints/m3-consent-management-data-flow-hiu/`, `/concepts/consent`, `/concepts/data-flow`, skill `abdm-m3` (2026-09-16 build: "Nothing here has been run against the ABDM sandbox").
+
+### Code-complete 2026-09-19 (ADR-014)
+- [x] Backend: `abdm/hiu/{rules,service,views}.py`; 4 tables (`AbdmConsentRequest`, `AbdmConsentArtefact`, `AbdmFetchRequest`, `AbdmFetchedRecord`), migration `0003_hiu_consent_requests`; `outbound.send(role="hiu")` sends `X-HIU-ID`; 6 callback paths (`/v3/hiu/consent/request/on-init`, `on-status`, `notify`, `/v3/hiu/consent/on-fetch`, `/v3/hiu/health-information/on-request`, and our data push URL `/v3/hiu/health-information/transfer`); periodic `hiu_housekeeping` (15 min); plug codes `NO_DATA`, `CHECKSUM`, `DECRYPT_FAILED`, `CONSENT_NOT_LIVE`, `NO_CALLBACK_URL`. Desk routes: `GET/POST patients/<id>/abha/consent-requests?facility=`, `POST .../<id>/refresh|fetch`, `GET patients/<id>/abha/records/<id>`, `GET providers?name=`.
+- [x] Frontend: 3rd card "Records from other facilities" on the ABDM Records tab (`fetch-records-card.tsx`), request dialog (purpose, 8 record types, date range, validity 7/30/90/180 days, optional provider picker), FHIR document viewer (Composition sections, per-resource summaries, attachments, raw JSON, download). 93 new locale keys.
+- [x] Observed 2026-09-19: `manage.py check` — no issues; `makemigrations abdm --check --dry-run` — no changes; `migrate abdm` — `0003_hiu_consent_requests... OK`; ruff check and format — clean; `python -m unittest` — **118 tests OK** (`test_hiu_rules.py`: 28 tests, every parser run on the docs example body of its page; M3 paths in `test_callback_paths.py`); `npm run build` — `dist/assets/remoteEntry.js` built in 0.95 s; `npx eslint src` — 0 errors, 10 pre-existing warnings; i18n — 345 keys, 0 missing, 0 empty; Bruno — 60 requests parse, route diff against `urls.py` empty both ways.
+- [x] Observed 2026-09-19: `m3_smoke.py` (session files; real Care auth and DB, ABDM network and signature mocked; the script plays the HIP) printed **`M3 SMOKE OK — outbound calls: 16 callbacks: 11`**, 75 checks. It proved: init body and `X-HIU-ID` (no `X-HIP-ID`), requester = medical council registration; `on-init` → id stored; refresh → status call → `on-status`; GRANTED notify → ack names the artefact and the notify REQUEST-ID → `consent/fetch`; `on-fetch` → detail stored → HI request with our key material and `dataPushUrl`; `on-request` → transaction id; **a HIP-side push of 2 bundles encrypted against our published key → both decrypted, HI types read off the Composition profiles, 1 MD5 mismatch flagged and kept → notify RECEIVED as HIU → ciphertext scrubbed from the stored callback**; record detail; duplicate push deduped; fetch again → 2nd request, refused while in flight; housekeeping fails a stale request and notifies FAILED; REVOKED → artefact and request revoked, records erased, detail 410; DENIED with reason, ack carries the request id; refused init → 502 with the failure block; erase-at housekeeping; validation 400s; providers proxy (200, 204 → `[]`, short query 400); 403 for a user without `can_view_clinical_data`.
+
+### Sandbox proofs (user-driven; each ends on an observed gateway answer)
+- [ ] 1. `consent/v3/request/init` → 202 → `on-init` with a `consentRequest.id`. Confirms `X-HIU-ID = IN1410000232_1` and the `hip`-less body. Record the real body (findings L1).
+- [ ] 2. The request shows in the patient's PHR app with the purpose, types, dates and validity we sent.
+- [ ] 3. Grant in the PHR app → `notify` GRANTED → ack 202 → `consent/fetch` 202 → `on-fetch`. Record the artefact detail shape and where `dataEraseAt` sits.
+- [ ] 4. `health-information/request` 202 → `on-request` with a transaction id → the other HIP's push lands on `/api/abdm/v3/hiu/health-information/transfer`. Record the push `Authorization` token (`azp`) and whether the gateway JWKS verifies it (L6).
+- [ ] 5. Records decrypt; MD5 matches; `notify` RECEIVED 202; the viewer shows the bundle.
+- [ ] 6. Deny in the PHR app → DENIED notify; the ack with the request id is accepted (L4).
+- [ ] 7. Revoke in the PHR app → REVOKED notify → records erased.
+- [ ] USER: on the sandbox, with a 2nd facility (or this facility as its own HIP) that holds a linked care context for the patient, run 1 to 5 from the ABDM Records tab and report screenshots.
 
 ## Phase 5 — M4 Enrol: facility + bridge  [~]
 Docs: `/milestones/m4`, `/api/m4`, `/api/m4/undocumented` (2 published endpoints; the rest "not yet published").
@@ -194,3 +211,4 @@ Docs: `/milestones/m4`, `/api/m4`, `/api/m4/undocumented` (2 published endpoints
 - ADR-011 Lean M2: Accepted. See `adr/011-lean-m2.md`.
 - ADR-012 Error handling: Accepted. See `adr/012-error-handling.md`.
 - ADR-013 Staged sharing: Accepted. See `adr/013-staged-sharing.md`.
+- ADR-014 M3 Retrieve, CARE as an HIU: Accepted. See `adr/014-m3-hiu-retrieve.md`.

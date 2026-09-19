@@ -16,7 +16,7 @@ The phone registered against the identifier you sent receives an SMS carrying an
 
 ## When it goes wrong
 
-If you have confirmed the receiving number, are not rate limited, and the transaction is fresh, and the OTP still has not arrived, escalate on the [developer forum](https://devforum.abdm.gov.in) rather than requesting again. Report the API you called, the `REQUEST-ID`, the `TIMESTAMP`, and the full response body including the `txnId`. See [Support](/docs/support) for the full report format.
+If you have confirmed the receiving number, are not rate limited, and the transaction is fresh, and the OTP still has not arrived, raise a request on the [support ticketing platform](https://sandboxsupport.abdm.gov.in/) rather than requesting again. Report the API you called, the `REQUEST-ID`, the `TIMESTAMP`, and the full response body including the `txnId`. See [what to put in a support request](/docs/hiecm/v3/troubleshooting#what-to-put-in-a-support-request) for the full report format.
 
 This symptom can surface as a rate limit code or the catch-all failure code, both on the [error codes reference](/docs/hiecm/v3/reference/error-codes).
 

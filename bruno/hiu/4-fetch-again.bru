@@ -1,0 +1,25 @@
+meta {
+  name: 4. Fetch again
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{careUrl}}/api/abdm/patients/{{patientId}}/abha/consent-requests/{{consentRequestRowId}}/fetch
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {}
+}
+
+docs {
+  A new `health-information/request` with a fresh key pair under every live GRANTED artefact
+  that has no transfer in flight. 400 when no live permission exists.
+}

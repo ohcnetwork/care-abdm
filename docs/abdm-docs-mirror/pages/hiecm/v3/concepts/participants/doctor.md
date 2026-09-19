@@ -8,7 +8,7 @@ You register on the [HPR](/docs/hiecm/v3/getting-started/glossary#hpr), the Heal
 
 | Form        | Sample              | Sent as                                     |
 | ----------- | ------------------- | ------------------------------------------- |
-| The number  | `71-2665-5777-XXXX` | `hpId` or `hprIdNumber`                     |
+| The number  | `71-2665-5777-XXXX` | `hpid` or `hprIdNumber`                     |
 | The address | `name@hpr.abdm`     | `hprId`, with a `domainName` of `@hpr.abdm` |
 
 Three categories can enrol today: doctor, nurse and pharmacist. You also declare a system of medicine. A role code says what you are on the registry: 1 for a healthcare professional, 2 for a facility manager, 3 for both.
@@ -20,7 +20,7 @@ Your HPR ID identifies you as a professional. It does not put your software on t
 - Create your HPID through Aadhaar authentication, then register the full profile: personal details, communication address, council registration, qualification and current work.
 - Upload your degree certificate and registration certificate. Both are mandatory.
 - Get a fresh HPR token later, by password, by mobile [OTP](/docs/hiecm/v3/getting-started/glossary#otp) or by Aadhaar OTP.
-- With role 2 or role 3, register your facility on the HFR. The create call takes an HPR token in the header, and the submit call takes an `x-hpird-auth` token.
+- With role 2 or role 3, register your facility on the HFR. Both calls take `x-hprid-auth`, and submit also takes `x-hprid-auth-verifier`.
 
 Records themselves carry a `Practitioner` resource inside the [FHIR](/docs/hiecm/v3/getting-started/glossary#fhir) bundle, so the professional behind a record is named in it.
 

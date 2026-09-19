@@ -1,0 +1,20 @@
+meta {
+  name: 6. Get a fetched record
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{careUrl}}/api/abdm/patients/{{patientId}}/abha/records/{{fetchedRecordId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  The decrypted FHIR bundle another facility pushed, with its summary. 410 once the content was
+  erased (the consent `dataEraseAt` passed, or the permission was withdrawn).
+}

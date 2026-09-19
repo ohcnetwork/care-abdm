@@ -1,4 +1,4 @@
-# 04 — Local dev setup (as of 2026-09-15, ADR-011)
+# 04 — Local dev setup (as of 2026-09-19, ADR-011 to ADR-014)
 
 ## Backend
 
@@ -35,9 +35,9 @@
   `cd ~/ohc.network/care && set -a && . ./.env && set +a && .venv/bin/python manage.py abdm_register_bridge_url`
   (`--dry-run` prints the URL only). The command also prints the live bridge state. A superuser can do
   the same from `/admin/abdm` (admin sidebar → ABDM). Run it before the HRP service registration.
-- Run Celery. Every callback handler, the record staging, the link calls and the retries run in the worker:
+- Run Celery. Every callback handler, the record staging, the link calls, the retries and the M3 chain run in the worker:
   `cd ~/ohc.network/care && ./scripts/celery-dev.sh`.
-  `celery-dev.sh` starts the worker with `-B`, so Celery beat runs in the same process and the ADR-013 periodic task `abdm.tasks.retry_share_items` (every 5 min) needs nothing more. Retry cadence: `ABDM_LINK_RETRY_INTERVAL_MINUTES` (60) × `ABDM_LINK_MAX_RETRIES` (3).
+  `celery-dev.sh` starts the worker with `-B`, so Celery beat runs in the same process and the periodic tasks need nothing more: ADR-013 `abdm.tasks.retry_share_items` (every 5 min; cadence `ABDM_LINK_RETRY_INTERVAL_MINUTES` (60) × `ABDM_LINK_MAX_RETRIES` (3)) and ADR-014 `abdm.tasks.hiu_housekeeping` (every 15 min: fail a health-information request with no push inside 20 minutes, erase fetched bundles past the consent `dataEraseAt`).
   The worker does not reload plug code: `celery-dev.sh` watches only the Care tree, and a worker started
   by hand watches nothing. After a change under `backend/src/abdm/` restart it, or send it
   `kill -HUP <celery main pid>` (Celery re-executes itself in the same terminal with the same
@@ -49,6 +49,8 @@
 - Probes: `GET /api/abdm/health`; `GET /api/abdm/gateway/status`; `GET /api/abdm/bridge` (live gateway view); `GET /api/abdm/admin/overview` (superuser; backs `/admin/abdm`).
 - Callback log (superuser): `GET /api/abdm/callbacks?limit=20`; `GET /api/abdm/callbacks/<callback_id>`.
 - Encounter link state: `GET /api/abdm/encounters/<encounter_id>/care-context`.
+- M3 (HIU) state: `GET /api/abdm/patients/<patient_id>/abha/consent-requests?facility=<facility_id>`; a fetched bundle: `GET /api/abdm/patients/<patient_id>/abha/records/<record_id>`.
+- M3 data push URL: `${ABDM_CALLBACK_BASE_URL}/api/abdm/v3/hiu/health-information/transfer`. It needs no registration: the plug names it in every health-information request. The tunnel must be up when the other facility pushes.
 - Outside production the user-initiated link OTP is fixed: `123456` (Care core uses the same rule for login OTPs).
 
 ## Frontend
@@ -79,7 +81,7 @@
 - It mirrors `backend/src/abdm/urls.py`.
   Change both files together.
 - Folders: `auth`, `probes`, `bridge`, `facility`, `abha-enrol`, `abha-login`,
-  `transactions`, `patient`, `encounters`, `callbacks`, `scan-share`.
+  `transactions`, `patient`, `encounters`, `hiu`, `callbacks`, `scan-share`.
 - Select the `local` environment.
   Set the secret variables `careUsername` and `carePassword`. `careToken` and `careRefreshToken`
   are secret variables too, so a saved token never lands in the file.
