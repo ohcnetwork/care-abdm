@@ -33,6 +33,12 @@ the script and delete them at the end. Examples of what was checked: create-with
 both identifiers and `instance_identifiers`; `PUT` with unrelated change preserves ABHA; duplicate
 txn 409; unknown txn 404; card without token 409. Write scratch scripts under the session files directory, not the repo.
 
+`abha_link_conflict_smoke.py` (session files directory, 2026-09-19) proves the 4 link rules over
+real auth, the real DB and the real routes: a second patient for an ABHA another patient holds is
+refused with HTTP 400 and rolled back; the link API refuses the same ABHA with the same sentence;
+an incomplete ABHA and a used request answer 400 too; a re-link of the same patient still answers
+200. Expected last line: `LINK CONFLICT SMOKE OK — 14 checks passed, 0 failed`.
+
 M2 uses `m2_smoke.py` in the session files directory (2026-09-15). Run it after `manage.py migrate abdm`:
 
 ```sh
@@ -99,6 +105,9 @@ The agent cannot see the UI; ask the user for a screenshot and record what it sh
 ## Care core traps found so far (details in `findings.md` and the kiran skill caveats)
 
 - `PatientIdentifier` rows are invisible until `patient.build_instance_identifiers()` is persisted.
+- An exception from a plug's `post_save` receiver reaches Care's patient viewset. Only a DRF
+  `ValidationError` whose `detail` dict holds `errors` becomes HTTP 400; anything else is HTTP 500
+  and the desk reads "Something went wrong" (`02-care-host-contract.md`, "Errors from a plug signal").
 - `auto_maintained` identifiers are dropped from create payloads.
 - Extension schema fields need `x-ui.render_blacklist` or the host renders them as form inputs.
 - `care/plug_config.py` local modifications can duplicate the `abdm` app label with `.env`

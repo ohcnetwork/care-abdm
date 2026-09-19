@@ -149,6 +149,15 @@ No model named `Immunization` or `Procedure` was found under `care/emr/models/` 
 | The host renders `FacilityHomeActions` inside the "Configurations" dropdown popup. The popup is a transformed ancestor, so a `position: fixed` panel in that subtree anchors to the popup and not to the viewport. | `~/ohc.network/care_fe/src/components/Facility/FacilityHome.tsx:236-257` |
 | `GET /api/v1/facility/{facilityId}/` returns the facility. The setup page reads the name from it. | `~/ohc.network/care_fe/src/types/facility/facilityApi.ts:34-38` |
 
+### Errors from a plug signal (read 2026-09-19)
+
+| Host fact | Source |
+|---|---|
+| A plug's `post_save` receiver runs inside Care's patient viewset. An exception the host handler does not know becomes HTTP 500, and the desk reads "Something went wrong". | `~/ohc.network/care/care/emr/api/viewsets/base.py:26-56`; `~/ohc.network/care_fe/src/Utils/request/errorHandler.ts:65` |
+| The host passes a DRF `ValidationError` whose `detail` is a dict that holds `errors` through unchanged, as HTTP 400. A plug refusal must use that shape. | `~/ohc.network/care/care/emr/api/viewsets/base.py:44-47` |
+| care_fe shows a string `errors` value in a toast. A list of `{type, msg}` objects gives 1 toast for each entry. | `~/ohc.network/care_fe/src/Utils/request/errorHandler.ts:104-127,143-158` |
+| `perform_create` wraps the model save in `transaction.atomic()`, so an exception from a receiver rolls the patient create back. The host handler itself calls no `set_rollback`. | `~/ohc.network/care/care/emr/api/viewsets/base.py:95-98` |
+
 ### Admin routes and nav (read 2026-09-14; used by `/admin/abdm`)
 
 | Host fact | Source |

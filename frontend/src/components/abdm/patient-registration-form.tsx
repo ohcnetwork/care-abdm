@@ -9,8 +9,14 @@ import { useTranslation } from "@/hooks/use-translation";
 import careApi, { type AbhaAccountProfile } from "@/lib/careApi";
 import { query } from "@/lib/request";
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, ShieldCheck, X } from "lucide-react";
-import { useQueryParams } from "raviger";
+import {
+  CheckCircle2,
+  ShieldCheck,
+  TriangleAlert,
+  UserRound,
+  X,
+} from "lucide-react";
+import { navigate, useQueryParams } from "raviger";
 import { useCallback, useEffect, useState } from "react";
 
 /**
@@ -21,6 +27,11 @@ import { useCallback, useEffect, useState } from "react";
  * We set `extensions.abdm.txn_id`; the backend post_save receiver
  * (abdm/signals.py) resolves that server-recorded transaction into the ABHA
  * identifiers. The ABHA number itself is never trusted from the browser.
+ *
+ * 1 ABHA number is 1 person (`/docs/hiecm/v3/concepts/phr`), so the backend
+ * refuses an ABHA that a different patient record already holds. The desk can
+ * still register the person (the "Register as new" route from the ABHA search),
+ * so this form keeps the ABHA prefill and drops the `txn_id`.
  */
 type HostForm = {
   setValue: (
@@ -66,6 +77,7 @@ type QParams = { abdm_txn?: string };
 
 export default function AbdmPatientRegistrationForm({
   form,
+  facilityId,
   patientId,
 }: Props) {
   const { t } = useTranslation();
@@ -119,7 +131,14 @@ export default function AbdmPatientRegistrationForm({
           form.setValue("pincode", Number(p.pinCode), { shouldDirty: true });
         }
       }
-      form.setValue("extensions.abdm.txn_id", r.txnId, { shouldDirty: true });
+      // A different patient record already holds this ABHA. The backend refuses
+      // the second link (abdm/signals.py `LinkError`), so send no `txn_id`: the
+      // prefill stays and the save succeeds without the ABHA.
+      form.setValue(
+        "extensions.abdm.txn_id",
+        r.existingPatient ? undefined : r.txnId,
+        { shouldDirty: true },
+      );
     },
     [form],
   );
@@ -150,9 +169,57 @@ export default function AbdmPatientRegistrationForm({
     form.setValue("extensions.abdm.txn_id", undefined, { shouldDirty: true });
   };
 
+  const linkedElsewhere = result?.existingPatient;
+
   return (
     <PluginComponent>
-      {result ? (
+      {linkedElsewhere ? (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900 dark:bg-amber-950/40">
+          <div className="flex min-w-0 items-center gap-3">
+            <TriangleAlert className="size-5 shrink-0 text-amber-600" />
+            <div className="min-w-0 text-sm">
+              <div className="font-semibold">
+                {t("abdm_abha_already_linked")}
+              </div>
+              <div className="font-mono tracking-wider">
+                {formatAbhaNumber(result.abhaNumber)}
+                <span className="text-muted-foreground">
+                  {" "}
+                  · {linkedElsewhere.name}
+                </span>
+              </div>
+              <div className="text-muted-foreground text-xs">
+                {t("abdm_abha_already_linked_hint")}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            {facilityId && (
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() =>
+                  navigate(
+                    `/facility/${facilityId}/patient/${linkedElsewhere.id}`,
+                  )
+                }
+              >
+                <UserRound /> {t("abdm_open_patient")}
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              onClick={clear}
+              aria-label={t("abdm_remove")}
+            >
+              <X />
+            </Button>
+          </div>
+        </div>
+      ) : result ? (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 dark:border-emerald-900 dark:bg-emerald-950/40">
           <div className="flex min-w-0 items-center gap-3">
             <CheckCircle2 className="size-5 shrink-0 text-emerald-600" />
@@ -213,7 +280,11 @@ export default function AbdmPatientRegistrationForm({
         open={open}
         onOpenChange={setOpen}
         defaultMobile={currentMobile()}
-        onComplete={apply}
+        onComplete={(r) => {
+          apply(r);
+          // The form below now shows the result, so a done step would only hide it.
+          setOpen(false);
+        }}
       />
     </PluginComponent>
   );

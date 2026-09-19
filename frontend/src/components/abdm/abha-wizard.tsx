@@ -115,6 +115,8 @@ type Props = {
   /** Rendered on the final step below the summary (e.g. a "linking…" state). */
   finishing?: boolean;
   finishLabel?: string;
+  /** Rendered on the final step when the caller's own step failed (e.g. the link call). */
+  finishError?: string;
   /** Replace the default done-step body + footer (e.g. "open patient / register"). */
   renderDone?: (result: AbhaWizardResult) => {
     body?: React.ReactNode;
@@ -261,6 +263,7 @@ export default function AbhaWizard({
   onComplete,
   finishing,
   finishLabel,
+  finishError,
   renderDone,
 }: Props) {
   const { t } = useTranslation();
@@ -1060,6 +1063,11 @@ export default function AbhaWizard({
             {finishing && (
               <p className="text-muted-foreground text-center text-xs">
                 {finishLabel ?? t("abdm_linking")}
+              </p>
+            )}
+            {finishError && (
+              <p className="text-destructive text-center text-sm">
+                {finishError}
               </p>
             )}
             {customDone?.body}

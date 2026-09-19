@@ -189,7 +189,11 @@ export function AbhaPanel({
   const [wizard, setWizard] = useState(false);
   const [card, setCard] = useState(false);
 
-  const onComplete = (r: AbhaWizardResult) => link.mutate({ txn_id: r.txnId });
+  // The wizard only proves the ABHA; the link call is ours. Close the dialog when the link
+  // succeeds — the panel below shows the result. A refusal keeps the dialog open and shows
+  // the reason on the done step (`finishError`).
+  const onComplete = (r: AbhaWizardResult) =>
+    link.mutate({ txn_id: r.txnId }, { onSuccess: () => setWizard(false) });
 
   const s: PatientAbhaStatus | undefined = status.data;
 
@@ -292,6 +296,7 @@ export function AbhaPanel({
         defaultMobile={phoneNumber?.replace(/\D/g, "").slice(-10) ?? ""}
         onComplete={onComplete}
         finishing={link.isPending}
+        finishError={link.error}
       />
       {card && (
         <AbhaCardDialog

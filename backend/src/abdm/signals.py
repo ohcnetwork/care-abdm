@@ -4,7 +4,8 @@ post_save(Patient): consume extensions.abdm.txn_id → identifiers + link metada
 Same mechanism core uses for its own auto-maintained identifiers
 (care/emr/signals/patient/name_identifier.py:26). Runs inside the request's
 transaction, so a failed link rolls the patient create back too — deliberate:
-a patient half-linked to an ABHA is worse than a clean retry.
+a patient half-linked to an ABHA is worse than a clean retry. A refused link
+answers HTTP 400 with a sentence for the desk (`LinkError`), never HTTP 500.
 """
 
 import logging
@@ -18,6 +19,7 @@ from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError
 
 from abdm.care_seams import EXTENSION_NAME, AbhaAddressIdentifier, AbhaNumberIdentifier
 from abdm.models import AbhaTransaction
@@ -25,19 +27,47 @@ from abdm.models import AbhaTransaction
 logger = logging.getLogger(__name__)
 
 
-class LinkError(Exception):
-    pass
+class LinkError(ValidationError):
+    """A link the plug refuses, as HTTP 400 for every caller.
+
+    The plug raises this from 2 places: the link API, and this module's `post_save(Patient)`
+    receiver, which runs inside Care's own patient viewset. A plain exception in the receiver
+    leaves that viewset with HTTP 500 and the desk with "Something went wrong", so the refusal
+    carries its own answer instead. Care passes a `detail` dict that holds `errors` through
+    unchanged (care/emr/api/viewsets/base.py:44), care_fe shows the sentence in a toast
+    (care_fe/src/Utils/request/errorHandler.ts:104), and the plug's own front end reads the same
+    field (`relayMessage`, frontend/src/components/abdm/abha-wizard.tsx:125).
+
+    The sentences follow ADR-011: say what failed, then say what to do. They never name the other
+    patient, because the person at the desk may have no right to see that record.
+    """
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__({"errors": message})
 
 
 def link_patient_to_transaction(patient: Patient, txn: AbhaTransaction, *, save_patient: bool = True) -> None:
     """Single writer for ABHA↔Patient linkage. Used by the signal and by the explicit link API."""
     if not txn.abha_number:
-        raise LinkError("Transaction has no ABHA number yet (claim / account selection not completed)")
+        raise LinkError("This ABHA is not complete yet. Finish the ABHA steps, then try again.")
     if txn.patient_id and txn.patient_id != patient.id:
-        raise LinkError("Transaction already linked to another patient")
+        raise LinkError("This ABHA request is already used for another patient. Start the ABHA steps again.")
+    # 1 ABHA number is 1 person (`/docs/hiecm/v3/concepts/phr` "only one ABHA number"), and
+    # `find_patient` answers with 1 row, so a second patient record would break discovery and
+    # consent for both.
     other = AbhaNumberIdentifier.find_patient(txn.abha_number)
     if other and other.id != patient.id:
-        raise LinkError(f"ABHA {txn.abha_number} is already linked to patient {other.external_id}")
+        logger.warning(
+            "abdm: refused ABHA %s for patient %s; patient %s already holds it",
+            txn.abha_number,
+            patient.external_id,
+            other.external_id,
+        )
+        raise LinkError(
+            "This ABHA is already linked to a different patient record. "
+            "Open that patient record, or use a different ABHA."
+        )
 
     AbhaNumberIdentifier.set(patient, txn.abha_number)
     if txn.abha_address:

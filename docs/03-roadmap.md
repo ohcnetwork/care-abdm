@@ -62,6 +62,40 @@ Optional for a private integrator (`milestones/m1`, rewritten after NHA's review
   - [ ] USER: on the sandbox, run a link by Aadhaar for an Aadhaar with no ABHA, press "Create a new ABHA", and confirm the Aadhaar is already filled and the create journey completes. Screenshot.
 
 Pending sandbox observations (user-driven):
+- [x] 2026-09-19 A refused ABHA link answers HTTP 400, never HTTP 500. The desk used to read
+      "Something went wrong": `LinkError` was a plain exception, and the `post_save(Patient)`
+      receiver raises it inside Care's own patient viewset. `LinkError` is now a DRF
+      `ValidationError` that carries `{"errors": "<sentence>"}`, which Care passes through
+      (`02-care-host-contract.md`, "Errors from a plug signal") and care_fe shows in a toast. The
+      3 sentences say what failed and what to do, and name no other patient record. The rule
+      itself stands: 1 ABHA number is 1 person (`/concepts/phr`), and `find_patient` answers with
+      1 row, so a second patient record would break discovery and consent for both. The
+      registration form now reads `existingPatient` from the transaction, keeps the ABHA prefill,
+      sends no `txn_id`, and shows an amber card with the other patient's name and an "Open
+      patient" button — so "Register as new" saves the patient without the ABHA instead of
+      failing at save. The link wizard shows a refusal on its own done step (`finishError`).
+      **Observed: `abha_link_conflict_smoke.py` → `LINK CONFLICT SMOKE OK — 14 checks passed, 0
+      failed`, `cleanup done, rows left: 0`; the 400 body is `{"errors": "This ABHA is already
+      linked to a different patient record. Open that patient record, or use a different ABHA."}`
+      and patient B was rolled back; 90 backend tests OK; ruff clean; `npm run build` →
+      `dist/assets/remoteEntry.js`, built in 1.01 s; `npx eslint src` 0 errors (10 pre-existing
+      warnings).**
+  - [ ] USER: on the sandbox, link an ABHA that another patient already holds, and confirm the
+        message in the dialog. Then press "Register as new" from "Find by ABHA" and confirm the
+        patient saves without the ABHA. Screenshot.
+
+- [x] 2026-09-19 The ABHA dialog closes when the journey ends. The wizard never closes itself,
+      so each caller must do it; 4 paths did not. The patient panel now closes the dialog when
+      the link call succeeds (a refusal keeps it open and shows the reason). The registration
+      form closes it as soon as the ABHA is applied, so the desk sees the card on the form.
+      "Find by ABHA" and the Scan and Share inbox close before they open another page, so no
+      dialog stays over the new page. The done step of "Find by ABHA" still waits, because it
+      asks the desk to choose between "Open patient" and "Register as new".
+      **Observed: `npm run build` → `dist/assets/remoteEntry.js`, built in 1.01 s; `tsc -b` exit
+      0; `npx eslint src` 0 errors (10 pre-existing warnings).**
+  - [ ] USER: on the sandbox, link an ABHA to a patient from the Demography tab and confirm the
+        dialog closes and the panel shows the ABHA. Screenshot.
+
 - [x] Real Aadhaar enrol run.
 - [x] Login by ABHA number, ABHA address, and Aadhaar with real OTPs.
 - [ ] X-token refresh, including the `R-token` prefix conflict (findings #6).

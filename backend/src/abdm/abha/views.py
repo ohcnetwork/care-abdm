@@ -29,7 +29,7 @@ from abdm.abha.checksums import is_valid_aadhaar
 from abdm.abha.client import AbhaServiceError
 from abdm.care_seams import EXTENSION_NAME, AbhaAddressIdentifier, AbhaNumberIdentifier
 from abdm.models import AbhaTransaction
-from abdm.signals import LinkError, link_patient_to_transaction
+from abdm.signals import link_patient_to_transaction
 
 # --- request bodies --------------------------------------------------------
 
@@ -297,10 +297,9 @@ class PatientAbhaLink(AbdmView):
 
     def handle(self, request, data, **kwargs):
         txn = get_object_or_404(AbhaTransaction, txn_id=data.txn_id)
-        try:
-            link_patient_to_transaction(self.patient, txn)
-        except LinkError as e:
-            raise ValidationError({"errors": str(e)}) from e
+        # A refused link raises `LinkError`, which is a ValidationError: HTTP 400 with the desk
+        # sentence in `errors`.
+        link_patient_to_transaction(self.patient, txn)
         self.patient.refresh_from_db()
         return _status_payload(self.patient)
 

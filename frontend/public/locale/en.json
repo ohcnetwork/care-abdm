@@ -3,6 +3,8 @@
   "abdm_aadhaar_otp": "OTP sent to the Aadhaar-linked mobile",
   "abdm_abha": "ABHA (Ayushman Bharat Health Account)",
   "abdm_abha_address": "ABHA address",
+  "abdm_abha_already_linked": "This ABHA is already linked to another patient.",
+  "abdm_abha_already_linked_hint": "CARE saves this new patient without the ABHA. Open the other patient record to use the ABHA.",
   "abdm_abha_card": "ABHA card",
   "abdm_abha_number": "ABHA number",
   "abdm_abha_ready": "ABHA ready",

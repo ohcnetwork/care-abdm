@@ -35,12 +35,23 @@ export default function AbdmPatientSearchActions({
   const [open, setOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
 
-  const openPatient = (id: string) =>
+  // Both dialogs hand the desk to another page. Close them first, or the dialog stays over
+  // the new page until the route change removes it.
+  const closeDialogs = () => {
+    setOpen(false);
+    setInboxOpen(false);
+  };
+
+  const openPatient = (id: string) => {
+    closeDialogs();
     navigate(`/facility/${facilityId}/patient/${id}`);
-  const registerTxn = (txnId: string) =>
+  };
+  const registerTxn = (txnId: string) => {
+    closeDialogs();
     navigate(
       `/facility/${facilityId}/patient/create?abdm_txn=${encodeURIComponent(txnId)}`,
     );
+  };
   const register = (r: AbhaWizardResult) => registerTxn(r.txnId);
 
   return (
