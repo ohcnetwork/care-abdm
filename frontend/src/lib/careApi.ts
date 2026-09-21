@@ -155,6 +155,8 @@ export type AbdmCareContextState = {
     what: string;
     nextStep: string;
     detail: string;
+    /** The registry's own lines, 1 each (M4 onboarding failures). */
+    details?: string[];
     supportReference: string;
   } | null;
   activity: AbdmOutboundSummary[];
@@ -217,6 +219,15 @@ export type AbdmDataRequestSummary = {
   }[];
   errorCode: string;
   errorMessage: string;
+};
+
+/** A refused M4 call, as every M4 view returns it (400 plug rule, 404 not found, 502 registry). */
+export type AbdmRefusal = {
+  errors: string;
+  detail?: string;
+  details?: string[];
+  code?: string;
+  requestId?: string;
 };
 
 // --- M3 (HIU, ADR-014): consent requests this facility raised and the records it received ---
@@ -495,6 +506,7 @@ export type AbdmHfrState = {
   onboarding: AbdmHfrOnboarding | null;
   hprSession: {
     hprId: string;
+    name: string;
     active: boolean;
     expiresAt: string | null;
     role: number | null;

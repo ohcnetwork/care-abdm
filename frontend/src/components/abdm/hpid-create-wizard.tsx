@@ -393,7 +393,10 @@ export default function HpidCreateWizard({
                   }}
                 />
               </NhprField>
-              <NhprField labelKey="abdm_hpid_subcategory" htmlFor="hpid-subcategory">
+              <NhprField
+                labelKey="abdm_hpid_subcategory"
+                htmlFor="hpid-subcategory"
+              >
                 <MasterSelect
                   id="hpid-subcategory"
                   kind="hpr-subcategories"

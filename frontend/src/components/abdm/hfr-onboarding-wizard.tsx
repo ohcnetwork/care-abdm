@@ -1,7 +1,12 @@
+import FailureNotice from "@/components/abdm/failure-notice";
+import {
+  type FailureNoticeProps,
+  noticeFromError,
+  noticeFromFailure,
+} from "@/components/abdm/failure-notice-shared";
 import HprLoginDialog from "@/components/abdm/hpr-login-dialog";
-import { errorMessage } from "@/components/abdm/nhpr-shared";
 import MasterSelect from "@/components/abdm/master-select";
-import { selectClass } from "@/components/abdm/nhpr-shared";
+import { selectClass, shortenCoordinate } from "@/components/abdm/nhpr-shared";
 import PluginComponent from "@/components/common/plugin-component";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/use-translation";
 import careApi, { type AbdmHfrState, type AbdmHfrStep } from "@/lib/careApi";
 import { mutate, query } from "@/lib/request";
+import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
@@ -57,6 +63,7 @@ function Text({
   id,
   value,
   onChange,
+  onBlur,
   placeholder,
   type = "text",
   inputMode,
@@ -64,6 +71,7 @@ function Text({
   id: string;
   value: string;
   onChange: (v: string) => void;
+  onBlur?: (v: string) => void;
   placeholder?: string;
   type?: string;
   inputMode?: "numeric" | "decimal" | "email" | "tel" | "url";
@@ -76,6 +84,7 @@ function Text({
       value={value}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
+      onBlur={(e) => onBlur?.(e.target.value)}
     />
   );
 }
@@ -162,6 +171,30 @@ function num(value: string): number | undefined {
   return value === "" || Number.isNaN(n) ? undefined : n;
 }
 
+/** A bed or equipment count as typed: a whole number, 0 or more; anything else is 0. */
+function count(value: string): number {
+  const n = Number.parseInt(value.replace(/\D/g, ""), 10);
+  return Number.isNaN(n) || n < 0 ? 0 : n;
+}
+
+// The 6 bed counts the registry sums against `totalNumberOfBeds` (HIS-1070, observed 2026-09-21).
+// The total is never typed: the wizard shows the sum and `nhpr/rules.medical_infrastructure` sends it.
+const BED_SUM_FIELDS = [
+  "countIPDBedsWithoutOxygen",
+  "countIPDBedsWithOxygen",
+  "countHDUBedsWithVentilators",
+  "countHDUBedsWithoutVentilators",
+  "countDayCareBedsWithoutOxygen",
+  "countDayCareBedsWithOxygen",
+];
+// Counts the registry keeps outside the total.
+const OTHER_COUNT_FIELDS = [
+  "countICUBedsWithVentilators",
+  "countICUBedsWithoutVentilators",
+  "totalNumberOfVentilators",
+  "countDentalChairs",
+];
+
 export default function HfrOnboardingWizard({
   facilityId,
   embedded = false,
@@ -191,7 +224,9 @@ export default function HfrOnboardingWizard({
   });
   const [loginOpen, setLoginOpen] = useState(false);
   const [step, setStep] = useState<AbdmHfrStep>("dedup");
-  const [error, setError] = useState<string>();
+  // A refusal the state does not hold (a plug rule before any call). A registry refusal is stored
+  // on the onboarding state and rendered from there, so 1 notice, never 2.
+  const [error, setError] = useState<FailureNoticeProps>();
   const onboarding = state.data?.onboarding ?? null;
 
   // Form state, 1 object per step, in the documented shape.
@@ -321,7 +356,10 @@ export default function HfrOnboardingWizard({
       const cause = (e as { cause?: AbdmHfrState }).cause;
       if (cause && cause.onboarding !== undefined)
         qc.setQueryData(key, { ...cause, errors: undefined });
-      setError(errorMessage(e, t("abdm_hfr_step_failed")));
+      // The stored failure block carries a registry refusal; show the transient notice only when
+      // the state holds none (a plug rule refused before any call).
+      if (!cause?.onboarding?.failure)
+        setError(noticeFromError(e, t("abdm_hfr_step_failed")));
     },
   });
 
@@ -362,6 +400,8 @@ export default function HfrOnboardingWizard({
     );
   };
 
+  // The coordinates go out as typed: `nhpr/rules.basic_information_body` shortens them to the 1 to 6
+  // decimal places the registry takes (HIS-4019 / HIS-4020) and refuses a value out of range.
   const basicPayload = (): Json => ({
     ...basic,
     facilityUploads: {
@@ -371,6 +411,24 @@ export default function HfrOnboardingWizard({
     facilityAddressDetails: address,
     facilityContactInformation: contact,
   });
+  // Both photo names are required on the first save (HIS-4050 "Please enter Facility Board Photo
+  // Name"). A later save keeps the stored names.
+  const photosMissing = !photos.board.name || !photos.building.name;
+
+  // Detailed step, observed 2026-09-21: the total must equal the sum of these 6 bed counts (ICU
+  // beds are not in the sum), and every system of medicine chosen in the basic step needs its
+  // specialities. Checked here, before the call.
+  const infraNow = (detailed.medicalInfrastructure as Json) ?? {};
+  const bedSum = BED_SUM_FIELDS.reduce(
+    (sum, k) => sum + (Number(infraNow[k]) || 0),
+    0,
+  );
+  const somWithoutSpecialities = somCodes.filter((som) => {
+    const row = ((detailed.specialities as Json[]) ?? []).find(
+      (x) => x.systemOfMedicineCode === som,
+    );
+    return !row || ((row.specialities as string[]) ?? []).length === 0;
+  });
 
   const stepTitle = (s: AbdmHfrStep) => t(`abdm_hfr_step_${s}`);
 
@@ -379,9 +437,10 @@ export default function HfrOnboardingWizard({
   return (
     <Frame>
       <div
-        className={
-          embedded ? "grid gap-4" : "mx-auto grid max-w-4xl gap-4 p-4 md:p-6"
-        }
+        className={cn(
+          "min-w-0 [&>*]:min-w-0",
+          embedded ? "grid gap-4" : "mx-auto grid max-w-4xl gap-4 p-4 md:p-6",
+        )}
       >
         {!embedded && (
           <>
@@ -414,10 +473,14 @@ export default function HfrOnboardingWizard({
             <LogIn className="text-muted-foreground size-4" />
             {sessionActive ? (
               <span>
-                {t("abdm_hfr_session_active").replace(
-                  "{{id}}",
-                  state.data?.hprSession.hprId || "",
-                )}
+                {t("abdm_hfr_session_active", {
+                  id: [
+                    state.data?.hprSession.name,
+                    state.data?.hprSession.hprId,
+                  ]
+                    .filter(Boolean)
+                    .join(" · "),
+                })}
                 {state.data?.hprSession.role &&
                   state.data.hprSession.role < 2 && (
                     <span className="text-destructive">
@@ -474,18 +537,10 @@ export default function HfrOnboardingWizard({
             <AlertDescription>{t("abdm_hfr_load_failed")}</AlertDescription>
           </Alert>
         )}
-        {onboarding?.failure && (
-          <Alert variant="destructive">
-            <AlertDescription>
-              {onboarding.failure.what} {onboarding.failure.nextStep}
-            </AlertDescription>
-          </Alert>
-        )}
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+        {(() => {
+          const notice = error ?? noticeFromFailure(onboarding?.failure);
+          return notice ? <FailureNotice {...notice} /> : null;
+        })()}
 
         {state.data && step === "dedup" && (
           <Card>
@@ -550,10 +605,9 @@ export default function HfrOnboardingWizard({
                   <Alert variant="warning">
                     <AlertDescription className="grid gap-1">
                       <span>
-                        {t("abdm_hfr_dedup_matches").replace(
-                          "{{count}}",
-                          String(onboarding.dedupResults.length),
-                        )}
+                        {t("abdm_hfr_dedup_matches", {
+                          count: String(onboarding.dedupResults.length),
+                        })}
                       </span>
                       <ul className="list-disc pl-4 text-xs">
                         {onboarding.dedupResults.map((r, i) => (
@@ -662,10 +716,7 @@ export default function HfrOnboardingWizard({
                     }}
                   />
                 </Field>
-                <Field
-                  labelKey="abdm_hfr_ownership_subtype2"
-                  htmlFor="b-own3"
-                >
+                <Field labelKey="abdm_hfr_ownership_subtype2" htmlFor="b-own3">
                   <MasterSelect
                     id="b-own3"
                     kind="owner-subtypes"
@@ -849,6 +900,9 @@ export default function HfrOnboardingWizard({
                     inputMode="decimal"
                     value={String(address.latitude ?? "")}
                     onChange={(v) => setAddress("latitude", v)}
+                    onBlur={(v) =>
+                      setAddress("latitude", shortenCoordinate(v, "latitude"))
+                    }
                   />
                 </Field>
                 <Field labelKey="abdm_hfr_longitude" htmlFor="b-lon">
@@ -857,6 +911,9 @@ export default function HfrOnboardingWizard({
                     inputMode="decimal"
                     value={String(address.longitude ?? "")}
                     onChange={(v) => setAddress("longitude", v)}
+                    onBlur={(v) =>
+                      setAddress("longitude", shortenCoordinate(v, "longitude"))
+                    }
                   />
                 </Field>
               </div>
@@ -910,6 +967,9 @@ export default function HfrOnboardingWizard({
               </div>
 
               <h3 className="text-sm font-semibold">{t("abdm_hfr_photos")}</h3>
+              <p className="text-muted-foreground text-xs">
+                {t("abdm_hfr_photos_required")}
+              </p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Photo
                   id="b-board"
@@ -961,7 +1021,8 @@ export default function HfrOnboardingWizard({
                   busy ||
                   !sessionActive ||
                   !basic.facilityName ||
-                  !address.stateLGDCode
+                  !address.stateLGDCode ||
+                  (photosMissing && !onboarding?.trackingId)
                 }
                 onClick={() =>
                   run.mutate({ step: "basic", payload: basicPayload() })
@@ -1093,12 +1154,15 @@ export default function HfrOnboardingWizard({
                   {t("abdm_hfr_specialities_need_som")}
                 </p>
               )}
+              <p className="text-muted-foreground text-xs">
+                {t("abdm_hfr_specialities_rule")}
+              </p>
               {somCodes.map((som) => {
                 const row = specialities.find(
                   (s) => s.systemOfMedicineCode === som,
                 ) ?? {
                   systemOfMedicineCode: som,
-                  isSpecializationAvalaible: "N",
+                  isSpecializationAvalaible: "Y",
                   specialities: [],
                 };
                 const update = (patch: Json) =>
@@ -1147,29 +1211,61 @@ export default function HfrOnboardingWizard({
               <p className="text-muted-foreground text-xs">
                 {t("abdm_hfr_infrastructure_help")}
               </p>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {[
-                  "totalNumberOfBeds",
-                  "countIPDBedsWithoutOxygen",
-                  "countIPDBedsWithOxygen",
-                  "countICUBedsWithVentilators",
-                  "countICUBedsWithoutVentilators",
-                  "countHDUBedsWithVentilators",
-                  "countHDUBedsWithoutVentilators",
-                  "totalNumberOfVentilators",
-                  "countDayCareBedsWithoutOxygen",
-                  "countDayCareBedsWithOxygen",
-                  "countDentalChairs",
-                ].map((k) => (
+              {/* The total is derived: the sum of the 6 counts below, the rule the registry applies.
+                  Every count starts at 0, so the sum is always right and never typed. */}
+              <div className="grid gap-3 rounded-md border p-3">
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <span className="text-sm font-medium">
+                    {t("abdm_hfr_totalNumberOfBeds")}
+                  </span>
+                  <span className="text-2xl font-semibold tabular-nums">
+                    {bedSum}
+                  </span>
+                  <span className="text-muted-foreground text-xs">
+                    {t("abdm_hfr_beds_total_derived")}
+                  </span>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {BED_SUM_FIELDS.map((k) => (
+                    <Field
+                      key={k}
+                      labelKey={`abdm_hfr_${k}`}
+                      htmlFor={`d-${k}`}
+                    >
+                      <Text
+                        id={`d-${k}`}
+                        inputMode="numeric"
+                        value={String(infra[k] ?? 0)}
+                        onChange={(v) =>
+                          setDetailedField("medicalInfrastructure", {
+                            ...infra,
+                            [k]: count(v),
+                          })
+                        }
+                      />
+                    </Field>
+                  ))}
+                </div>
+                {bedSum === 0 && (
+                  <p className="text-muted-foreground text-xs">
+                    {t("abdm_hfr_beds_zero_hint")}
+                  </p>
+                )}
+              </div>
+              <h4 className="text-xs font-semibold">
+                {t("abdm_hfr_beds_not_counted")}
+              </h4>
+              <div className="grid gap-3 sm:grid-cols-4">
+                {OTHER_COUNT_FIELDS.map((k) => (
                   <Field key={k} labelKey={`abdm_hfr_${k}`} htmlFor={`d-${k}`}>
                     <Text
                       id={`d-${k}`}
                       inputMode="numeric"
-                      value={infra[k] === undefined ? "" : String(infra[k])}
+                      value={String(infra[k] ?? 0)}
                       onChange={(v) =>
                         setDetailedField("medicalInfrastructure", {
                           ...infra,
-                          [k]: num(v),
+                          [k]: count(v),
                         })
                       }
                     />
@@ -1310,6 +1406,13 @@ export default function HfrOnboardingWizard({
               >
                 {t("abdm_back")}
               </Button>
+              {somWithoutSpecialities.length > 0 && (
+                <p className="text-destructive text-xs">
+                  {t("abdm_hfr_specialities_missing", {
+                    codes: somWithoutSpecialities.join(", "),
+                  })}
+                </p>
+              )}
               <Button
                 type="button"
                 size="sm"
@@ -1318,9 +1421,13 @@ export default function HfrOnboardingWizard({
                 onClick={() => {
                   const payload: Json = {
                     specialities,
-                    medicalInfrastructure: Object.fromEntries(
-                      Object.entries(infra).filter(([, v]) => v !== undefined),
-                    ),
+                    medicalInfrastructure: Object.fromEntries([
+                      ...[...BED_SUM_FIELDS, ...OTHER_COUNT_FIELDS].map((k) => [
+                        k,
+                        Number(infra[k]) || 0,
+                      ]),
+                      ["totalNumberOfBeds", bedSum],
+                    ]),
                   };
                   if (general.hasPharmacy && general.hasPharmacy !== "N")
                     payload.pharmacyDetails = pharmacy;

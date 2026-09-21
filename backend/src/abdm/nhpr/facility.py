@@ -23,18 +23,31 @@ logger = logging.getLogger(__name__)
 
 
 class HfrError(Exception):
-    def __init__(self, code: str, message: str, request_id: str = "", detail: str = ""):
+    def __init__(self, code: str, message: str, request_id: str = "", details: list[str] | None = None):
         super().__init__(message)
         self.code = code
         self.message = message
         self.request_id = request_id
-        # The registry's own words ("Required OwnershipCode Field is empty."). The person on the setup
-        # page is an administrator, so the API carries them beside the plug sentence (abdm-m3
-        # design.md: never replace the message ABDM sent with words of your own).
-        self.detail = detail
+        # The registry's own words, 1 line per `details[]` entry ("Required OwnershipCode Field is
+        # empty."). The person on the setup page is an administrator, so the API carries them beside
+        # the plug sentence (abdm-m3 design.md: never replace the message ABDM sent with your own).
+        self.details = list(details or [])
+
+    @property
+    def detail(self) -> str:
+        return " ".join(self.details)
 
     def as_dict(self) -> dict:
-        return {"errors": self.message, "detail": self.detail, "code": self.code, "requestId": self.request_id}
+        return {
+            "errors": self.message,
+            "detail": self.detail,
+            "details": self.details,
+            "code": self.code,
+            "requestId": self.request_id,
+        }
+
+
+REFUSED = "The registry refused the request."
 
 
 def _raise_from(exc: client.NhprError, code: str = "") -> HfrError:
@@ -43,9 +56,9 @@ def _raise_from(exc: client.NhprError, code: str = "") -> HfrError:
     failure = errors.classify(
         code=exc.code, http_status=exc.row.http_status if exc.row else None, message=str(exc), request_id=exc.request_id
     )
-    words = client.refusal_words(exc.row)
-    message = f"The registry refused the request: {words}" if words else f"{failure.what} {failure.next_step}".strip()
-    return HfrError(code or failure.code, message, exc.request_id, words)
+    lines = client.refusal_lines(exc.row)
+    message = f"{REFUSED} {' '.join(lines)}" if lines else f"{failure.what} {failure.next_step}".strip()
+    return HfrError(code or failure.code, message, exc.request_id, lines)
 
 
 # --- tier A: lookup, search, link ---------------------------------------------------------------
@@ -206,7 +219,8 @@ def _record(state: dict, row: AbdmOutboundRequest | None, result: dict | None = 
 def _fail(facility, state: dict, exc: client.NhprError) -> HfrError:
     error = _raise_from(exc)
     state["error_code"] = error.code[:64]
-    state["error_message"] = error.message[:512]
+    state["error_message"] = error.message[:1024]
+    state["error_details"] = [line[:512] for line in error.details[:10]]
     state["last_request_id"] = exc.row.request_id if exc.row is not None else exc.request_id
     facility_service.save_onboarding(facility, state)
     return error
@@ -220,6 +234,7 @@ def run_step(facility, state: dict, step: str, payload: dict, user) -> dict:
     payload = payload if isinstance(payload, dict) else {}
     state["error_code"] = ""
     state["error_message"] = ""
+    state["error_details"] = []
     try:
         if step == "dedup":
             body = rules.dedup_body(
@@ -319,6 +334,8 @@ def onboarding_summary(state: dict | None) -> dict | None:
             request_id=str(state.get("last_request_id") or ""),
         ).as_dict()
         failure["detail"] = str(state.get("error_message") or "")
+        # The registry's lines, for the wizard's failure notice (1 bullet each).
+        failure["details"] = [str(line) for line in (state.get("error_details") or []) if line]
     status = str(state.get("status") or "draft")
     return {
         "status": status,
@@ -341,12 +358,15 @@ def onboarding_summary(state: dict | None) -> dict | None:
 
 def hfr_state(facility, user) -> dict:
     """What the setup page's HFR card and the wizard read."""
-    profile = AbdmHprProfile.objects.filter(user=user).first()
+    from abdm.nhpr.professional import profile_for
+
+    profile = profile_for(user, heal=True)
     return {
         "config": facility_service.get_config(facility),
         "onboarding": onboarding_summary(current_onboarding(facility)),
         "hprSession": {
-            "hprId": profile.hpr_id if profile else "",
+            "hprId": (profile.hpr_id or profile.hpr_id_number) if profile else "",
+            "name": profile.name if profile else "",
             "active": bool(profile and profile.token_valid),
             "expiresAt": profile.token_expires_at if profile else None,
             "role": profile.role if profile else None,
@@ -356,7 +376,8 @@ def hfr_state(facility, user) -> dict:
             "address": facility.address or "",
             "pincode": str(facility.pincode or ""),
             "phone": facility.phone_number or "",
-            "latitude": str(facility.latitude or ""),
-            "longitude": str(facility.longitude or ""),
+            # 1 to 6 decimal places, because Care holds 16 (HIS-4019, HIS-4020).
+            "latitude": rules.coordinate(facility.latitude, "latitude"),
+            "longitude": rules.coordinate(facility.longitude, "longitude"),
         },
     }

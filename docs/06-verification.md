@@ -92,9 +92,12 @@ and it checks that a refused call's outbound row survives the request (J9). It d
 (`03-roadmap.md` Phase 5) and the masters cache, then deletes what it created and restores the facility
 extension. Expected last lines: `M4 SMOKE OK — NHPR calls: 58 total calls: 64` and `cleanup done`.
 
-**Caution:** if the script dies inside its `finally` block, the cleanup is partial: the superuser keeps
-an `AbdmHprProfile`, and facility 9 keeps the smoke's extension. Read `Facility.extensions["abdm"]` before
-a run and restore it by hand after a crash (done once on 2026-09-21).
+Since the afternoon of 2026-09-21 the script creates its own superuser (`abdm_m4_smoke_admin`) and
+deletes it at the end: the real superuser holds a real HPR profile now, and the smoke must never touch it.
+
+**Caution:** if the script dies inside its `finally` block, the cleanup is partial: the smoke superuser
+stays, and facility 9 keeps the smoke's extension. Read `Facility.extensions["abdm"]` before a run and
+restore it by hand after a crash (done once on 2026-09-21).
 
 Read-only probes against the real registry (the way the 2026-09-21 facts were found) need no fixture:
 `abdm.nhpr.client.search_facilities(facility_id="IN1410000232")`, `client.masters("lgd-states")`,
@@ -146,6 +149,10 @@ npm run build          # tsc -b && vite build; must produce dist/assets/remoteEn
 npx eslint src         # 0 errors (10 pre-existing fast-refresh warnings in ui/*)
 grep -oh 't("abdm_[a-z_0-9]*"' -r src | sort -u   # every key must exist in public/locale/en.json
 ```
+
+A key with a `{{placeholder}}` must be called with options (findings J10). Check:
+`python3 -c 'import json,re,pathlib;d=json.load(open("public/locale/en.json"));src="\n".join(p.read_text() for p in pathlib.Path("src").rglob("*.tsx"));print([k for k,v in d.items() if "{{" in v and re.search(r"t\(\s*\""+re.escape(k)+r"\"\s*\)",src)])'`
+must print `[]`.
 
 Field help (ADR-016) is keyed by label: `abdm_nhpr_help_<label key without abdm_>_{title,what,how,example}`.
 A field whose 4 keys are missing renders without the icon, so the grep above does not cover them; check

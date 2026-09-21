@@ -491,10 +491,9 @@ export default function AddFacilityWizard() {
                     picked.alreadyLinked ? (
                       <Alert variant="warning">
                         <AlertDescription>
-                          {t("abdm_add_already_linked").replace(
-                            "{{name}}",
-                            picked.alreadyLinked.name,
-                          )}{" "}
+                          {t("abdm_add_already_linked", {
+                            name: picked.alreadyLinked.name,
+                          })}{" "}
                           <a
                             className="underline"
                             href={`/facility/${picked.alreadyLinked.id}/abdm/setup`}
@@ -749,10 +748,7 @@ export default function AddFacilityWizard() {
                       <CircleDashed className="text-muted-foreground size-4" />
                     )}
                     {config.facility_id
-                      ? t("abdm_add_done_linked").replace(
-                          "{{id}}",
-                          config.facility_id,
-                        )
+                      ? t("abdm_add_done_linked", { id: config.facility_id })
                       : t("abdm_add_done_not_linked")}
                   </li>
                   {mode !== "care" && (
@@ -763,10 +759,7 @@ export default function AddFacilityWizard() {
                         <CircleDashed className="text-muted-foreground size-4" />
                       )}
                       {config.hip_id
-                        ? t("abdm_add_done_services").replace(
-                            "{{id}}",
-                            config.hip_id,
-                          )
+                        ? t("abdm_add_done_services", { id: config.hip_id })
                         : t("abdm_add_done_no_services")}
                     </li>
                   )}

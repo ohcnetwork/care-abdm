@@ -166,6 +166,7 @@ No model named `Immunization` or `Procedure` was found under `care/emr/models/` 
 | The manifest type accepts `adminNavItems?: NavigationLink[]`. | `~/ohc.network/care_fe/src/pluginTypes.ts:220-227` |
 | `NavigationLink` has `name`, `url`, optional `icon`, optional `section`, and optional children. | `~/ohc.network/care_fe/src/components/ui/sidebar/nav-main.tsx:62-72` |
 | The admin sidebar appends each plug `adminNavItems` entry after the core admin links. | `~/ohc.network/care_fe/src/components/ui/sidebar/admin-nav.tsx:17-105` |
+| The host inits i18next with `interpolation: {escapeValue: false, skipOnVariables: false}`. A `{{placeholder}}` with no value is replaced by an empty string inside `t()`, so a plug must pass values as `t(key, {name: value})`, never `.replace("{{name}}", …)` on the result (findings J10). | `~/ohc.network/care_fe/src/i18n.ts:160-163` |
 | The app treats any `/admin` path as an admin page and shows the admin sidebar. | `~/ohc.network/care_fe/src/Routers/AppRouter.tsx:132-138` |
 | Plug routes merge into the app route table before the host routes. A plug can own `/admin/...` when no host route collides. | `~/ohc.network/care_fe/src/Routers/AppRouter.tsx:121-132` |
 | The frontend permission context treats `user.is_superuser` as `isSuperAdmin`. | `~/ohc.network/care_fe/src/Routers/AppRouter.tsx:169-177` |

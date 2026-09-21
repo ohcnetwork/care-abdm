@@ -73,7 +73,7 @@ function RecordRows({
 }: {
   request: AbdmConsentRequest;
   onOpen: (record: AbdmFetchedRecord) => void;
-  t: (key: string) => string;
+  t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   const records = request.artefacts.flatMap((a) => a.records);
   if (records.length === 0) return null;
@@ -150,7 +150,7 @@ function RequestRow({
   onRefresh: () => void;
   onFetch: () => void;
   onOpen: (record: AbdmFetchedRecord) => void;
-  t: (key: string) => string;
+  t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   const fetch = latestFetch(request);
   const inFlight = requestInFlight(request);
@@ -184,12 +184,10 @@ function RequestRow({
             {request.hipName || t("abdm_fetch_all_providers")}
           </span>
           <span className="text-muted-foreground text-xs">
-            {t("abdm_fetch_requested_by")
-              .replace("{{name}}", request.requestedBy || "\u2014")
-              .replace(
-                "{{when}}",
-                `${formatDay(request.requestedAt)} ${formatTime(new Date(request.requestedAt))}`,
-              )}
+            {t("abdm_fetch_requested_by", {
+              name: request.requestedBy || "\u2014",
+              when: `${formatDay(request.requestedAt)} ${formatTime(new Date(request.requestedAt))}`,
+            })}
             {request.decidedAt &&
               ` · ${t("abdm_fetch_decided_at")} ${formatDay(request.decidedAt)} ${formatTime(new Date(request.decidedAt))}`}
             {request.reason && ` · ${request.reason}`}

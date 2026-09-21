@@ -124,9 +124,10 @@ export default function HprLoginDialog({
         {pendingLogin ? (
           <div className="grid gap-3 text-sm">
             <p>
-              {t("abdm_hpr_otp_sent")
-                .replace("{{id}}", pendingLogin.hprId)
-                .replace("{{mobile}}", pendingLogin.mobileMasked || "******")}
+              {t("abdm_hpr_otp_sent", {
+                id: pendingLogin.hprId,
+                mobile: pendingLogin.mobileMasked || "******",
+              })}
             </p>
             <NhprField labelKey="abdm_otp" htmlFor="abdm-hpr-otp">
               <Input

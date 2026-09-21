@@ -21,16 +21,29 @@ MAX_OTP_ATTEMPTS = 3
 
 
 class HprError(Exception):
-    def __init__(self, code: str, message: str, request_id: str = "", detail: str = ""):
+    def __init__(self, code: str, message: str, request_id: str = "", details: list[str] | None = None):
         super().__init__(message)
         self.code = code
         self.message = message
         self.request_id = request_id
-        # The registry's own words, carried beside the plug sentence (abdm-m3 design.md).
-        self.detail = detail
+        # The registry's own words, 1 line each, carried beside the plug sentence (abdm-m3 design.md).
+        self.details = list(details or [])
+
+    @property
+    def detail(self) -> str:
+        return " ".join(self.details)
 
     def as_dict(self) -> dict:
-        return {"errors": self.message, "detail": self.detail, "code": self.code, "requestId": self.request_id}
+        return {
+            "errors": self.message,
+            "detail": self.detail,
+            "details": self.details,
+            "code": self.code,
+            "requestId": self.request_id,
+        }
+
+
+REFUSED = "The registry refused the request."
 
 
 def _raise_from(exc: client.NhprError) -> HprError:
@@ -38,9 +51,9 @@ def _raise_from(exc: client.NhprError) -> HprError:
     failure = errors.classify(
         code=exc.code, http_status=exc.row.http_status if exc.row else None, message=str(exc), request_id=exc.request_id
     )
-    words = client.refusal_words(exc.row)
-    message = f"The registry refused the request: {words}" if words else f"{failure.what} {failure.next_step}".strip()
-    return HprError(failure.code or "NHPR_ERROR", message, exc.request_id, words)
+    lines = client.refusal_lines(exc.row)
+    message = f"{REFUSED} {' '.join(lines)}" if lines else f"{failure.what} {failure.next_step}".strip()
+    return HprError(failure.code or "NHPR_ERROR", message, exc.request_id, lines)
 
 
 # Observed 2026-09-21: `searchByHprId` and `existsByHprId` answer HTTP 422 `HIS-3008 "Invalid HPID."`
@@ -57,8 +70,25 @@ def _is_not_found(exc: client.NhprError) -> bool:
     return exc.row.http_status == 422 and any(code in text for code in NOT_FOUND_CODES)
 
 
-def profile_for(user) -> AbdmHprProfile | None:
-    return AbdmHprProfile.objects.filter(user=user).first()
+def profile_for(user, *, heal: bool = False) -> AbdmHprProfile | None:
+    """The user's HPR profile. With `heal`, a profile that holds an id and no name (the account call
+    was refused at login, N25) fills itself from the public record once, 1 registry call."""
+    profile = AbdmHprProfile.objects.filter(user=user).first()
+    if heal and profile is not None and not profile.name and (profile.hpr_id or profile.hpr_id_number):
+        _fill_from_public_record(profile)
+        if profile.name:
+            profile.save(
+                update_fields=[
+                    "hpr_id",
+                    "hpr_id_number",
+                    "name",
+                    "category_code",
+                    "sub_category_code",
+                    "role",
+                    "modified_date",
+                ]
+            )
+    return profile
 
 
 def _store_token(profile: AbdmHprProfile, token_data: dict, method: str) -> None:
@@ -70,9 +100,37 @@ def _store_token(profile: AbdmHprProfile, token_data: dict, method: str) -> None
     profile.token_issued_at = timezone.now()
 
 
+# `hpid/get/categories?role=2` names 100 "Facility Manager" (observed 2026-09-21); the other categories
+# (1 Doctor, 2 Nurse, ...) are healthcare professionals (registries/nhpr/hpr §Who can enrol).
+FACILITY_MANAGER_CATEGORY = "100"
+
+
+def _fill_from_public_record(profile: AbdmHprProfile) -> None:
+    """`searchByHprId`: the public record (name, both id forms, category) when the account call is
+    refused. Observed 2026-09-21: `GET /v1/account/information` answers HIS-500 on every try, and the
+    public record is what the login dialog already showed (findings N25)."""
+    hpr_id = profile.hpr_id or rules.hpr_id_number_digits(profile.hpr_id_number)
+    if not hpr_id:
+        return
+    try:
+        row = client.ok(client.search_hpr_id(hpr_id))
+    except client.NhprError as exc:
+        logger.warning("abdm: public HPR record refused after login: %s", exc)
+        return
+    record = rules.parse_hpr_search(row.response_json)
+    profile.hpr_id = (profile.hpr_id or record["hpr_id"])[:128]
+    profile.hpr_id_number = (profile.hpr_id_number or rules.format_hpr_id_number(record["hpr_id_number"]))[:32]
+    profile.name = (record["name"] or profile.name)[:256]
+    profile.category_code = (record["category_id"] or profile.category_code)[:16]
+    profile.sub_category_code = (record["sub_category_id"] or profile.sub_category_code)[:16]
+    if profile.role is None and profile.category_code:
+        profile.role = 2 if profile.category_code == FACILITY_MANAGER_CATEGORY else 1
+
+
 def _fill_from_account(profile: AbdmHprProfile) -> None:
     """`GET /v1/account/information` with the person's token: the HPR ID in both forms, the name,
-    the category codes. A refusal leaves the login valid: the claims of the token still name the id."""
+    the category codes. A refusal leaves the login valid: the claims of the token still name the id,
+    and the public record fills the rest."""
     try:
         row = client.ok(client.account_information(profile.token))
     except client.NhprError as exc:
@@ -82,6 +140,7 @@ def _fill_from_account(profile: AbdmHprProfile) -> None:
         profile.hpr_id_number = (
             profile.hpr_id_number or rules.format_hpr_id_number(str(claims.get("hprIdNumber") or ""))[:32]
         )
+        _fill_from_public_record(profile)
         return
     account = rules.parse_account_information(row.response_json)
     profile.account = account
@@ -488,8 +547,11 @@ def _trim(value, depth=0):
 
 def documents(user) -> dict:
     profile, token = _token(user)
+    # Observed 2026-09-21: `fetch-documents-list` with the address answered HTTP 422 HIS-3008
+    # "Invalid HPID". The page sends `hprid: <HPR_ID>`; the 14 digits are tried first (findings N26).
+    hpr_id = rules.hpr_id_number_digits(profile.hpr_id_number) or profile.hpr_id
     try:
-        row = client.ok(client.fetch_documents_list(profile.hpr_id or profile.hpr_id_number, token))
+        row = client.ok(client.fetch_documents_list(hpr_id, token))
     except client.NhprError as exc:
         raise _raise_from(exc) from exc
     data = row.response_json if isinstance(row.response_json, dict) else {}
@@ -591,7 +653,7 @@ def txn_summary(txn: AbdmHpidTransaction | None) -> dict | None:
 
 
 def hpr_state(user) -> dict:
-    profile = profile_for(user)
+    profile = profile_for(user, heal=True)
     login = (
         AbdmHprLogin.objects.filter(user=user, status=AbdmHprLogin.Status.OTP_SENT).order_by("-created_date").first()
     )

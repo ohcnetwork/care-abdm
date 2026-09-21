@@ -166,24 +166,51 @@ def suggest_care_facility_type(record: dict) -> str:
     return "Other"
 
 
+_COORDINATE_LIMIT = {"latitude": 90.0, "longitude": 180.0}
+
+
+def coordinate(value, kind: str, *, strict: bool = False) -> str:
+    """A coordinate the HFR accepts: 1 to 6 decimal places, inside the range of its kind
+    (`HIS-4019` latitude, `HIS-4020` longitude).
+
+    Care holds a coordinate with 16 decimal places (`Facility.latitude`), and the registry search
+    answers with 15, so every value that crosses into an HFR body must be shortened first.
+    An empty value gives an empty string. With `strict`, a value the registry would refuse raises
+    a `ValueError` that names the field, so the plug refuses before the call (ADR-012).
+    """
+    limit = _COORDINATE_LIMIT[kind]
+    raw = str(value if value is not None else "").strip()
+    if not raw:
+        return ""
+    try:
+        number = float(raw)
+    except ValueError:
+        if strict:
+            raise ValueError(f"{kind} must be a number.") from None
+        return ""
+    if not -limit <= number <= limit:
+        if strict:
+            raise ValueError(f"{kind} must be between -{limit:.6f} and +{limit:.6f}.")
+        return ""
+    text = f"{number:.6f}".rstrip("0")
+    return f"{text}0" if text.endswith(".") else text
+
+
 def care_prefill(record: dict) -> dict:
     """The Care facility form fields a registry record can fill. Everything else stays typed."""
 
-    def _float(value):
-        try:
-            return float(str(value).strip())
-        except (TypeError, ValueError):
-            return None
+    def _float(value, kind: str):
+        text = coordinate(value, kind)
+        return float(text) if text else None
 
     pincode = str(record.get("pincode") or "").strip()
-    latitude = _float(record.get("latitude"))
-    longitude = _float(record.get("longitude"))
     return {
         "name": str(record.get("facilityName") or "").strip(),
         "address": str(record.get("address") or "").strip(),
         "pincode": int(pincode) if re.fullmatch(r"[1-9][0-9]{5}", pincode) else None,
-        "latitude": latitude if latitude is not None and -90 <= latitude <= 90 else None,
-        "longitude": longitude if longitude is not None and -180 <= longitude <= 180 else None,
+        # 6 decimal places, so the value Care stores can go back to the registry unchanged.
+        "latitude": _float(record.get("latitude"), "latitude"),
+        "longitude": _float(record.get("longitude"), "longitude"),
         "facility_type": suggest_care_facility_type(record),
         "state_name": str(record.get("stateName") or "").strip(),
         "district_name": str(record.get("districtName") or "").strip(),
@@ -802,6 +829,11 @@ def basic_information_body(facility_information: dict, tracking_id: str = "") ->
     address = info.get("facilityAddressDetails")
     if not isinstance(address, dict) or not str(address.get("stateLGDCode") or ""):
         raise ValueError("facilityAddressDetails.stateLGDCode is required.")
+    # HIS-4019 and HIS-4020: 1 to 6 decimal places. A value prefilled from Care carries 16.
+    address = dict(address)
+    for kind in ("latitude", "longitude"):
+        address[kind] = coordinate(address.get(kind), kind, strict=True)
+    info["facilityAddressDetails"] = address
     uploads = info.get("facilityUploads") if isinstance(info.get("facilityUploads"), dict) else {}
     for key in ("facilityBoardPhoto", "facilityBuildingPhoto"):
         photo = uploads.get(key) if isinstance(uploads.get(key), dict) else {}
@@ -819,11 +851,58 @@ def additional_information_body(payload: dict, tracking_id: str) -> dict:
     return body
 
 
+# `medicalInfrastructure` (m4-onboarding-apis/04). The registry sums the first 6 against
+# `totalNumberOfBeds` and refuses a difference (HIS-1070, observed 2026-09-21, findings N27); the ICU
+# beds, the ventilators and the dental chairs are outside the sum.
+BED_SUM_FIELDS = (
+    "countIPDBedsWithoutOxygen",
+    "countIPDBedsWithOxygen",
+    "countHDUBedsWithVentilators",
+    "countHDUBedsWithoutVentilators",
+    "countDayCareBedsWithoutOxygen",
+    "countDayCareBedsWithOxygen",
+)
+INFRASTRUCTURE_FIELDS = BED_SUM_FIELDS + (
+    "countICUBedsWithVentilators",
+    "countICUBedsWithoutVentilators",
+    "totalNumberOfVentilators",
+    "countDentalChairs",
+)
+
+
+def _count(value, field: str) -> int:
+    """A bed or equipment count: a whole number, 0 or more; an empty value is 0."""
+    if value in (None, ""):
+        return 0
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{field} must be a whole number.") from None
+    if number < 0:
+        raise ValueError(f"{field} cannot be negative.")
+    return number
+
+
+def medical_infrastructure(payload) -> dict:
+    """Every count as an integer, 0 when absent, and `totalNumberOfBeds` **derived** as the sum of the
+    6 counts the registry sums, so its equality rule can never be broken by a typed total. A typed
+    `totalNumberOfBeds` is ignored."""
+    data = payload if isinstance(payload, dict) else {}
+    unknown = sorted(set(data) - set(INFRASTRUCTURE_FIELDS) - {"totalNumberOfBeds"})
+    if unknown:
+        raise ValueError(f"Unknown medicalInfrastructure field: {', '.join(unknown)}.")
+    counts = {field: _count(data.get(field), field) for field in INFRASTRUCTURE_FIELDS}
+    counts["totalNumberOfBeds"] = sum(counts[field] for field in BED_SUM_FIELDS)
+    return counts
+
+
 def detailed_information_body(payload: dict, tracking_id: str) -> dict:
-    """`m4-onboarding-apis/04`."""
+    """`m4-onboarding-apis/04`. The bed total is derived (`medical_infrastructure`)."""
     if not tracking_id:
         raise ValueError("Save the basic information first: no tracking id.")
     body = _only(payload, DETAILED_KEYS, "detailed information")
+    if "medicalInfrastructure" in body:
+        body["medicalInfrastructure"] = medical_infrastructure(body["medicalInfrastructure"])
     body["trackingId"] = tracking_id
     return body
 

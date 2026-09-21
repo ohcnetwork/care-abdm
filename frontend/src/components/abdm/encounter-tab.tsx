@@ -347,10 +347,9 @@ export default function AbdmEncounterTab({
                     </span>
                     {waitUntil && (
                       <span className="text-xs">
-                        {t("abdm_cc_retry_after").replace(
-                          "{{time}}",
-                          formatTime(waitUntil),
-                        )}
+                        {t("abdm_cc_retry_after", {
+                          time: formatTime(waitUntil),
+                        })}
                       </span>
                     )}
                   </AlertDescription>

@@ -1,7 +1,11 @@
 import FieldHelp, { type FieldHelpContent } from "@/components/abdm/field-help";
 import MasterSelect from "@/components/abdm/master-select";
+import FailureNotice from "@/components/abdm/failure-notice";
+import {
+  type FailureNoticeProps,
+  noticeFromError,
+} from "@/components/abdm/failure-notice-shared";
 import { errorMessage, statusTone } from "@/components/abdm/nhpr-shared";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -112,7 +116,11 @@ export function RegistryRecord({
 
 /** The 3 values a registry name search needs (m4-search/02; the registry refuses one without the
  * state and the ownership, HIS-1070, observed 2026-09-21). */
-export type RegistrySearchArgs = { name: string; state: string; ownership: string };
+export type RegistrySearchArgs = {
+  name: string;
+  state: string;
+  ownership: string;
+};
 
 /**
  * The registry finder: lookup by ID, or search by name, state and ownership. Shared by the setup
@@ -142,7 +150,7 @@ export function RegistryFinder({
   const [state, setState] = useState("");
   const [ownership, setOwnership] = useState("");
   const [searched, setSearched] = useState<RegistrySearchArgs | null>(null);
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<FailureNoticeProps>();
   const [lookedUp, setLookedUp] = useState<AbdmHfrFacility | null>(null);
 
   const lookupRun = useMutation<AbdmHfrFacility, unknown, string>({
@@ -152,7 +160,7 @@ export function RegistryFinder({
       setLookedUp(null);
     },
     onSuccess: setLookedUp,
-    onError: (e) => setError(errorMessage(e, t("abdm_hfr_not_found"))),
+    onError: (e) => setError(noticeFromError(e, t("abdm_hfr_not_found"))),
   });
   const searchRun = useQuery<AbdmHfrSearchResult>({
     queryKey: [idPrefix, "hfr-search", searched],
@@ -161,7 +169,8 @@ export function RegistryFinder({
     retry: false,
   });
   const pending = Boolean(busy) || lookupRun.isPending;
-  const canSearch = name.trim().length >= 3 && Boolean(state) && Boolean(ownership);
+  const canSearch =
+    name.trim().length >= 3 && Boolean(state) && Boolean(ownership);
   const runSearch = () => {
     if (!canSearch) return;
     setSearched({ name: name.trim(), state, ownership });
@@ -170,7 +179,9 @@ export function RegistryFinder({
   return (
     <div className="grid gap-5">
       <div className="grid gap-1.5">
-        <Label htmlFor={`${idPrefix}-lookup`}>{t("abdm_hfr_lookup_label")}</Label>
+        <Label htmlFor={`${idPrefix}-lookup`}>
+          {t("abdm_hfr_lookup_label")}
+        </Label>
         <div className="flex gap-2">
           <Input
             id={`${idPrefix}-lookup`}
@@ -227,7 +238,9 @@ export function RegistryFinder({
       )}
 
       <div className="grid gap-1.5">
-        <span className="text-sm font-medium">{t("abdm_hfr_search_label")}</span>
+        <span className="text-sm font-medium">
+          {t("abdm_hfr_search_label")}
+        </span>
         <div className="grid gap-2 sm:grid-cols-2">
           <div className="grid gap-1">
             <Label htmlFor={`${idPrefix}-search-name`} className="text-xs">
@@ -292,7 +305,8 @@ export function RegistryFinder({
         <div className="grid gap-2">
           {searchRun.isFetching && (
             <span className="text-muted-foreground flex items-center gap-2 text-xs">
-              <Loader2 className="size-3 animate-spin" /> {t("abdm_hfr_searching")}
+              <Loader2 className="size-3 animate-spin" />{" "}
+              {t("abdm_hfr_searching")}
             </span>
           )}
           {searchRun.isError && (
@@ -357,19 +371,14 @@ export function RegistryFinder({
           {searchRun.data &&
             searchRun.data.total > searchRun.data.facilities.length && (
               <span className="text-muted-foreground text-xs">
-                {t("abdm_hfr_search_more").replace(
-                  "{{total}}",
-                  String(searchRun.data.total),
-                )}
+                {t("abdm_hfr_search_more", {
+                  total: String(searchRun.data.total),
+                })}
               </span>
             )}
         </div>
       )}
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+      {error && <FailureNotice {...error} />}
     </div>
   );
 }
@@ -423,7 +432,7 @@ export default function RegistryCard({
   onRegisterServices: () => void;
 }) {
   const { t } = useTranslation();
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<FailureNoticeProps>();
   const [changing, setChanging] = useState(false);
   const [otpTxn, setOtpTxn] = useState("");
   const [otp, setOtp] = useState("");
@@ -452,7 +461,7 @@ export default function RegistryCard({
       onLinked(data.config);
       setChanging(false);
     },
-    onError: (e) => setError(errorMessage(e, t("abdm_hfr_link_failed"))),
+    onError: (e) => setError(noticeFromError(e, t("abdm_hfr_link_failed"))),
   });
   const otpAction = useMutation<
     { transactionId?: string; message: string; status: string },
@@ -473,7 +482,7 @@ export default function RegistryCard({
       if (action === "send") setOtpTxn(data.transactionId ?? "");
       setOtpMessage(data.message);
     },
-    onError: (e) => setError(errorMessage(e, t("abdm_hfr_otp_failed"))),
+    onError: (e) => setError(noticeFromError(e, t("abdm_hfr_otp_failed"))),
   });
 
   const pending = busy || link.isPending || otpAction.isPending;
@@ -524,7 +533,9 @@ export default function RegistryCard({
             size="sm"
             className="ml-auto"
           >
-            {linked ? t("abdm_hfr_linked_badge") : t("abdm_hfr_not_linked_badge")}
+            {linked
+              ? t("abdm_hfr_linked_badge")
+              : t("abdm_hfr_not_linked_badge")}
           </Badge>
         </CardTitle>
         <CardDescription>
@@ -546,12 +557,10 @@ export default function RegistryCard({
                 <div className="flex flex-wrap items-center gap-3">
                   {config.hfr?.linked_at && (
                     <span className="text-muted-foreground text-xs">
-                      {t("abdm_hfr_linked_on")
-                        .replace(
-                          "{{date}}",
-                          new Date(config.hfr.linked_at).toLocaleString(),
-                        )
-                        .replace("{{user}}", config.hfr.linked_by || "—")}
+                      {t("abdm_hfr_linked_on", {
+                        date: new Date(config.hfr.linked_at).toLocaleString(),
+                        user: config.hfr.linked_by || "—",
+                      })}
                     </span>
                   )}
                   <Button
@@ -667,11 +676,7 @@ export default function RegistryCard({
           </>
         )}
 
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+        {error && <FailureNotice {...error} />}
       </CardContent>
       <CardFooter className="flex flex-wrap items-center gap-3 border-t">
         {linked ? (
@@ -708,7 +713,9 @@ export default function RegistryCard({
                 type="button"
                 variant={config.hrp_registered_at ? "outline" : "default"}
                 size="sm"
-                disabled={pending || dirty || hipNameInvalid || !config.hip_name}
+                disabled={
+                  pending || dirty || hipNameInvalid || !config.hip_name
+                }
                 onClick={onRegisterServices}
               >
                 {t("abdm_register_hrp_service")}

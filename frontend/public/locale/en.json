@@ -206,7 +206,7 @@
   "abdm_hfr_hasImagingCenter": "Imaging centre",
   "abdm_hfr_hasPharmacy": "Pharmacy",
   "abdm_hfr_infrastructure": "Beds and equipment",
-  "abdm_hfr_infrastructure_help": "An inpatient or day-care facility needs at least 1 bed count above 0. A laboratory, imaging centre, blood bank or pharmacy can leave these empty.",
+  "abdm_hfr_infrastructure_help": "Type each count. The total is derived from the 6 bed counts; the registry refuses any other total.",
   "abdm_hfr_intro": "Every ABDM record names the facility by its HFR ID. Find this facility in the registry and link it, so the registered name is the one ABDM sees. A facility that is not in the registry yet can be registered from here.",
   "abdm_hfr_isFacilityRegisteredInERaktkosh": "Registered in e-RaktKosh",
   "abdm_hfr_isJanAushadhiKendra": "Jan Aushadhi Kendra",
@@ -1235,5 +1235,14 @@
   "abdm_hpr_account_details": "Account details from the registry",
   "abdm_hpr_create_continue": "Continue the creation",
   "abdm_hpr_more_actions": "More HPR actions",
-  "abdm_hpr_registry_raw": "The rest of the answer"
+  "abdm_hpr_registry_raw": "The rest of the answer",
+  "abdm_refused_title": "The registry refused the request.",
+  "abdm_refused_reference": "Reference for support:",
+  "abdm_hfr_photos_required": "Both photos are required for the first save. PNG or JPEG, 5 MB or less.",
+  "abdm_hfr_specialities_rule": "The registry needs at least 1 speciality for every system of medicine chosen in the basic step.",
+  "abdm_hfr_specialities_missing": "No speciality chosen for: {{codes}}. The registry refuses the step without them.",
+  "abdm_hpr_category_code": "Code",
+  "abdm_hfr_beds_total_derived": "Sum of the 6 counts below.",
+  "abdm_hfr_beds_zero_hint": "An inpatient or day-care facility needs a total of 1 or more. A laboratory, imaging centre, blood bank or pharmacy can stay at 0.",
+  "abdm_hfr_beds_not_counted": "Not counted in the total"
 }

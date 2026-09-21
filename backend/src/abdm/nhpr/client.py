@@ -79,18 +79,22 @@ def ok(row: AbdmOutboundRequest) -> AbdmOutboundRequest:
 _ENVELOPE_CODE_RE = re.compile(r"^HIS-[45]\d\d\b")
 
 
-def refusal_words(row: AbdmOutboundRequest | None) -> str:
-    """The registry's own words for a refused row: the specific `details[]` lines when there are
-    any, else the envelope message, else the HTTP status. Shown to the administrator as they came
+def refusal_lines(row: AbdmOutboundRequest | None) -> list[str]:
+    """The registry's own words for a refused row, 1 line per `details[]` entry when there are any,
+    else the envelope message, else the HTTP status. Shown to the administrator as they came
     (abdm-m3 design.md: never replace the message ABDM sent with words of your own)."""
     if row is None:
-        return ""
+        return []
     lines = outbound.error_lines(row.response_json)
     specific = [line for line in lines if not _ENVELOPE_CODE_RE.match(line)]
-    words = " ".join(dict.fromkeys(specific or lines)).strip()
-    if words:
-        return words
-    return f"HTTP {row.http_status}" if row.http_status else ""
+    chosen = [" ".join(line.split()) for line in dict.fromkeys(specific or lines)]
+    if chosen:
+        return chosen
+    return [f"HTTP {row.http_status}"] if row.http_status else []
+
+
+def refusal_words(row: AbdmOutboundRequest | None) -> str:
+    return " ".join(refusal_lines(row))
 
 
 def json_of(row: AbdmOutboundRequest):

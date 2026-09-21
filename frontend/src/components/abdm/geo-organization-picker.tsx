@@ -64,7 +64,7 @@ function Level({
       </select>
       {children.data && children.data.count > options.length && (
         <span className="text-muted-foreground text-xs">
-          {t("abdm_geo_more").replace("{{count}}", String(children.data.count))}
+          {t("abdm_geo_more", { count: String(children.data.count) })}
         </span>
       )}
     </div>
@@ -101,15 +101,16 @@ export default function GeoOrganizationPicker({
   }, [chain]);
 
   const pick = (depth: number) => (org: CareGovtOrganization | null) =>
-    setChain((current) => (org ? [...current.slice(0, depth), org] : current.slice(0, depth)));
+    setChain((current) =>
+      org ? [...current.slice(0, depth), org] : current.slice(0, depth),
+    );
 
   const levelLabel = (depth: number, parent?: CareGovtOrganization) => {
     const kind = parent?.metadata?.govt_org_children_type;
     if (typeof kind === "string" && kind) return kind;
-    return t(depth === 0 ? "abdm_geo_state" : "abdm_geo_level").replace(
-      "{{n}}",
-      String(depth + 1),
-    );
+    return t(depth === 0 ? "abdm_geo_state" : "abdm_geo_level", {
+      n: depth + 1,
+    });
   };
 
   const last = chain[chain.length - 1];
@@ -136,10 +137,9 @@ export default function GeoOrganizationPicker({
       )}
       <p className="text-muted-foreground text-xs">
         {last && !last.has_children
-          ? t("abdm_geo_complete").replace(
-              "{{path}}",
-              chain.map((o) => o.name).join(" › "),
-            )
+          ? t("abdm_geo_complete", {
+              path: chain.map((o) => o.name).join(" › "),
+            })
           : t("abdm_geo_help")}
       </p>
     </div>

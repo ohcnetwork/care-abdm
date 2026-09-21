@@ -432,7 +432,7 @@ export default function HprRegisterForm({
             <F
               labelKey="abdm_hpr_salutation"
               htmlFor="p-sal"
-              hint={t("abdm_hpr_code_hint").replace("{{example}}", "1")}
+              hint={t("abdm_hpr_code_hint", { example: "1" })}
             >
               <Txt
                 id="p-sal"
@@ -547,7 +547,7 @@ export default function HprRegisterForm({
             <F
               labelKey="abdm_hpr_category"
               htmlFor="p-cat"
-              hint={t("abdm_hpr_code_hint").replace("{{example}}", "C")}
+              hint={t("abdm_hpr_code_hint", { example: "C" })}
             >
               <Txt
                 id="p-cat"
@@ -851,10 +851,7 @@ export default function HprRegisterForm({
                     />
                   </F>
                   {reg.isPermanentOrRenewable === "Renewable" && (
-                    <F
-                      labelKey="abdm_hpr_renewable_due"
-                      htmlFor={`r${ri}-due`}
-                    >
+                    <F labelKey="abdm_hpr_renewable_due" htmlFor={`r${ri}-due`}>
                       <Txt
                         id={`r${ri}-due`}
                         type="date"
@@ -866,7 +863,7 @@ export default function HprRegisterForm({
                   <F
                     labelKey="abdm_hpr_registration_category_id"
                     htmlFor={`r${ri}-catid`}
-                    hint={t("abdm_hpr_code_hint").replace("{{example}}", "2")}
+                    hint={t("abdm_hpr_code_hint", { example: "2" })}
                   >
                     <Txt
                       id={`r${ri}-catid`}
@@ -932,10 +929,7 @@ export default function HprRegisterForm({
                       key={qi}
                       className="grid gap-3 rounded-md border p-3 sm:grid-cols-3"
                     >
-                      <F
-                        labelKey="abdm_hpr_degree"
-                        htmlFor={`q${ri}${qi}-deg`}
-                      >
+                      <F labelKey="abdm_hpr_degree" htmlFor={`q${ri}${qi}-deg`}>
                         <MasterSelect
                           id={`q${ri}${qi}-deg`}
                           kind="courses"
@@ -1002,10 +996,7 @@ export default function HprRegisterForm({
                           onChange={(v) => set([...qb, "university"], v)}
                         />
                       </F>
-                      <F
-                        labelKey="abdm_hpr_year"
-                        htmlFor={`q${ri}${qi}-year`}
-                      >
+                      <F labelKey="abdm_hpr_year" htmlFor={`q${ri}${qi}-year`}>
                         <Txt
                           id={`q${ri}${qi}-year`}
                           value={q.yearOfAwardingDegreeDiploma}
@@ -1103,7 +1094,7 @@ export default function HprRegisterForm({
             <F
               labelKey="abdm_hpr_work_status"
               htmlFor="w-status"
-              hint={t("abdm_hpr_code_hint").replace("{{example}}", "1")}
+              hint={t("abdm_hpr_code_hint", { example: "1" })}
             >
               <Txt
                 id="w-status"

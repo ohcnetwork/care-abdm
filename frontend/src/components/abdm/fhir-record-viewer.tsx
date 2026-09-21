@@ -416,9 +416,7 @@ export default function FhirRecordViewer({
           </DialogTitle>
           <DialogDescription className="grid gap-0.5 text-xs">
             {record?.hipName && (
-              <span>
-                {t("abdm_record_from").replace("{{name}}", record.hipName)}
-              </span>
+              <span>{t("abdm_record_from", { name: record.hipName })}</span>
             )}
             {record?.authoredAt && (
               <span>

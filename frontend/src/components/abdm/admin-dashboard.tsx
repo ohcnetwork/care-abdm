@@ -296,31 +296,19 @@ function FacilitiesCard({ rows }: { rows: AbdmAdminFacilityRow[] }) {
         {rows.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <Badge variant="neutral" size="sm">
-              {t("abdm_admin_count_facilities").replace(
-                "{{n}}",
-                String(rows.length),
-              )}
+              {t("abdm_admin_count_facilities", { n: String(rows.length) })}
             </Badge>
             <Badge variant={counts.linked ? "success" : "neutral"} size="sm">
-              {t("abdm_admin_count_linked").replace(
-                "{{n}}",
-                String(counts.linked),
-              )}
+              {t("abdm_admin_count_linked", { n: String(counts.linked) })}
             </Badge>
             <Badge variant={counts.services ? "success" : "neutral"} size="sm">
-              {t("abdm_admin_count_services").replace(
-                "{{n}}",
-                String(counts.services),
-              )}
+              {t("abdm_admin_count_services", { n: String(counts.services) })}
             </Badge>
             <Badge
               variant={counts.problems ? "destructive" : "neutral"}
               size="sm"
             >
-              {t("abdm_admin_count_problems").replace(
-                "{{n}}",
-                String(counts.problems),
-              )}
+              {t("abdm_admin_count_problems", { n: String(counts.problems) })}
             </Badge>
           </div>
         )}

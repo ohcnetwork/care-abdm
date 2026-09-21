@@ -1,5 +1,5 @@
 import GeoOrganizationPicker from "@/components/abdm/geo-organization-picker";
-import { selectClass } from "@/components/abdm/nhpr-shared";
+import { selectClass, shortenCoordinate } from "@/components/abdm/nhpr-shared";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -229,6 +229,11 @@ export default function CareFacilityForm({
             value={draft.latitude}
             disabled={disabled}
             onChange={(e) => onChange({ latitude: e.target.value })}
+            onBlur={(e) =>
+              onChange({
+                latitude: shortenCoordinate(e.target.value, "latitude"),
+              })
+            }
           />
         </Field>
         <Field
@@ -243,6 +248,11 @@ export default function CareFacilityForm({
             value={draft.longitude}
             disabled={disabled}
             onChange={(e) => onChange({ longitude: e.target.value })}
+            onBlur={(e) =>
+              onChange({
+                longitude: shortenCoordinate(e.target.value, "longitude"),
+              })
+            }
           />
         </Field>
         <div className="grid content-end">

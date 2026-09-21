@@ -2,7 +2,11 @@ import HpidCreateWizard from "@/components/abdm/hpid-create-wizard";
 import HprDocuments from "@/components/abdm/hpr-documents";
 import HprLoginDialog from "@/components/abdm/hpr-login-dialog";
 import HprRegisterForm from "@/components/abdm/hpr-register-form";
-import { errorMessage, hprQueryKey } from "@/components/abdm/nhpr-shared";
+import {
+  errorMessage,
+  hprQueryKey,
+  useMaster,
+} from "@/components/abdm/nhpr-shared";
 import PluginComponent from "@/components/common/plugin-component";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -200,11 +204,20 @@ export default function AbdmUserProfileSection({
     onError: (e) => setError(errorMessage(e, t("abdm_hpr_action_failed"))),
   });
 
+  const data = state.data;
+  const profile = data?.profile ?? null;
+  // The category name from the registry's own list for the person's role (100 "Facility Manager"
+  // under role 2; 1 "Doctor", 2 "Nurse", … under role 1; observed 2026-09-21). Before the early
+  // return: a hook runs on every render.
+  const categories = useMaster(
+    "hpr-categories",
+    { role: String(profile?.role ?? 1) },
+    isOwnProfile && Boolean(profile?.categoryCode),
+  );
+
   // The HPR API answers for the caller only, so another person's profile carries no section.
   if (!isOwnProfile) return null;
 
-  const data = state.data;
-  const profile = data?.profile ?? null;
   const busy = session.isPending || info.isPending;
   const active = Boolean(data?.session.active);
   const professional =
@@ -213,6 +226,12 @@ export default function AbdmUserProfileSection({
   const account = (profile?.account ?? {}) as Record<string, unknown>;
   const roleName =
     data?.roles.find((r) => r.code === profile?.role)?.name ?? "—";
+  const categoryName =
+    categories.data?.results.find((c) => c.code === profile?.categoryCode)
+      ?.name ??
+    (profile?.categoryCode
+      ? `${t("abdm_hpr_category_code")} ${profile.categoryCode}`
+      : "—");
 
   return (
     <PluginComponent>
@@ -329,6 +348,9 @@ export default function AbdmUserProfileSection({
                     {profile.hprIdNumber || "\u2014"}
                   </HeroFact>
                   <HeroFact label={t("abdm_hpid_role")}>{roleName}</HeroFact>
+                  <HeroFact label={t("abdm_hpid_category")}>
+                    {categoryName}
+                  </HeroFact>
                   <HeroFact label={t("abdm_hpr_registration_status")}>
                     {profile.registeredAt
                       ? t("abdm_hpr_registered")

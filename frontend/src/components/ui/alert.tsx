@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 const alertVariants = cva(
   [
-    "group/alert relative w-full text-sm border grid gap-y-0.5 items-center",
+    "group/alert relative w-full min-w-0 text-sm border grid gap-y-0.5 items-center",
     "[&>svg:not([class*=size-])]:size-4",
     // when both title+description are present: switch to top-alignment and translate svg
     "has-[>[data-slot=alert-title]+[data-slot=alert-description]]:items-start",
@@ -89,7 +89,7 @@ function AlertDescription({
     <div
       data-slot="alert-description"
       className={cn(
-        "text-muted-foreground [&_a]:hover:text-foreground col-start-2 text-sm text-balance md:text-pretty [&_a]:underline [&_a]:underline-offset-3 [&_p:not(:last-child)]:mb-4",
+        "text-muted-foreground [&_a]:hover:text-foreground col-start-2 min-w-0 text-sm text-balance [overflow-wrap:anywhere] md:text-pretty [&_a]:underline [&_a]:underline-offset-3 [&_p:not(:last-child)]:mb-4",
         className,
       )}
       {...props}

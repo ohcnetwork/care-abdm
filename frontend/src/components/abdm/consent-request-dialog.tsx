@@ -200,10 +200,7 @@ export default function ConsentRequestDialog({
             >
               {VALIDITY_DAYS.map((days) => (
                 <option key={days} value={days}>
-                  {t("abdm_fetch_validity_days").replace(
-                    "{{days}}",
-                    String(days),
-                  )}
+                  {t("abdm_fetch_validity_days", { days: String(days) })}
                 </option>
               ))}
             </select>

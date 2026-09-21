@@ -74,6 +74,27 @@ export function addFacilityPath(organizationId?: string) {
     : "/abdm/facilities/new";
 }
 
+const COORDINATE_LIMIT = { latitude: 90, longitude: 180 } as const;
+
+/**
+ * Shortens a typed latitude or longitude to the form the registry accepts: 6 decimal places at
+ * most and 1 at least (findings N23). The same rule is in `nhpr/rules.py:coordinate`, which is the
+ * one that the registry body uses. This one only tidies the field, so it keeps an empty value and
+ * an out-of-range value as the person typed them, and the field validator reports those.
+ */
+export function shortenCoordinate(
+  value: string,
+  kind: "latitude" | "longitude",
+): string {
+  const text = value.trim();
+  if (!text) return value;
+  const number = Number(text);
+  const limit = COORDINATE_LIMIT[kind];
+  if (Number.isNaN(number) || number < -limit || number > limit) return value;
+  const short = number.toFixed(6).replace(/0+$/, "");
+  return short.endsWith(".") ? `${short}0` : short;
+}
+
 /**
  * A card that a sheet holds drops its own frame and its side padding (ADR-017): the sheet is the
  * frame, and its header carries the title the card header would repeat.

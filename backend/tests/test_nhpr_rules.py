@@ -426,6 +426,26 @@ class OnboardingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "stateLGDCode"):
             rules.basic_information_body({**self.BASIC, "facilityAddressDetails": {}})
 
+    def test_basic_information_shortens_the_coordinates(self):
+        """HIS-4019 and HIS-4020: 1 to 6 decimal places. Care holds 16 (Rithvik, 2026-09-21)."""
+        address = {**self.BASIC["facilityAddressDetails"], "latitude": "10.0400000000000000"}
+        body = rules.basic_information_body({**self.BASIC, "facilityAddressDetails": address})
+        self.assertEqual(body["facilityInformation"]["facilityAddressDetails"]["latitude"], "10.04")
+        with self.assertRaisesRegex(ValueError, "latitude must be between"):
+            rules.basic_information_body({**self.BASIC, "facilityAddressDetails": {**address, "latitude": "99"}})
+        with self.assertRaisesRegex(ValueError, "longitude must be a number"):
+            rules.basic_information_body({**self.BASIC, "facilityAddressDetails": {**address, "longitude": "east"}})
+
+    def test_coordinate_keeps_1_to_6_decimal_places(self):
+        self.assertEqual(rules.coordinate("25.635802000000098", "latitude"), "25.635802")
+        self.assertEqual(rules.coordinate("10", "latitude"), "10.0")
+        self.assertEqual(rules.coordinate("-76.2811119", "longitude"), "-76.281112")
+        self.assertEqual(rules.coordinate(None, "latitude"), "")
+        self.assertEqual(rules.coordinate("", "longitude"), "")
+        self.assertEqual(rules.coordinate("north", "latitude"), "")
+        self.assertEqual(rules.coordinate("91", "latitude"), "")
+        self.assertEqual(rules.coordinate("181", "longitude"), "")
+
     def test_later_steps_need_the_tracking_id(self):
         with self.assertRaisesRegex(ValueError, "tracking id"):
             rules.additional_information_body({"generalInformation": {}}, "")
@@ -436,13 +456,45 @@ class OnboardingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unknown additional"):
             rules.additional_information_body({"beds": 4}, "80266")
         body = rules.detailed_information_body(
-            {"specialities": [], "medicalInfrastructure": {"totalNumberOfBeds": 4}}, "80266"
+            {"specialities": [], "medicalInfrastructure": {"countIPDBedsWithOxygen": 4}}, "80266"
         )
         self.assertEqual(set(body), {"specialities", "medicalInfrastructure", "trackingId"})
         self.assertEqual(rules.submit_body({}, "80266"), {"trackingId": "80266"})
         self.assertEqual(
             rules.submit_body({"sourceOfInformation": "HRP_SUB_1"}, "80266")["sourceOfInformation"], "HRP_SUB_1"
         )
+
+    def test_bed_total_is_derived_from_the_6_counts_the_registry_sums(self):
+        # The page example sends totalNumberOfBeds 4 with categories that sum to 33 (findings N27).
+        example = {
+            "countIPDBedsWithoutOxygen": 2,
+            "countIPDBedsWithOxygen": 3,
+            "countICUBedsWithVentilators": 4,
+            "countICUBedsWithoutVentilators": 1,
+            "countHDUBedsWithVentilators": 5,
+            "countHDUBedsWithoutVentilators": 6,
+            "totalNumberOfVentilators": 7,
+            "countDayCareBedsWithoutOxygen": 8,
+            "countDayCareBedsWithOxygen": 9,
+            "countDentalChairs": 1,
+            "totalNumberOfBeds": 4,
+        }
+        infra = rules.medical_infrastructure(example)
+        self.assertEqual(infra["totalNumberOfBeds"], 33)
+        self.assertEqual(infra["countICUBedsWithVentilators"], 4)
+        # Absent and empty counts are 0; strings are read as numbers; the total follows.
+        infra = rules.medical_infrastructure({"countIPDBedsWithOxygen": "5", "countDentalChairs": ""})
+        self.assertEqual(infra["totalNumberOfBeds"], 5)
+        self.assertEqual(infra["countDentalChairs"], 0)
+        self.assertEqual(set(infra), set(rules.INFRASTRUCTURE_FIELDS) | {"totalNumberOfBeds"})
+        body = rules.detailed_information_body({"medicalInfrastructure": {}}, "80266")
+        self.assertEqual(body["medicalInfrastructure"]["totalNumberOfBeds"], 0)
+        with self.assertRaises(ValueError):
+            rules.medical_infrastructure({"countIPDBedsWithOxygen": -1})
+        with self.assertRaises(ValueError):
+            rules.medical_infrastructure({"countIPDBedsWithOxygen": "five"})
+        with self.assertRaises(ValueError):
+            rules.medical_infrastructure({"beds": 1})
 
     def test_onboarding_result_and_photo_strip(self):
         parsed = rules.parse_onboarding_result(
@@ -493,6 +545,12 @@ class CarePrefillTests(unittest.TestCase):
         self.assertAlmostEqual(out["longitude"], 76.28)
         self.assertEqual(out["facility_type"], "Private Hospital")
         self.assertEqual((out["state_name"], out["district_name"]), ("Kerala", "Ernakulam"))
+
+    def test_prefill_rounds_to_6_decimal_places(self):
+        """The registry answers with 15 decimal places; Care must not store more than 6, or the
+        HFR basic step refuses the value it filled itself (HIS-4019)."""
+        out = rules.care_prefill({**self.RECORD, "latitude": "25.635802000000098"})
+        self.assertEqual(out["latitude"], 25.635802)
 
     def test_prefill_drops_bad_values(self):
         out = rules.care_prefill({**self.RECORD, "pincode": "0123", "latitude": "north", "longitude": "999"})
