@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 from abdm.facility import create, service
 from abdm.gateway.bridge import HrpRegistrationError
 from abdm.nhpr import facility as hfr
+from abdm.nhpr.views import refused, search_from_query
 from abdm.settings import plugin_settings
 
 
@@ -53,7 +54,15 @@ class FacilityAbdmConfig(APIView):
         # The setup page is where an administrator looks when linking misbehaves, so it is the
         # right moment to re-read the HIP ID from the gateway (1 live call; never raises).
         service.sync_hip_id(facility)
-        return Response(_with_share_settings(service.get_config(facility)))
+        config = service.get_config(facility)
+        if config["facility_id"] and not config["hfr"]:
+            # A facility linked before ADR-016 holds the id and the name but no registry record.
+            # 1 lookup fills it; a refusal leaves the card with the id and the name.
+            try:
+                config = hfr.link_registry_facility(facility, config["facility_id"], None)["config"]
+            except hfr.HfrError:
+                pass
+        return Response(_with_share_settings(config))
 
     def put(self, request, facility_id):
         facility = _facility(facility_id)
@@ -78,7 +87,8 @@ class FacilityHrpServices(APIView):
         try:
             return Response(service.register_hrp_service(facility))
         except HrpRegistrationError as exc:
-            raise ValidationError({"errors": str(exc)}) from exc
+            # Returned, not raised: a raise here rolls back the outbound row and `last_error` (findings J9).
+            return Response({"errors": str(exc), "code": "HRP_REFUSED"}, status=502)
 
 
 # --- "Add a facility" (ADR-016): gated on Care's `can_create_facility`; the organization is optional ---
@@ -88,10 +98,6 @@ def _organization(organization_id) -> Organization | None:
     if not organization_id:
         return None
     return get_object_or_404(Organization, external_id=organization_id, org_type="govt")
-
-
-def _refused(exc: hfr.HfrError) -> ValidationError:
-    return ValidationError({"errors": exc.message, "code": exc.code, "requestId": exc.request_id})
 
 
 class FacilityFormOptions(APIView):
@@ -104,7 +110,8 @@ class FacilityFormOptions(APIView):
 
 
 class HfrSearchForCreate(APIView):
-    """GET ?facility_id=IN... | ?name=&state=&district=&page=: the registry, before a Care facility exists."""
+    """GET ?facility_id=IN... | ?name=&state=&ownership=&district=&page=: the registry, before a Care
+    facility exists."""
 
     permission_classes = [IsAuthenticated]
 
@@ -115,20 +122,9 @@ class HfrSearchForCreate(APIView):
             if q.get("facility_id"):
                 record = hfr.lookup(str(q.get("facility_id")))
                 return Response({"facilities": [record] if record else [], "message": "", "total": 1, "pages": 1})
-            try:
-                page = int(q.get("page") or 1)
-            except ValueError:
-                page = 1
-            return Response(
-                hfr.search(
-                    name=str(q.get("name") or ""),
-                    state_lgd=str(q.get("state") or ""),
-                    district_lgd=str(q.get("district") or ""),
-                    page=page,
-                )
-            )
+            return Response(search_from_query(q))
         except hfr.HfrError as exc:
-            raise _refused(exc) from exc
+            return refused(exc)
 
 
 class HfrPrefill(APIView):
@@ -141,9 +137,7 @@ class HfrPrefill(APIView):
         try:
             return Response(create.prefill(str(request.query_params.get("facility_id") or "")))
         except hfr.HfrError as exc:
-            if exc.code == "NOT_FOUND":
-                return Response({"errors": exc.message}, status=404)
-            raise _refused(exc) from exc
+            return refused(exc)
 
 
 class CreateFacilityBody(BaseModel):
@@ -174,4 +168,4 @@ class CreateFacility(APIView):
                 status=201,
             )
         except hfr.HfrError as exc:
-            raise _refused(exc) from exc
+            return refused(exc)

@@ -111,3 +111,12 @@ and its validation), `geo-organization-picker.tsx` (cascading, from `GET /api/v1
   characters and used to widen the facility column past the card (Rithvik's screenshot, 2026-09-19).
 - The wizard's register path depends on the M4 facts still unconfirmed on the sandbox (ADR-015 N1,
   N7, N8). `03-roadmap.md` Phase 5 lists the proofs.
+
+## Amendments
+
+- 2026-09-21: the finder's name search takes the name, the LGD state and the ownership (Government,
+  Private, Public-Private-Partnership). The registry refuses a name search without the state or the
+  ownership (HTTP 422 HIS-1070, `findings.md` N16), so the plug refuses it first and Search enables only
+  when all 3 are set. A facility linked before this ADR (id and name, no `hfr` record) gets its registry
+  record on the first `GET` of the setup page. Decision 3 stands.
+

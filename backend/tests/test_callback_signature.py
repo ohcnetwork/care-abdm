@@ -5,7 +5,12 @@ import jwt
 from cryptography.hazmat.primitives.asymmetric import rsa
 from jwt.utils import base64url_encode
 
-from abdm.callbacks.signature import CallbackSignatureError, find_token, verify_callback_signature
+from abdm.callbacks.signature import (
+    CallbackSignatureError,
+    find_token,
+    redact_headers,
+    verify_callback_signature,
+)
 from abdm.settings import plugin_settings
 
 
@@ -82,3 +87,22 @@ class CallbackSignatureTests(unittest.TestCase):
         with self.assertRaises(CallbackSignatureError) as ctx:
             find_token({"Content-Type": "application/json", "REQUEST-ID": "abc"})
         self.assertIn("Authorization", str(ctx.exception))
+
+
+class RedactHeadersTests(unittest.TestCase):
+    def test_credentials_become_name_and_length(self):
+        token = "a" * 20 + "." + "b" * 20 + "." + "c" * 20
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "X-Signature": token,
+            "REQUEST-ID": "001b9a2f-b871-4add-9b60-ae80bd4941e3",
+            "X-HIP-ID": "IN1410000232_1",
+            "User-Agent": "ReactorNetty/1.1.19",
+        }
+        out = redact_headers(headers)
+        self.assertEqual(out["Authorization"], f"<redacted, {len('Bearer ' + token)} characters>")
+        self.assertEqual(out["X-Signature"], f"<redacted, {len(token)} characters>")
+        self.assertEqual(out["REQUEST-ID"], "001b9a2f-b871-4add-9b60-ae80bd4941e3")
+        self.assertEqual(out["X-HIP-ID"], "IN1410000232_1")
+        self.assertEqual(out["User-Agent"], "ReactorNetty/1.1.19")
+        self.assertEqual(redact_headers({}), {})

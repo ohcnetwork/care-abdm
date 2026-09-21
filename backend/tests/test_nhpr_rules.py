@@ -547,6 +547,62 @@ class MastersTests(unittest.TestCase):
             {"systemOfMedicine": "Modern Medicine", "hprType": "doctor", "qualificationCount": 0},
         )
 
+    def test_sandbox_shapes_of_2026_09_21(self):
+        # The OWNER master pads its codes and values; the languages pad their names.
+        owner = rules.parse_code_values(
+            {"type": "OWNER", "data": [{"code": "G         ", "value": "Government        "}]}
+        )
+        self.assertEqual(owner, [{"code": "G", "name": "Government"}])
+        self.assertEqual(rules.parse_code_values([{"id": 1, "name": " English "}]), [{"code": "1", "name": "English"}])
+        # HPR districts, sub-districts, countries and systems of medicine name their fields differently.
+        rows = rules.parse_code_values(
+            [{"id": 242, "stateId": 14, "districtName": "Bokaro", "isoCode": "322", "status": True}]
+        )
+        self.assertEqual(rows, [{"code": "242", "name": "Bokaro"}])
+        rows = rules.parse_code_values([{"id": 193, "districtCode": 1, "subDistrictName": "Anantnag"}])
+        self.assertEqual(rows, [{"code": "193", "name": "Anantnag"}])
+        rows = rules.parse_code_values(
+            [{"id": 356, "alpha_2_code": "IN", "enShortName": "India", "nationality": "Indian"}]
+        )
+        self.assertEqual(rows, [{"code": "356", "name": "India"}])
+        # Systems of medicine carry both an `id` and a slug `code`; the register body takes the id.
+        rows = rules.parse_code_values(
+            [{"id": 1, "medicalSystem": "Modern Medicine", "code": "modern_medicine", "hprType": "doctor"}]
+        )
+        self.assertEqual(rows, [{"code": "1", "name": "Modern Medicine"}])
+        # A text answer ("Data not available in database") is an empty list, not an error.
+        self.assertEqual(rules.parse_code_values({"text": "Data not available in database"}), [])
+
+    def test_owner_subtype_codes(self):
+        self.assertEqual([r["code"] for r in rules.owner_subtypes_for("G")], ["C"])
+        self.assertEqual([r["code"] for r in rules.owner_subtypes_for("P")], ["P", "NP"])
+        self.assertEqual([r["code"] for r in rules.owner_subtypes_for("PP")], ["P", "NP"])
+        self.assertEqual(rules.owner_subtypes_for(""), [])
+        self.assertIn("FAC-STATUS", rules.MASTER_TYPES)
+        self.assertIn("TYPE-SERVICE", rules.MASTER_TYPES)
+
+    def test_parse_facility_search_keeps_the_sandbox_codes(self):
+        row = rules.parse_facility_search(
+            {
+                "facilities": [
+                    {
+                        "facilityId": "IN1410000232",
+                        "facilityName": "Manipur Test Facility",
+                        "systemOfMedicineCode": "M",
+                        "subDistrictLGDCode": "1881",
+                        "villageCityTownName": None,
+                        "villageCityTownLGDCode": None,
+                        "workingInPsu": False,
+                    }
+                ],
+                "totalFacilities": 1,
+                "numberOfPages": 1,
+            }
+        )["facilities"][0]
+        self.assertEqual(row["systemOfMedicineCode"], "M")
+        self.assertEqual(row["subDistrictLGDCode"], "1881")
+        self.assertEqual(row["villageCityTownLGDCode"], "")
+
 
 if __name__ == "__main__":
     unittest.main()

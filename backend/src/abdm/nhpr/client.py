@@ -9,6 +9,7 @@ profile calls, which are "by JWT" (m4-profile/09).
 """
 
 import logging
+import re
 
 from django.core.cache import cache
 
@@ -71,6 +72,25 @@ def ok(row: AbdmOutboundRequest) -> AbdmOutboundRequest:
     if row.status != AbdmOutboundRequest.Status.SUCCEEDED:
         raise NhprError(row)
     return row
+
+
+# The registry's envelope code repeats the HTTP status (`HIS-422`, `HIS-400`, `HIS-500`); the cause is
+# in `details[]` (`HIS-1070 Required OwnershipCode Field is empty.`). Observed 2026-09-21.
+_ENVELOPE_CODE_RE = re.compile(r"^HIS-[45]\d\d\b")
+
+
+def refusal_words(row: AbdmOutboundRequest | None) -> str:
+    """The registry's own words for a refused row: the specific `details[]` lines when there are
+    any, else the envelope message, else the HTTP status. Shown to the administrator as they came
+    (abdm-m3 design.md: never replace the message ABDM sent with words of your own)."""
+    if row is None:
+        return ""
+    lines = outbound.error_lines(row.response_json)
+    specific = [line for line in lines if not _ENVELOPE_CODE_RE.match(line)]
+    words = " ".join(dict.fromkeys(specific or lines)).strip()
+    if words:
+        return words
+    return f"HTTP {row.http_status}" if row.http_status else ""
 
 
 def json_of(row: AbdmOutboundRequest):
@@ -331,9 +351,15 @@ MASTERS: dict[str, tuple] = {
         None,
     ),
     "psu": ("GET", "/getPsuDetailsByMinistry", None, None),
-    # HPR (m4-utility, m4-util)
-    "hpr-categories": ("GET", "/hpid/get/categories", None, None),
-    "hpr-subcategories": ("GET", "/hpid/get/subCategories", None, lambda p: {"categoryCode": p.get("category", "")}),
+    # HPR (m4-utility, m4-util). `hpid/get/categories` and `subCategories` take `role` (1 professional,
+    # 2 facility manager, 3 both): without it the sandbox answers HIS-3028 "Role is not valid".
+    "hpr-categories": ("GET", "/hpid/get/categories", None, lambda p: {"role": p.get("role", "1")}),
+    "hpr-subcategories": (
+        "GET",
+        "/hpid/get/subCategories",
+        None,
+        lambda p: {"categoryCode": p.get("category", ""), "role": p.get("role", "1")},
+    ),
     "hpr-states": ("GET", "/apis/v1/masters/states", None, None),
     "hpr-districts": ("GET", "/apis/v1/masters/district/{state}", None, None),
     "hpr-subdistricts": ("GET", "/apis/v1/masters/sub-districts/{district}", None, None),
@@ -341,11 +367,12 @@ MASTERS: dict[str, tuple] = {
     "languages": ("GET", "/apis/v1/masters/languages", None, None),
     "system-of-medicines": ("GET", "/apis/v1/masters/system-of-medicines", None, None),
     "medical-councils": ("GET", "/apis/v1/masters/medical-councils", None, None),
+    # m4-utility/14 names the query `medicineName`, the system of medicine as written ("Modern Medicine").
     "medical-councils-by-system": (
         "GET",
         "/apis/v1/masters/medical-councils/name",
         None,
-        lambda p: {"name": p.get("system", "")},
+        lambda p: {"medicineName": p.get("system", "")},
     ),
     "nurse-councils": ("GET", "/apis/v1/masters/nurse-councils", None, None),
     "courses": (
@@ -364,10 +391,14 @@ MASTERS: dict[str, tuple] = {
 
 
 def masters(kind: str, params: dict | None = None) -> list[dict]:
-    """1 master list, normalised to `[{code, name, children?}]`, cached 24 h per kind and params."""
+    """1 master list, normalised to `[{code, name, children?}]`, cached 24 h per kind and params.
+    `owner-subtype-codes` is answered locally: the registry publishes no master for the 3 codes it
+    accepts (rules.OWNER_SUBTYPES)."""
+    params = {k: str(v) for k, v in (params or {}).items() if v not in (None, "")}
+    if kind == "owner-subtype-codes":
+        return rules.owner_subtypes_for(params.get("ownership", ""))
     if kind not in MASTERS:
         raise ValueError(f"Unknown master: {kind}")
-    params = {k: str(v) for k, v in (params or {}).items() if v not in (None, "")}
     method, path, body_of, query_of = MASTERS[kind]
     try:
         path = path.format(**params)

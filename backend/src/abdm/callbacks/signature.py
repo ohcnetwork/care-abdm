@@ -37,6 +37,24 @@ def _bare(value: str) -> str:
     return value.split(" ", 1)[1].strip() if value.lower().startswith("bearer ") else value
 
 
+SECRET_HEADERS = ("authorization", "cookie", "x-token", "x-hprid-auth", "x-link-token")
+
+
+def redact_headers(headers: dict) -> dict:
+    """Header names and lengths, never values, for the browser (abdm-m2 design.md: "Redact by name
+    and length, never by value"). A credential header, or any JWT-shaped value, becomes
+    `<redacted, N characters>`; the plain routing headers (REQUEST-ID, TIMESTAMP, X-HIP-ID, ...)
+    stay readable."""
+    out = {}
+    for name, value in (headers or {}).items():
+        text = str(value or "")
+        if name.lower() in SECRET_HEADERS or _JWT_RE.match(_bare(text)):
+            out[name] = f"<redacted, {len(text)} characters>"
+        else:
+            out[name] = text
+    return out
+
+
 def find_token(headers: dict[str, str]) -> tuple[str, str]:
     """(header name, bare JWT). The configured header wins; otherwise the first JWT-shaped header."""
     wanted = plugin_settings.CALLBACK_SIGNATURE_HEADER.lower()

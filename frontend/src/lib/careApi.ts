@@ -371,6 +371,11 @@ export type AbdmHfrFacility = {
   subDistrictName: string;
   latitude: string;
   longitude: string;
+  // Observed on the sandbox 2026-09-21 beside the page's fields (findings N7); absent on old snapshots.
+  systemOfMedicineCode?: string;
+  subDistrictLGDCode?: string;
+  villageCityTownName?: string;
+  villageCityTownLGDCode?: string;
 };
 
 export type AbdmHfrSearchResult = {

@@ -75,18 +75,32 @@ the providers proxy; 403 without `can_view_clinical_data`. It snapshots every pl
 deletes only what it created. Expected last lines: `M3 SMOKE OK — outbound calls: 16 callbacks: 11` and
 `cleanup done`.
 
-M4 uses `m4_smoke.py` (session `f18b6f36…`, 2026-09-19). Run it after `manage.py migrate abdm`; it needs
-a superuser without an HPR profile and 2 more active users:
+M4 uses `m4_smoke.py` (session `3c44300c…`, 2026-09-21; the 2026-09-19 copy in session `f18b6f36…` is
+older). Run it after `manage.py migrate abdm`; it needs a superuser without an HPR profile and 2 more
+active users:
 
 ```sh
-.venv/bin/python manage.py shell < ~/.copilot/session-state/f18b6f36-94a4-4be3-968f-8a0ed28422c9/files/m4_smoke.py
+.venv/bin/python manage.py shell < ~/.copilot/session-state/3c44300c-ac9c-475c-9a40-53adc8e4055f/files/m4_smoke.py
 ```
 
 It patches only `gateway.outbound.requests.request` and `gateway.outbound.get_access_token`. The script
 is the NHPR: it generates an RSA key, serves it on `/api/v1/auth/cert`, and decrypts the mobile number,
-the OTP and the password the plug sends, which proves the RSA/ECB/PKCS1 path. It drives the 4 tiers
+the OTP and the password the plug sends, which proves the RSA/ECB/PKCS1 path. Since 2026-09-21 its fake
+registry answers with the sandbox's own refusal shapes (HTTP 422 `HIS-1070` for a name search without
+state or ownership, 422 `HIS-3008` for an unknown HPR ID, 422 `HIS-3028` for categories without `role`)
+and it checks that a refused call's outbound row survives the request (J9). It drives the 4 tiers
 (`03-roadmap.md` Phase 5) and the masters cache, then deletes what it created and restores the facility
-extension. Expected last lines: `M4 SMOKE OK — NHPR calls: 50 total calls: 54` and `cleanup done`.
+extension. Expected last lines: `M4 SMOKE OK — NHPR calls: 58 total calls: 64` and `cleanup done`.
+
+**Caution:** if the script dies inside its `finally` block, the cleanup is partial: the superuser keeps
+an `AbdmHprProfile`, and facility 9 keeps the smoke's extension. Read `Facility.extensions["abdm"]` before
+a run and restore it by hand after a crash (done once on 2026-09-21).
+
+Read-only probes against the real registry (the way the 2026-09-21 facts were found) need no fixture:
+`abdm.nhpr.client.search_facilities(facility_id="IN1410000232")`, `client.masters("lgd-states")`,
+`client.call("m4-probe", "/v1.5/facility/get-master-data?type=OWNER", None, method="GET")` from
+`manage.py shell`. Each leaves 1 `AbdmOutboundRequest` row, which is the evidence. Do not call a write
+(`authPassword`, the HFR steps, `createHprIdWithPreVerified`) without the user.
 
 FHIR bundles use `fhir_smoke.py` in the same directory. It builds the 3 record types from fixture
 CARE data, writes them to files and runs MCP `validate_fhir` on each
@@ -117,6 +131,7 @@ Observed 2026-09-19: 118 tests in 0.8 s. Result: OK (`test_hiu_rules.py` added f
 Observed 2026-09-19 (later): 149 tests in 0.9 s. Result: OK (`test_nhpr_rules.py` and `test_nhpr_crypto.py` added for ADR-015).
 Observed 2026-09-19 (later): 152 tests in 1.3 s. Result: OK (`CarePrefillTests` in `test_nhpr_rules.py` for ADR-016).
 Observed 2026-09-19 (later): 153 tests in 1.4 s. Result: OK (`test_validate_clamps_the_range_end_to_now` in `test_hiu_rules.py`, findings L9).
+Observed 2026-09-21: 157 tests in 1.3 s. Result: OK (`MastersTests.test_sandbox_shapes_of_2026_09_21`, `test_owner_subtype_codes`, `test_parse_facility_search_keeps_the_sandbox_codes` in `test_nhpr_rules.py`; `RedactHeadersTests` in `test_callback_signature.py`).
 
 The tests run without Django. Pure rules must live in a module with no Django import
 (`abha/checksums.py`, `share/rules.py`, `facility/rules.py`, `hip/rules.py`, `hip/crypto.py`, `hiu/rules.py`,
@@ -139,9 +154,9 @@ with `python3 -c 'import json;d=json.load(open("public/locale/en.json"));print(l
 
 Smokes (session files; real Care auth and DB; the network mocked): `m2_smoke.py` prints
 `M2 SMOKE OK — outbound calls: 33`, `m3_smoke.py` prints `M3 SMOKE OK — outbound calls: 18 callbacks: 11`,
-`m4_smoke.py` prints `M4 SMOKE OK — NHPR calls: 58 total calls: 64` (2026-09-19, ADR-016: every smoke links
-the facility through the registry mock; `m4_smoke.py` section G runs the "Add a facility" create path and
-reads the admin overview rows).
+`m4_smoke.py` prints `M4 SMOKE OK — NHPR calls: 58 total calls: 64` (2026-09-21 run of the updated script;
+ADR-016: every smoke links the facility through the registry mock; `m4_smoke.py` section G runs the
+"Add a facility" create path and reads the admin overview rows).
 
 Definition of done for the MFE is `remoteEntry.js` fetchable over HTTP with
 `Access-Control-Allow-Origin: *` from the preview the user runs — a build alone is not proof.
@@ -154,6 +169,9 @@ The agent cannot see the UI; ask the user for a screenshot and record what it sh
 - An exception from a plug's `post_save` receiver reaches Care's patient viewset. Only a DRF
   `ValidationError` whose `detail` dict holds `errors` becomes HTTP 400; anything else is HTTP 500
   and the desk reads "Something went wrong" (`02-care-host-contract.md`, "Errors from a plug signal").
+- A plug view that raises a DRF `APIException` after an outbound call loses the `AbdmOutboundRequest`
+  row: DRF's exception handler calls `set_rollback()` under `ATOMIC_REQUESTS` (findings J9). After a
+  call, return the failure as a `Response`; never raise it. The M3 and M4 views do this.
 - `auto_maintained` identifiers are dropped from create payloads.
 - Extension schema fields need `x-ui.render_blacklist` or the host renders them as form inputs.
 - `care/plug_config.py` local modifications can duplicate the `abdm` app label with `.env`

@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react";
-import { IdCard, Network } from "lucide-react";
+import { Network } from "lucide-react";
 // Static: an override renders inside the host tree with no Suspense boundary of its own.
 import AddFacilitySheetOverride from "@/components/abdm/add-facility-sheet-override";
 
@@ -12,6 +12,7 @@ import AddFacilitySheetOverride from "@/components/abdm/add-facility-sheet-overr
 //   PatientSearchActions                    PatientIndex.tsx:259
 //   EncounterActions                        summary-panel-actions.tab.tsx:95
 //   EncounterOverviewTop                    pages/Encounters/tabs/overview.tsx:56
+//   UserProfileSections                     Users/UserSummary.tsx:203
 const AbdmFacilitySetupPage = lazy(
   () => import("@/components/abdm/facility-setup-page"),
 );
@@ -21,7 +22,6 @@ const AbdmAdminDashboard = lazy(
 const AbdmHfrOnboardingWizard = lazy(
   () => import("@/components/abdm/hfr-onboarding-wizard"),
 );
-const AbdmHprPage = lazy(() => import("@/components/abdm/hpr-page"));
 const AbdmAddFacilityWizard = lazy(
   () => import("@/components/abdm/add-facility-wizard"),
 );
@@ -61,25 +61,6 @@ const manifest = {
         <AbdmHfrOnboardingWizard facilityId={facilityId} />
       </Suspense>
     ),
-    // The caller's own HPR ID. The host turns a `userNavItems` entry into
-    // `/facility/:facilityId/users/:username/<url>` (nav-user.tsx:123-131) and
-    // matches plug routes before its own `:tab` route (AppRouter.tsx:25-32,
-    // raviger first match), so this static path wins.
-    "/facility/:facilityId/users/:username/abdm-hpr": ({
-      username,
-    }: {
-      facilityId: string;
-      username: string;
-    }) => (
-      <Suspense fallback={null}>
-        <AbdmHprPage username={username} />
-      </Suspense>
-    ),
-    "/users/:username/abdm-hpr": ({ username }: { username: string }) => (
-      <Suspense fallback={null}>
-        <AbdmHprPage username={username} />
-      </Suspense>
-    ),
     // ADR-016: "Add a facility", from the ABDM admin dashboard or the organization facilities page
     // (the AddFacilitySheet override). `?organization=<id>` is optional context for the geo picker.
     "/abdm/facilities/new": () => (
@@ -99,13 +80,9 @@ const manifest = {
         "ABDM: every new facility passes the registry choice (Add a facility wizard).",
     },
   ],
-  userNavItems: [
-    {
-      name: "My HPR ID",
-      url: "abdm-hpr",
-      icon: <IdCard />,
-    },
-  ],
+  // ADR-017: "My HPR ID" is a section of the user profile page, not a route. The host builds a
+  // `userNavItems` entry into `/facility/:facilityId/users/:username/<url>` with no fallback
+  // (care_fe nav-user.tsx:123-131), so outside a facility that link went to `/facility/undefined/`.
   adminNavItems: [
     {
       name: "ABDM",
@@ -137,6 +114,10 @@ const manifest = {
     EncounterActions: lazy(() => import("@/components/abdm/encounter-actions")),
     EncounterOverviewTop: lazy(
       () => import("@/components/abdm/encounter-overview-top"),
+    ),
+    // ADR-017: the HPR section of the user profile summary (UserSummary.tsx:203-207).
+    UserProfileSections: lazy(
+      () => import("@/components/abdm/user-profile-hpr-section"),
     ),
   },
 } as const;

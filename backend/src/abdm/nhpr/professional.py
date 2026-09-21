@@ -21,18 +21,40 @@ MAX_OTP_ATTEMPTS = 3
 
 
 class HprError(Exception):
-    def __init__(self, code: str, message: str, request_id: str = ""):
+    def __init__(self, code: str, message: str, request_id: str = "", detail: str = ""):
         super().__init__(message)
         self.code = code
         self.message = message
         self.request_id = request_id
+        # The registry's own words, carried beside the plug sentence (abdm-m3 design.md).
+        self.detail = detail
+
+    def as_dict(self) -> dict:
+        return {"errors": self.message, "detail": self.detail, "code": self.code, "requestId": self.request_id}
 
 
 def _raise_from(exc: client.NhprError) -> HprError:
+    """A refused registry call: the registry's own words when it sent any (see facility._raise_from)."""
     failure = errors.classify(
         code=exc.code, http_status=exc.row.http_status if exc.row else None, message=str(exc), request_id=exc.request_id
     )
-    return HprError(failure.code or "NHPR_ERROR", f"{failure.what} {failure.next_step}".strip(), exc.request_id)
+    words = client.refusal_words(exc.row)
+    message = f"The registry refused the request: {words}" if words else f"{failure.what} {failure.next_step}".strip()
+    return HprError(failure.code or "NHPR_ERROR", message, exc.request_id, words)
+
+
+# Observed 2026-09-21: `searchByHprId` and `existsByHprId` answer HTTP 422 `HIS-3008 "Invalid HPID."`
+# for an id nobody holds, where the page says 404 (docs/findings.md N20).
+NOT_FOUND_CODES = ("HIS-3008",)
+
+
+def _is_not_found(exc: client.NhprError) -> bool:
+    if exc.row is None:
+        return False
+    if exc.row.http_status == 404:
+        return True
+    text = str(exc)
+    return exc.row.http_status == 422 and any(code in text for code in NOT_FOUND_CODES)
 
 
 def profile_for(user) -> AbdmHprProfile | None:
@@ -199,7 +221,7 @@ def verify_hpr_id(hpr_id: str) -> dict:
     try:
         row = client.ok(client.search_hpr_id(rules.normalise_hpr_address(hpr_id)))
     except client.NhprError as exc:
-        if exc.row is not None and exc.row.http_status == 404:
+        if _is_not_found(exc):
             raise HprError("NOT_FOUND", "The HPR holds no professional with this ID.") from exc
         raise _raise_from(exc) from exc
     return rules.parse_hpr_search(row.response_json)

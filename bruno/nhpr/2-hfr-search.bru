@@ -5,7 +5,7 @@ meta {
 }
 
 get {
-  url: {{careUrl}}/api/abdm/facilities/{{facilityId}}/abdm/hfr/search?name=hospital&state=
+  url: {{careUrl}}/api/abdm/facilities/{{facilityId}}/abdm/hfr/search?name=hospital&state=27&ownership=P
   body: none
   auth: none
 }
@@ -15,5 +15,8 @@ headers {
 }
 
 docs {
-  Fuzzy on the name, exact on the LGD state code. At least 3 characters.
+  Fuzzy on the name, exact on the codes. At least 3 characters. The registry needs `state` (LGD
+  code, `nhpr/masters/lgd-states`) and `ownership` (`G`, `P` or `PP`, master `OWNER`) for a name
+  search: without them it answers HTTP 422 HIS-1070 (observed 2026-09-21), and the plug refuses
+  the search locally with HTTP 400 before any call.
 }

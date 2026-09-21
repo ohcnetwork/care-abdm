@@ -44,6 +44,38 @@ ONBOARDING_STEPS = ("dedup", "basic", "additional", "detailed", "submit")
 # The facility statuses the pages show (`facilityStatus`, onboarding `status`).
 FACILITY_STATUSES = ("Draft", "Submitted", "Verified", "Created", "Saved", "success")
 
+# The registry facts observed on the sandbox on 2026-09-21 (docs/findings.md N16-N19). A name search
+# needs `stateLGDCode` and `ownershipCode` (HIS-1070 "Required OwnershipCode Field is empty").
+# `get-master-types` names 17 master types; the wizard's pickers use these.
+MASTER_TYPES = (
+    "MEDICINE",
+    "OWNER",
+    "CENTRAL-GOVERNMENT",
+    "PROFIT-TYPE",
+    "NON-PROFIT-TYPE",
+    "TYPE-SERVICE",
+    "SALUTATION",
+    "FACILITY-REGION",
+    "SPECIALITY-TYPE",
+    "ADDRESS-PROOF",
+    "FAC-STATUS",
+    "IT-EQUIPMENT",
+    "GENERAL-INFO-OPTIONS",
+    "IMAGING",
+    "DIAGNOSTIC",
+    "DAYS-OF-OPERATION",
+    "SOURCE",
+)
+# `get-owner-subtype` refuses every `ownerSubtypeCode` but these 3 ("It should be one of C, P, or
+# NP"; "Only 'P' or 'NP' are accepted for Ownership Code 'P' or 'PP'"). No master lists them; the
+# basic-information example sends `G` / `C` / `MOHF`.
+OWNER_SUBTYPES = {"G": ("C",), "P": ("P", "NP"), "PP": ("P", "NP")}
+
+
+def owner_subtypes_for(ownership_code: str) -> list[dict]:
+    names = {"C": "Central Government", "P": "For profit", "NP": "Not for profit"}
+    return [{"code": code, "name": names[code]} for code in OWNER_SUBTYPES.get((ownership_code or "").strip(), ())]
+
 
 def hpr_id_number_digits(value: str) -> str:
     return re.sub(r"\D", "", value or "")
@@ -196,8 +228,10 @@ def facility_search_body(
     page: int = 1,
     per_page: int = 10,
 ) -> dict:
-    """`m4-search/02`: by facility ID, or by name (fuzzy) with the exact filters. Every key is sent,
-    empty when unused, as the page example does."""
+    """`m4-search/02`: by facility ID, or by name with the filters. Every key is sent, empty when
+    unused, as the page example does. Observed 2026-09-21: a name search is refused (HTTP 422,
+    HIS-1070) unless `stateLGDCode` and `ownershipCode` are both set; `facility/search()` refuses
+    such a search locally before any call."""
     return {
         "ownershipCode": ownership or "",
         "subDistrictLGDCode": sub_district_lgd or "",
@@ -212,7 +246,10 @@ def facility_search_body(
 
 
 def parse_facility_search(payload) -> dict:
-    """`{facilities[], message, totalFacilities, numberOfPages}` (m4-search/02 200 shape)."""
+    """`{facilities[], message, totalFacilities, numberOfPages}` (m4-search/02 200 shape). The
+    sandbox row (2026-09-21) also carries `systemOfMedicineCode`, `subDistrictLGDCode`,
+    `villageCityTownName`, `villageCityTownLGDCode`, `workingInPsu`, `facPsuName`, `govtCategory`
+    and `govtMinistries`; the codes are kept for the HFR wizard prefill."""
     data = payload if isinstance(payload, dict) else {}
     out = []
     for item in data.get("facilities") or []:
@@ -228,6 +265,7 @@ def parse_facility_search(payload) -> dict:
                 "ownership": str(item.get("ownership") or ""),
                 "ownershipCode": str(item.get("ownershipCode") or ""),
                 "systemOfMedicine": str(item.get("systemOfMedicine") or ""),
+                "systemOfMedicineCode": str(item.get("systemOfMedicineCode") or ""),
                 "address": str(item.get("address") or ""),
                 "pincode": str(item.get("pincode") or ""),
                 "stateName": str(item.get("stateName") or ""),
@@ -235,6 +273,9 @@ def parse_facility_search(payload) -> dict:
                 "districtName": str(item.get("districtName") or ""),
                 "districtLGDCode": str(item.get("districtLGDCode") or ""),
                 "subDistrictName": str(item.get("subDistrictName") or ""),
+                "subDistrictLGDCode": str(item.get("subDistrictLGDCode") or ""),
+                "villageCityTownName": str(item.get("villageCityTownName") or ""),
+                "villageCityTownLGDCode": str(item.get("villageCityTownLGDCode") or ""),
                 "latitude": str(item.get("latitude") or ""),
                 "longitude": str(item.get("longitude") or ""),
             }
@@ -831,10 +872,25 @@ def strip_photos(facility_information: dict) -> dict:
 # --- masters (m4-utilities, m4-utility, m4-util) ---------------------------------------------------
 
 
+# The name field of each master shape observed on the sandbox (2026-09-21): the facility masters
+# answer `{type, data[{code, value}]}`, the LGD calls `[{code, name, districts?}]`, the HPR masters
+# `[{id, name}]`, `[{id, districtName, isoCode}]`, `[{id, subDistrictName}]`, `[{id, enShortName,
+# nationality}]` (countries) and `[{id, medicalSystem, code, hprType}]` (systems of medicine).
+_MASTER_NAME_KEYS = ("value", "name", "desc", "districtName", "subDistrictName", "enShortName", "medicalSystem")
+
+
+def _first_present(item: dict, keys: tuple[str, ...]):
+    for key in keys:
+        if item.get(key) not in (None, ""):
+            return item[key]
+    return None
+
+
 def parse_code_values(payload) -> list[dict]:
-    """The facility masters answer `{type, data[{code, value}]}`; the LGD calls answer
-    `[{code, name, districts?}]`; the HPR masters answer `[{id, name, ...}]`. Every shape becomes
-    `[{code, name}]` for the desk pickers."""
+    """Every master shape becomes `[{code, name, children?}]` for the desk pickers. The register
+    bodies take the master `id` (`registeredWithCouncil: "47"`, `college: "1022"`, m4-enrollment/01),
+    so `id` wins over a slug `code` when both exist (systems of medicine carry both). Values are
+    stripped: the sandbox pads the OWNER master (`"G         "`) and the languages (`" English "`)."""
     rows = payload
     if isinstance(payload, dict):
         rows = payload.get("data") if isinstance(payload.get("data"), list) else payload.get("masterTypes")
@@ -842,11 +898,11 @@ def parse_code_values(payload) -> list[dict]:
     for item in rows or []:
         if not isinstance(item, dict):
             continue
-        code = item.get("code", item.get("id", item.get("type")))
-        name = item.get("value", item.get("name", item.get("desc")))
+        code = _first_present(item, ("id", "code", "type")) if "id" in item else _first_present(item, ("code", "type"))
+        name = _first_present(item, _MASTER_NAME_KEYS)
         if code is None or name is None:
             continue
-        row = {"code": str(code), "name": str(name)}
+        row = {"code": str(code).strip(), "name": str(name).strip()}
         if isinstance(item.get("subCategories"), list):
             row["children"] = parse_code_values(item["subCategories"])
         if isinstance(item.get("districts"), list):

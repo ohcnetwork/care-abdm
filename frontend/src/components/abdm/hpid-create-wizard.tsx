@@ -1,4 +1,8 @@
-import { errorMessage, hprQueryKey } from "@/components/abdm/nhpr-shared";
+import {
+  embeddedCard,
+  errorMessage,
+  hprQueryKey,
+} from "@/components/abdm/nhpr-shared";
 import MasterSelect from "@/components/abdm/master-select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +21,7 @@ import { useTranslation } from "@/hooks/use-translation";
 import careApi, { type AbdmHprState } from "@/lib/careApi";
 import { mutate } from "@/lib/request";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
 import { ExternalLink, IdCard, Loader2, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -36,7 +41,17 @@ type Action =
   | "finish"
   | "cancel";
 
-export default function HpidCreateWizard({ state }: { state: AbdmHprState }) {
+export default function HpidCreateWizard({
+  state,
+  embedded,
+  onDone,
+}: {
+  state: AbdmHprState;
+  /** True when a sheet holds this wizard: the sheet header carries the title (ADR-017). */
+  embedded?: boolean;
+  /** The sheet closes itself when the registry gives the HPR ID (ADR-017). */
+  onDone?: () => void;
+}) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const txn = state.transaction;
@@ -63,7 +78,10 @@ export default function HpidCreateWizard({ state }: { state: AbdmHprState }) {
         body ?? {},
       ),
     onMutate: () => setError(undefined),
-    onSuccess: (next) => qc.setQueryData(hprQueryKey, next),
+    onSuccess: (next) => {
+      qc.setQueryData(hprQueryKey, next);
+      if (next.profile) onDone?.();
+    },
     onError: (e) => {
       const cause = (e as { cause?: AbdmHprState }).cause;
       if (cause && "transaction" in cause)
@@ -119,15 +137,22 @@ export default function HpidCreateWizard({ state }: { state: AbdmHprState }) {
 
   if (!txn) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <IdCard className="text-muted-foreground size-4" />{" "}
-            {t("abdm_hpid_create_title")}
-          </CardTitle>
-          <CardDescription>{t("abdm_hpid_create_intro")}</CardDescription>
-        </CardHeader>
-        <CardFooter className="border-t">
+      <Card className={cn(embedded && embeddedCard.card)}>
+        {!embedded && (
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <IdCard className="text-muted-foreground size-4" />{" "}
+              {t("abdm_hpid_create_title")}
+            </CardTitle>
+            <CardDescription>{t("abdm_hpid_create_intro")}</CardDescription>
+          </CardHeader>
+        )}
+        <CardFooter
+          className={cn(
+            "border-t",
+            embedded && `${embeddedCard.padding} border-t-0`,
+          )}
+        >
           <Button
             type="button"
             size="sm"
@@ -146,18 +171,29 @@ export default function HpidCreateWizard({ state }: { state: AbdmHprState }) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <IdCard className="text-muted-foreground size-4" />{" "}
-          {t("abdm_hpid_create_title")}
-          <Badge variant="warning" size="sm" className="ml-auto">
-            {t(`abdm_hpid_status_${txn.status}`)}
-          </Badge>
-        </CardTitle>
-        <CardDescription>{t("abdm_hpid_create_intro")}</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4 text-sm">
+    <Card className={cn(embedded && embeddedCard.card)}>
+      {!embedded && (
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <IdCard className="text-muted-foreground size-4" />{" "}
+            {t("abdm_hpid_create_title")}
+            <Badge variant="warning" size="sm" className="ml-auto">
+              {t(`abdm_hpid_status_${txn.status}`)}
+            </Badge>
+          </CardTitle>
+          <CardDescription>{t("abdm_hpid_create_intro")}</CardDescription>
+        </CardHeader>
+      )}
+      <CardContent
+        className={cn("grid gap-4 text-sm", embedded && embeddedCard.padding)}
+      >
+        {embedded && (
+          <div className="flex">
+            <Badge variant="warning" size="sm" className="ml-auto">
+              {t(`abdm_hpid_status_${txn.status}`)}
+            </Badge>
+          </div>
+        )}
         {txn.status === "link_created" && (
           <div className="grid gap-2">
             <p>{t("abdm_hpid_link_help")}</p>
@@ -349,6 +385,7 @@ export default function HpidCreateWizard({ state }: { state: AbdmHprState }) {
                 <MasterSelect
                   id="hpid-category"
                   kind="hpr-categories"
+                  params={{ role: String(role) }}
                   value={category}
                   onChange={(v) => {
                     setCategory(v);
@@ -360,7 +397,7 @@ export default function HpidCreateWizard({ state }: { state: AbdmHprState }) {
                 <MasterSelect
                   id="hpid-subcategory"
                   kind="hpr-subcategories"
-                  params={{ category }}
+                  params={{ category, role: String(role) }}
                   enabled={Boolean(category)}
                   value={subCategory}
                   onChange={setSubCategory}
@@ -418,7 +455,12 @@ export default function HpidCreateWizard({ state }: { state: AbdmHprState }) {
           </Alert>
         )}
       </CardContent>
-      <CardFooter className="flex gap-2 border-t">
+      <CardFooter
+        className={cn(
+          "flex gap-2 border-t",
+          embedded && `${embeddedCard.padding} border-t-0`,
+        )}
+      >
         <Button
           type="button"
           variant="ghost"

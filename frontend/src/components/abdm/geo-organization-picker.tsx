@@ -5,7 +5,7 @@ import careApi, { type CareGovtOrganization } from "@/lib/careApi";
 import { query } from "@/lib/request";
 import { selectClass } from "@/components/abdm/nhpr-shared";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * Cascading picker over Care's government organizations (state → district → local body → ward),
@@ -87,9 +87,15 @@ export default function GeoOrganizationPicker({
     if (initial && initial.length) setChain(initial);
   }, [initial]);
 
+  // The parent starts with no organization. A report of "" on the first render tells it nothing, and
+  // it makes the parent form look changed before the person picked an organization.
+  const reported = useRef("");
   useEffect(() => {
     const last = chain[chain.length - 1];
-    onChange(last && !last.has_children ? last.id : "", chain);
+    const leafId = last && !last.has_children ? last.id : "";
+    if (leafId === reported.current) return;
+    reported.current = leafId;
+    onChange(leafId, chain);
     // The parent owns the callback; re-running on a new callback identity would loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chain]);

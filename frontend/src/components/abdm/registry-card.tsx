@@ -110,9 +110,14 @@ export function RegistryRecord({
   );
 }
 
+/** The 3 values a registry name search needs (m4-search/02; the registry refuses one without the
+ * state and the ownership, HIS-1070, observed 2026-09-21). */
+export type RegistrySearchArgs = { name: string; state: string; ownership: string };
+
 /**
- * The registry finder: lookup by ID and search by name and state. Shared by the setup card and the
- * "Add a facility" wizard; the caller decides what "pick" does.
+ * The registry finder: lookup by ID, or search by name, state and ownership. Shared by the setup
+ * card and the "Add a facility" wizard; the caller decides what "pick" does. Layout is append-only:
+ * results grow below the fields.
  */
 export function RegistryFinder({
   lookup,
@@ -124,7 +129,7 @@ export function RegistryFinder({
   idPrefix = "abdm-hfr",
 }: {
   lookup: (id: string) => Promise<AbdmHfrFacility>;
-  search: (name: string, state: string) => Promise<AbdmHfrSearchResult>;
+  search: (args: RegistrySearchArgs) => Promise<AbdmHfrSearchResult>;
   onPick: (record: AbdmHfrFacility) => void;
   pickLabel: string;
   currentId?: string;
@@ -135,10 +140,8 @@ export function RegistryFinder({
   const [lookupId, setLookupId] = useState("");
   const [name, setName] = useState("");
   const [state, setState] = useState("");
-  const [searched, setSearched] = useState<{
-    name: string;
-    state: string;
-  } | null>(null);
+  const [ownership, setOwnership] = useState("");
+  const [searched, setSearched] = useState<RegistrySearchArgs | null>(null);
   const [error, setError] = useState<string>();
   const [lookedUp, setLookedUp] = useState<AbdmHfrFacility | null>(null);
 
@@ -153,11 +156,16 @@ export function RegistryFinder({
   });
   const searchRun = useQuery<AbdmHfrSearchResult>({
     queryKey: [idPrefix, "hfr-search", searched],
-    queryFn: () => search(searched?.name ?? "", searched?.state ?? ""),
+    queryFn: () => search(searched as RegistrySearchArgs),
     enabled: Boolean(searched && searched.name.length >= 3),
     retry: false,
   });
   const pending = Boolean(busy) || lookupRun.isPending;
+  const canSearch = name.trim().length >= 3 && Boolean(state) && Boolean(ownership);
+  const runSearch = () => {
+    if (!canSearch) return;
+    setSearched({ name: name.trim(), state, ownership });
+  };
 
   return (
     <div className="grid gap-5">
@@ -220,35 +228,65 @@ export function RegistryFinder({
 
       <div className="grid gap-1.5">
         <span className="text-sm font-medium">{t("abdm_hfr_search_label")}</span>
-        <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-          <Input
-            placeholder={t("abdm_hfr_search_name")}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && name.trim().length >= 3) {
-                e.preventDefault();
-                setSearched({ name: name.trim(), state });
-              }
-            }}
-          />
-          <MasterSelect
-            kind="lgd-states"
-            value={state}
-            onChange={setState}
-            placeholder={t("abdm_hfr_any_state")}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-12 md:h-10"
-            disabled={pending || name.trim().length < 3}
-            onClick={() => setSearched({ name: name.trim(), state })}
-          >
-            <Search className="size-4" /> {t("abdm_hfr_search")}
-          </Button>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-1">
+            <Label htmlFor={`${idPrefix}-search-name`} className="text-xs">
+              {t("abdm_facility_name")}
+            </Label>
+            <Input
+              id={`${idPrefix}-search-name`}
+              placeholder={t("abdm_hfr_search_name")}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  runSearch();
+                }
+              }}
+            />
+          </div>
+          <div className="grid gap-1">
+            <Label htmlFor={`${idPrefix}-search-state`} className="text-xs">
+              {t("abdm_hfr_state")}
+            </Label>
+            <MasterSelect
+              id={`${idPrefix}-search-state`}
+              kind="lgd-states"
+              value={state}
+              onChange={setState}
+              placeholder={t("abdm_hfr_pick_state")}
+            />
+          </div>
+          <div className="grid gap-1">
+            <Label htmlFor={`${idPrefix}-search-ownership`} className="text-xs">
+              {t("abdm_hfr_ownership")}
+            </Label>
+            <MasterSelect
+              id={`${idPrefix}-search-ownership`}
+              kind="facility-master"
+              params={{ type: "OWNER" }}
+              value={ownership}
+              onChange={setOwnership}
+              placeholder={t("abdm_hfr_pick_ownership")}
+            />
+          </div>
+          <div className="flex items-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-12 w-full md:h-10"
+              disabled={pending || !canSearch}
+              onClick={runSearch}
+            >
+              <Search className="size-4" /> {t("abdm_hfr_search")}
+            </Button>
+          </div>
         </div>
+        <p className="text-muted-foreground text-xs">
+          {t("abdm_hfr_search_help")}
+        </p>
       </div>
       {searched && (
         <div className="grid gap-2">
@@ -464,10 +502,10 @@ export default function RegistryCard({
           silent: true,
         })({ signal: new AbortController().signal })
       }
-      search={(name, stateCode) =>
+      search={({ name, state: stateCode, ownership }) =>
         query(careApi.hfrSearch, {
           pathParams: { facilityId },
-          queryParams: { name, state: stateCode },
+          queryParams: { name, state: stateCode, ownership },
           silent: true,
         })({ signal: new AbortController().signal })
       }

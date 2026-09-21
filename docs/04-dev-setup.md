@@ -1,4 +1,4 @@
-# 04 — Local dev setup (as of 2026-09-19, ADR-011 to ADR-015)
+# 04 — Local dev setup (as of 2026-09-21, ADR-011 to ADR-016)
 
 ## Backend
 
@@ -54,7 +54,8 @@
 - Callback log (superuser): `GET /api/abdm/callbacks?limit=20`; `GET /api/abdm/callbacks/<callback_id>`.
 - Encounter link state: `GET /api/abdm/encounters/<encounter_id>/care-context`.
 - M3 (HIU) state: `GET /api/abdm/patients/<patient_id>/abha/consent-requests?facility=<facility_id>`; a fetched bundle: `GET /api/abdm/patients/<patient_id>/abha/records/<record_id>`.
-- M4 probes: `GET /api/abdm/nhpr/masters/lgd-states` (any user; 1 registry call, then cached 24 h); `GET /api/abdm/users/me/abdm/hpr` (the caller's HPR state); `GET /api/abdm/facilities/<facility_id>/abdm/hfr/onboarding` (the wizard state).
+- M4 probes: `GET /api/abdm/nhpr/masters/lgd-states` (any user; 1 registry call, then cached 24 h); `GET /api/abdm/nhpr/masters/facility-master?type=OWNER` (the 17 type names: `nhpr/rules.MASTER_TYPES`); `GET /api/abdm/users/me/abdm/hpr` (the caller's HPR state); `GET /api/abdm/facilities/<facility_id>/abdm/hfr/onboarding` (the wizard state). A registry name search needs `state` and `ownership` (`.../hfr/search?name=Manipur&state=14&ownership=P`).
+- A refused M4 call answers `{errors, detail, code, requestId}` with HTTP 502 (registry refusal), 400 (plug rule) or 404 (not found), and its `AbdmOutboundRequest` row stays: read it with `REQUEST-ID` from the runserver log (`abdm m4-facility-search -> HTTP 422 (REQUEST-ID …)`).
 - M3 data push URL: `${ABDM_CALLBACK_BASE_URL}/api/abdm/v3/hiu/health-information/transfer`. It needs no registration: the plug names it in every health-information request. The tunnel must be up when the other facility pushes.
 - Outside production the user-initiated link OTP is fixed: `123456` (Care core uses the same rule for login OTPs).
 
@@ -70,6 +71,10 @@
 - The MFE serves `/assets/remoteEntry.js`. Every build changes the chunk hashes: hard-refresh the host after a build, or the console shows 404s for the old `/assets/*.js` names.
 - Care DB plug config:
   `PlugConfig(slug="abdm", meta={url, name: "care_abdm_fe", plug: "abdm"})`. `meta.url` must be the port the preview runs on.
+  The host loads a plug's `locale/<lang>.json` into the namespace `meta.name || slug` and lists every
+  plug namespace as `fallbackNS` (`care_fe/src/i18n.ts:26-48,68-75`). The local row on 2026-09-21 has
+  `meta.name = "care_abdm"`, so the plug's `useTranslation("care_abdm_fe")` finds its keys through the
+  fallback only. It works; set `meta.name` to `care_abdm_fe` for the direct match.
 - care_fe host:
   `cd ~/ohc.network/care_fe && npx vite --port 4000`.
 - Point `REACT_CARE_API_URL` at `http://localhost:8000`.

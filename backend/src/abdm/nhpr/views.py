@@ -36,8 +36,18 @@ def _parse(model, data):
         raise ValidationError({"errors": "; ".join(e["msg"] for e in exc.errors())}) from exc
 
 
-def _refused(exc) -> ValidationError:
-    return ValidationError({"errors": exc.message, "code": exc.code, "requestId": getattr(exc, "request_id", "")})
+# Codes the plug decides before or without a registry call. Everything else is a registry refusal.
+LOCAL_CODES = {"FIX_REQUEST", "NO_HPR_SESSION", "NO_HPR_ID", "OTHER_HPR_ID", "ALREADY_LINKED"}
+
+
+def refused(exc) -> Response:
+    """The failure answer, returned and never raised. DRF's exception handler calls `set_rollback()`
+    under Care's `ATOMIC_REQUESTS`, so a raised error after a registry call drops the
+    `AbdmOutboundRequest` row of that call (observed 2026-09-21: the log held the REQUEST-ID of an
+    HTTP 422, the table held no row; findings J9). The body is `{errors, detail, code, requestId}`."""
+    if exc.code == "NOT_FOUND":
+        return Response(exc.as_dict(), status=404)
+    return Response(exc.as_dict(), status=400 if exc.code in LOCAL_CODES else 502)
 
 
 # --- facility side ---------------------------------------------------------------------------------
@@ -53,35 +63,39 @@ class HfrLookup(APIView):
         try:
             record = hfr.lookup(str(request.query_params.get("facility_id") or ""))
         except hfr.HfrError as exc:
-            raise _refused(exc) from exc
+            return refused(exc)
         if record is None:
             return Response({"errors": "The HFR holds no facility with this ID."}, status=404)
         return Response(record)
 
 
+def search_from_query(q) -> dict:
+    """`?name=&state=&ownership=&district=&page=`: fuzzy on the name, exact on the codes. The state
+    and the ownership are required by the registry (facility.search refuses without them)."""
+    try:
+        page = int(q.get("page") or 1)
+    except ValueError:
+        page = 1
+    return hfr.search(
+        name=str(q.get("name") or ""),
+        state_lgd=str(q.get("state") or ""),
+        district_lgd=str(q.get("district") or ""),
+        ownership=str(q.get("ownership") or ""),
+        page=page,
+    )
+
+
 class HfrSearch(APIView):
-    """GET ?name=&state=&district=&page=: fuzzy on the name, exact on the LGD codes."""
+    """GET ?name=&state=&ownership=&district=&page=: the registry search for this facility's card."""
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request, facility_id):
         _facility(request, facility_id)
-        q = request.query_params
         try:
-            page = int(q.get("page") or 1)
-        except ValueError:
-            page = 1
-        try:
-            return Response(
-                hfr.search(
-                    name=str(q.get("name") or ""),
-                    state_lgd=str(q.get("state") or ""),
-                    district_lgd=str(q.get("district") or ""),
-                    page=page,
-                )
-            )
+            return Response(search_from_query(request.query_params))
         except hfr.HfrError as exc:
-            raise _refused(exc) from exc
+            return refused(exc)
 
 
 class LinkBody(BaseModel):
@@ -99,7 +113,7 @@ class HfrLink(APIView):
         try:
             return Response(hfr.link_registry_facility(facility, body.facility_id, request.user))
         except hfr.HfrError as exc:
-            raise _refused(exc) from exc
+            return refused(exc)
 
 
 class OnboardingBody(BaseModel):
@@ -124,9 +138,8 @@ class HfrOnboarding(APIView):
             hfr.run_step(facility, onboarding, body.step, body.payload, request.user)
         except hfr.HfrError as exc:
             state = hfr.hfr_state(facility, request.user)
-            state["errors"] = exc.message
-            state["code"] = exc.code
-            return Response(state, status=400 if exc.code in ("FIX_REQUEST", "NO_HPR_SESSION") else 502)
+            state.update(exc.as_dict())
+            return Response(state, status=400 if exc.code in LOCAL_CODES else 502)
         return Response(hfr.hfr_state(facility, request.user))
 
 
@@ -162,7 +175,7 @@ class HfrOtp(APIView):
                     )
                 )
         except hfr.HfrError as exc:
-            raise _refused(exc) from exc
+            return refused(exc)
         raise ValidationError({"errors": "action must be send or validate."})
 
 
@@ -195,7 +208,7 @@ class HprLogin(APIView):
             else:
                 hpr.login_init(request.user, body.hpr_id, body.method)
         except hpr.HprError as exc:
-            raise _refused(exc) from exc
+            return refused(exc)
         return Response(hpr.hpr_state(request.user))
 
 
@@ -213,7 +226,7 @@ class HprLoginVerify(APIView):
         try:
             hpr.login_verify(request.user, login, body.otp)
         except hpr.HprError as exc:
-            raise _refused(exc) from exc
+            return refused(exc)
         return Response(hpr.hpr_state(request.user))
 
 
@@ -226,9 +239,7 @@ class HprVerifyId(APIView):
         try:
             return Response(hpr.verify_hpr_id(str(request.query_params.get("hpr_id") or "")))
         except hpr.HprError as exc:
-            if exc.code == "NOT_FOUND":
-                return Response({"errors": exc.message}, status=404)
-            raise _refused(exc) from exc
+            return refused(exc)
 
 
 class HprSessionAction(APIView):
@@ -293,11 +304,8 @@ class HpidCreate(APIView):
                     raise ValidationError({"errors": "Unknown action."})
         except hpr.HprError as exc:
             state = hpr.hpr_state(request.user)
-            state["errors"] = exc.message
-            state["code"] = exc.code
-            return Response(
-                state, status=400 if exc.code in ("FIX_REQUEST", "OTHER_HPR_ID", "NO_HPR_ID", "NO_HPR_SESSION") else 502
-            )
+            state.update(exc.as_dict())
+            return Response(state, status=400 if exc.code in LOCAL_CODES else 502)
         return Response(hpr.hpr_state(request.user))
 
 
@@ -315,7 +323,7 @@ class HprRegister(APIView):
         try:
             hpr.register(request.user, body.practitioner, update=(action == "update"))
         except hpr.HprError as exc:
-            raise _refused(exc) from exc
+            return refused(exc)
         return Response(hpr.hpr_state(request.user))
 
 
@@ -330,14 +338,14 @@ class HprDocuments(APIView):
         try:
             return Response(hpr.documents(request.user))
         except hpr.HprError as exc:
-            raise _refused(exc) from exc
+            return refused(exc)
 
     def post(self, request):
         body = _parse(DocumentsBody, request.data)
         try:
             return Response(hpr.upload(request.user, body.documents))
         except hpr.HprError as exc:
-            raise _refused(exc) from exc
+            return refused(exc)
 
 
 class HprProfessionalInfo(APIView):
@@ -347,7 +355,7 @@ class HprProfessionalInfo(APIView):
         try:
             return Response(hpr.professional_info(request.user))
         except hpr.HprError as exc:
-            raise _refused(exc) from exc
+            return refused(exc)
 
 
 # --- masters ---------------------------------------------------------------------------------------

@@ -10,13 +10,14 @@ import {
 } from "@/components/ui/dialog";
 import NhprField from "@/components/abdm/nhpr-field";
 import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { errorMessage, hprQueryKey } from "@/components/abdm/nhpr-shared";
 import { useTranslation } from "@/hooks/use-translation";
 import careApi, {
   type AbdmHprPublicRecord,
   type AbdmHprState,
 } from "@/lib/careApi";
-import { mutate, query } from "@/lib/request";
+import { HttpError, mutate, query } from "@/lib/request";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -55,15 +56,26 @@ export default function HprLoginDialog({
   }, [open]);
 
   const trimmed = hprId.trim();
+  // 1 registry call per complete id (registries/nhpr/hpr: the 14-digit number or `name@hpr.abdm`),
+  // not 1 per keystroke: the sandbox answers HTTP 422 "Invalid HPID" to every partial value.
+  const complete =
+    /^\d{2}-?\d{4}-?\d{4}-?\d{4}$/.test(trimmed) ||
+    /^[a-zA-Z0-9][a-zA-Z0-9._-]{2,}@hpr\.abdm$/i.test(trimmed);
   const record = useQuery<AbdmHprPublicRecord>({
     queryKey: ["abdm", "hpr", "verify-id", trimmed],
     queryFn: query.debounced(careApi.hprVerifyId, {
       queryParams: { hpr_id: trimmed },
       silent: true,
     }),
-    enabled: open && trimmed.length >= 3 && !pendingLogin,
+    enabled: open && complete && !pendingLogin,
     retry: false,
   });
+  const recordUnknown =
+    record.isError && (record.error as HttpError).status === 404;
+  /** True when the registry names a mobile method for this HPR ID (findings N5). */
+  const mobileOffered = Boolean(
+    record.data?.auth_methods.some((m) => m.toLowerCase().includes("mobile")),
+  );
 
   const apply = (state: AbdmHprState) => {
     qc.setQueryData(hprQueryKey, state);
@@ -140,29 +152,39 @@ export default function HprLoginDialog({
                 {record.isFetching && t("abdm_hpr_checking")}
                 {record.data &&
                   `${record.data.name} · ${record.data.hpr_id_number} · ${record.data.auth_methods.join(", ")}`}
-                {record.isError && t("abdm_hpr_id_unknown")}
+                {recordUnknown && t("abdm_hpr_id_unknown")}
+                {record.isError &&
+                  !recordUnknown &&
+                  errorMessage(record.error, t("abdm_hpr_id_check_failed"))}
               </span>
             </NhprField>
             <div className="grid gap-1.5">
               <span className="text-sm font-medium">
                 {t("abdm_hpr_login_method")}
               </span>
-              <div className="flex flex-wrap gap-4">
+              <RadioGroup
+                value={method}
+                onValueChange={(next) =>
+                  setMethod(next as "password" | "aadhaar_otp")
+                }
+                className="grid-cols-2 gap-2"
+              >
                 {(["password", "aadhaar_otp"] as const).map((m) => (
-                  <label key={m} className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="abdm-hpr-method"
-                      checked={method === m}
-                      onChange={() => setMethod(m)}
-                    />
+                  <label
+                    key={m}
+                    className="border-input has-[[data-checked]]:border-primary has-[[data-checked]]:bg-primary/5 flex cursor-pointer items-center gap-2.5 rounded-lg border p-3"
+                  >
+                    <RadioGroupItem value={m} />
                     {t(`abdm_hpr_method_${m}`)}
                   </label>
                 ))}
-              </div>
+              </RadioGroup>
             </div>
             {method === "password" && (
-              <NhprField labelKey="abdm_hpr_password" htmlFor="abdm-hpr-password">
+              <NhprField
+                labelKey="abdm_hpr_password"
+                htmlFor="abdm-hpr-password"
+              >
                 <Input
                   id="abdm-hpr-password"
                   type="password"
@@ -172,9 +194,16 @@ export default function HprLoginDialog({
                 />
               </NhprField>
             )}
-            <p className="text-muted-foreground text-xs">
-              {t("abdm_hpr_login_help")}
-            </p>
+            {/*
+             * The registry names a mobile OTP for some HPR IDs, but publishes a send call and no
+             * verify call (findings N5). Name that gap only for a person whose record offers the
+             * method; for everybody else it is noise (Rithvik, 2026-09-21).
+             */}
+            {mobileOffered && (
+              <p className="text-muted-foreground text-xs">
+                {t("abdm_hpr_login_help")}
+              </p>
+            )}
           </div>
         )}
 

@@ -88,3 +88,16 @@ work status) are free text with the example value as the hint (N6).
 - Nothing has met the sandbox. The first run must confirm the bearer for the HPID calls (N1), the
   `generateLink` URL field (N2), the `auth/cert` response shape (N4), the `IN` id after submission (N7)
   and the master type names (N8). `03-roadmap.md` Phase 5 lists the proofs.
+
+## Amendments
+
+- 2026-09-21 (sandbox, 40 read-only probes; `findings.md` N1, N2, N4, N7, N8, N16–N22, J9): decision 2 holds
+  so far. The gateway session token is accepted by the HFR search, every master, `auth/cert` and
+  `aadhaar/generateLink`. The registry answers HTTP 422 with `details[].code` and `.message`, and a name
+  search needs `stateLGDCode` and `ownershipCode`. The M4 views now **return** a failure as
+  `{errors, detail, code, requestId}` (400 plug rule, 404 not found, 502 registry refusal) and never raise
+  it, so the outbound row of a refused call survives Care's request transaction. The message carries
+  the registry's own words (`abdm-m3/design.md`). The wizard's master pickers use the 17 real type names;
+  the owner subtype is the fixed list `C` / `P` / `NP`. `searchByHprId` says "not found" with HTTP 422
+  `HIS-3008`. Still to see on the sandbox: the login, the HFR writes and `createHprIdWithPreVerified`.
+

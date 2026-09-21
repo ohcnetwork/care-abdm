@@ -1,4 +1,8 @@
-import { errorMessage, hprQueryKey } from "@/components/abdm/nhpr-shared";
+import {
+  embeddedCard,
+  errorMessage,
+  hprQueryKey,
+} from "@/components/abdm/nhpr-shared";
 import MasterSelect from "@/components/abdm/master-select";
 import { selectClass } from "@/components/abdm/nhpr-shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -16,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/hooks/use-translation";
 import careApi, { type AbdmHprState } from "@/lib/careApi";
 import { mutate } from "@/lib/request";
+import { cn } from "@/lib/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FileText, Loader2, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -181,9 +186,12 @@ const YES_NO = (t: (k: string) => string) => [
 export default function HprRegisterForm({
   state,
   onDone,
+  embedded,
 }: {
   state: AbdmHprState;
   onDone?: () => void;
+  /** True when a sheet holds this form: the sheet header carries the title (ADR-017). */
+  embedded?: boolean;
 }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -337,15 +345,21 @@ export default function HprRegisterForm({
   const [somName, setSomName] = useState("");
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileText className="text-muted-foreground size-4" />{" "}
-          {isUpdate ? t("abdm_hpr_update_title") : t("abdm_hpr_register_title")}
-        </CardTitle>
-        <CardDescription>{t("abdm_hpr_register_intro")}</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-5">
+    <Card className={cn(embedded && embeddedCard.card)}>
+      {!embedded && (
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="text-muted-foreground size-4" />{" "}
+            {isUpdate
+              ? t("abdm_hpr_update_title")
+              : t("abdm_hpr_register_title")}
+          </CardTitle>
+          <CardDescription>{t("abdm_hpr_register_intro")}</CardDescription>
+        </CardHeader>
+      )}
+      <CardContent
+        className={cn("grid gap-5", embedded && embeddedCard.padding)}
+      >
         <section className="grid gap-3">
           <h3 className="text-sm font-semibold">
             {t("abdm_hpr_block_profile")}
@@ -1207,7 +1221,12 @@ export default function HprRegisterForm({
           </p>
         )}
       </CardContent>
-      <CardFooter className="flex items-center gap-3 border-t">
+      <CardFooter
+        className={cn(
+          "flex items-center gap-3 border-t",
+          embedded && `${embeddedCard.padding} border-t-0`,
+        )}
+      >
         <span className="text-muted-foreground text-xs">
           {t("abdm_hpr_register_footer")}
         </span>

@@ -29,7 +29,7 @@ care-abdm-sbx/
   scripts/          refresh-docs-mirror.py — rebuilds docs/abdm-docs-mirror and .agent/skills from the live site
                     abdm-docs-mcp.py — calls one docs MCP tool from a shell (get_operation, validate_fhir, ...)
   docs/             this knowledge base
-  .agent/skills/    the docs site's own agent skills (abdm-gateway, abdm-m1 … abdm-fhir; 12 on 2026-09-19), downloaded verbatim
+  .agent/skills/    the docs site's own agent skills (abdm-gateway, abdm-m1 … abdm-fhir; 12 skills, 50 files on 2026-09-21), downloaded verbatim
   .env.local        sandbox credentials — gitignored, never copy into docs
 ```
 

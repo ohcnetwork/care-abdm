@@ -185,7 +185,8 @@ export default function AddFacilityWizard() {
   const [picked, setPicked] = useState<AbdmFacilityPrefill | null>(null);
   const [draft, setDraft] = useState<CareFacilityDraft>(blankFacilityDraft);
   const [hipName, setHipName] = useState("");
-  const [touched, setTouched] = useState(false);
+  // True after the person pressed the create button. The form shows the errors only then.
+  const [attempted, setAttempted] = useState(false);
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
   const [actionError, setActionError] = useState<string>();
 
@@ -455,9 +456,9 @@ export default function AddFacilityWizard() {
                   if (!record) throw new Error(t("abdm_hfr_not_found"));
                   return record;
                 }}
-                search={(name, state) =>
+                search={({ name, state, ownership }) =>
                   query(careApi.hfrSearchForCreate, {
-                    queryParams: { name, state },
+                    queryParams: { name, state, ownership },
                     silent: true,
                   })({ signal: new AbortController().signal })
                 }
@@ -512,11 +513,8 @@ export default function AddFacilityWizard() {
               )}
               <CareFacilityForm
                 draft={draft}
-                onChange={(next) => {
-                  setTouched(true);
-                  setDraft((d) => ({ ...d, ...next }));
-                }}
-                errors={touched ? errors : {}}
+                onChange={(next) => setDraft((d) => ({ ...d, ...next }))}
+                errors={attempted ? errors : {}}
                 serverErrors={serverErrors}
                 geoInitial={geoInitial}
                 disabled={busy}
@@ -578,10 +576,10 @@ export default function AddFacilityWizard() {
                 disabled={
                   busy ||
                   Boolean(picked?.alreadyLinked) ||
-                  (touched && !canCreate)
+                  (attempted && !canCreate)
                 }
                 onClick={() => {
-                  setTouched(true);
+                  setAttempted(true);
                   if (canCreate) create.mutate();
                 }}
               >
@@ -803,7 +801,7 @@ export default function AddFacilityWizard() {
                   setPicked(null);
                   setDraft(blankFacilityDraft);
                   setHipName("");
-                  setTouched(false);
+                  setAttempted(false);
                 }}
               >
                 {t("abdm_add_another")}

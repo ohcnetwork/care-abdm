@@ -7,7 +7,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from abdm.callbacks.receiver import create_callback
-from abdm.callbacks.signature import CallbackSignatureError, seconds_late, verify_callback_signature
+from abdm.callbacks.signature import (
+    CallbackSignatureError,
+    redact_headers,
+    seconds_late,
+    verify_callback_signature,
+)
 from abdm.models import AbdmCallback
 from abdm.tasks import dispatch_callback
 
@@ -103,7 +108,8 @@ class CallbackDetail(APIView):
         data = _callback_summary(callback)
         data.update(
             {
-                "headers": callback.headers_json,
+                # Names and lengths only: the signed token is a credential, and this panel is a browser.
+                "headers": redact_headers(callback.headers_json),
                 "raw_body": callback.raw_body,
                 "parsed_json": callback.parsed_json,
             }

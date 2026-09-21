@@ -649,12 +649,17 @@ export default function HfrOnboardingWizard({
                   />
                 </Field>
                 <Field labelKey="abdm_hfr_ownership_subtype" htmlFor="b-own2">
+                  {/* No master lists these: the registry accepts C (government), P or NP (private, PPP). */}
                   <MasterSelect
                     id="b-own2"
-                    kind="facility-master"
-                    params={{ type: "OWNER-SUBTYPE" }}
+                    kind="owner-subtype-codes"
+                    params={{ ownership: String(basic.ownershipCode ?? "") }}
+                    enabled={Boolean(basic.ownershipCode)}
                     value={String(basic.ownershipSubTypeCode ?? "")}
-                    onChange={(v) => setBasicField("ownershipSubTypeCode", v)}
+                    onChange={(v) => {
+                      setBasicField("ownershipSubTypeCode", v);
+                      setBasicField("ownershipSubTypeCode2", "");
+                    }}
                   />
                 </Field>
                 <Field
@@ -694,28 +699,16 @@ export default function HfrOnboardingWizard({
                   htmlFor="b-tos"
                   hint={t("abdm_hfr_multi_hint")}
                 >
-                  <select
+                  <MasterSelect
                     id="b-tos"
-                    className={`${selectClass} h-auto min-h-16 py-2`}
+                    kind="facility-master"
+                    params={{ type: "TYPE-SERVICE" }}
                     multiple
                     value={String(basic.typeOfServiceCode ?? "")
                       .split(",")
                       .filter(Boolean)}
-                    onChange={(e) =>
-                      setBasicField(
-                        "typeOfServiceCode",
-                        Array.from(e.target.selectedOptions)
-                          .map((o) => o.value)
-                          .join(","),
-                      )
-                    }
-                  >
-                    {["OPD", "IPD"].map((o) => (
-                      <option key={o} value={o}>
-                        {o}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => setBasicField("typeOfServiceCode", v)}
+                  />
                 </Field>
                 <Field labelKey="abdm_hfr_facility_type" htmlFor="b-type">
                   <MasterSelect
@@ -744,21 +737,19 @@ export default function HfrOnboardingWizard({
                   />
                 </Field>
                 <Field labelKey="abdm_hfr_speciality_type" htmlFor="b-spec">
-                  <Select
+                  <MasterSelect
                     id="b-spec"
+                    kind="facility-master"
+                    params={{ type: "SPECIALITY-TYPE" }}
                     value={String(basic.specialityTypeCode ?? "")}
                     onChange={(v) => setBasicField("specialityTypeCode", v)}
-                    options={[
-                      { code: "SINGLE", name: t("abdm_hfr_single_speciality") },
-                      { code: "MULTI", name: t("abdm_hfr_multi_speciality") },
-                    ]}
                   />
                 </Field>
                 <Field labelKey="abdm_hfr_operational_status" htmlFor="b-ops">
                   <MasterSelect
                     id="b-ops"
                     kind="facility-master"
-                    params={{ type: "OPERATIONAL-STATUS" }}
+                    params={{ type: "FAC-STATUS" }}
                     value={String(basic.facilityOperationalStatus ?? "")}
                     onChange={(v) =>
                       setBasicField("facilityOperationalStatus", v)
@@ -811,14 +802,12 @@ export default function HfrOnboardingWizard({
                   />
                 </Field>
                 <Field labelKey="abdm_hfr_region" htmlFor="b-region">
-                  <Select
+                  <MasterSelect
                     id="b-region"
+                    kind="facility-master"
+                    params={{ type: "FACILITY-REGION" }}
                     value={String(address.facilityRegion ?? "")}
                     onChange={(v) => setAddress("facilityRegion", v)}
-                    options={[
-                      { code: "U", name: t("abdm_hfr_urban") },
-                      { code: "R", name: t("abdm_hfr_rural") },
-                    ]}
                   />
                 </Field>
                 <Field

@@ -23,18 +23,29 @@ logger = logging.getLogger(__name__)
 
 
 class HfrError(Exception):
-    def __init__(self, code: str, message: str, request_id: str = ""):
+    def __init__(self, code: str, message: str, request_id: str = "", detail: str = ""):
         super().__init__(message)
         self.code = code
         self.message = message
         self.request_id = request_id
+        # The registry's own words ("Required OwnershipCode Field is empty."). The person on the setup
+        # page is an administrator, so the API carries them beside the plug sentence (abdm-m3
+        # design.md: never replace the message ABDM sent with words of your own).
+        self.detail = detail
+
+    def as_dict(self) -> dict:
+        return {"errors": self.message, "detail": self.detail, "code": self.code, "requestId": self.request_id}
 
 
 def _raise_from(exc: client.NhprError, code: str = "") -> HfrError:
+    """A refused registry call. The message carries the registry's own words when it sent any;
+    the classified sentence covers a transport failure or an empty answer."""
     failure = errors.classify(
         code=exc.code, http_status=exc.row.http_status if exc.row else None, message=str(exc), request_id=exc.request_id
     )
-    return HfrError(code or failure.code, f"{failure.what} {failure.next_step}".strip(), exc.request_id)
+    words = client.refusal_words(exc.row)
+    message = f"The registry refused the request: {words}" if words else f"{failure.what} {failure.next_step}".strip()
+    return HfrError(code or failure.code, message, exc.request_id, words)
 
 
 # --- tier A: lookup, search, link ---------------------------------------------------------------
@@ -58,13 +69,24 @@ def lookup(facility_id: str) -> dict | None:
     return result["facilities"][0] if len(result["facilities"]) == 1 else None
 
 
-def search(*, name: str, state_lgd: str = "", district_lgd: str = "", page: int = 1) -> dict:
+def search(*, name: str, state_lgd: str = "", district_lgd: str = "", ownership: str = "", page: int = 1) -> dict:
+    """A name search. The registry refuses one without a state and an ownership (HTTP 422, HIS-1070,
+    observed 2026-09-21), so the plug refuses it first and names the missing value."""
     if len((name or "").strip()) < 3:
         raise HfrError("FIX_REQUEST", "Type at least 3 characters of the facility name.")
+    if not (state_lgd or "").strip():
+        raise HfrError("FIX_REQUEST", "Choose the state. The registry needs it for a name search.")
+    if not (ownership or "").strip():
+        raise HfrError("FIX_REQUEST", "Choose the ownership. The registry needs it for a name search.")
     try:
         row = client.ok(
             client.search_facilities(
-                name=name.strip(), state_lgd=state_lgd, district_lgd=district_lgd, page=page, per_page=10
+                name=name.strip(),
+                state_lgd=state_lgd.strip(),
+                district_lgd=(district_lgd or "").strip(),
+                ownership=ownership.strip(),
+                page=page,
+                per_page=10,
             )
         )
     except client.NhprError as exc:
@@ -267,16 +289,17 @@ def run_step(facility, state: dict, step: str, payload: dict, user) -> dict:
 
 
 def _find_submitted_facility_id(state: dict) -> str:
-    """The submit answer may carry no `IN` id (the pages show none). Search the HFR by the name and
-    state we sent; take the 1 match whose status is not Draft."""
+    """The submit answer may carry no `IN` id (the pages show none). Search the HFR by the name,
+    state and ownership we sent; take the 1 match whose status is not Draft."""
     basic = state.get("basic") if isinstance(state.get("basic"), dict) else {}
     name = str(basic.get("facilityName") or "")
     address = basic.get("facilityAddressDetails") if isinstance(basic.get("facilityAddressDetails"), dict) else {}
     region = str(address.get("stateLGDCode") or "")
+    ownership = str(basic.get("ownershipCode") or "")
     if not name:
         return ""
     try:
-        found = search(name=name, state_lgd=region)
+        found = search(name=name, state_lgd=region, ownership=ownership)
     except HfrError:
         return ""
     matches = [

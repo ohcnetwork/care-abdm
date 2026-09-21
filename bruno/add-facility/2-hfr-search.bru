@@ -5,7 +5,7 @@ meta {
 }
 
 get {
-  url: {{careUrl}}/api/abdm/hfr/search?name=&state=&district=&page=1
+  url: {{careUrl}}/api/abdm/hfr/search?name=&state=&ownership=&district=&page=1
   body: none
   auth: none
 }
@@ -13,6 +13,7 @@ get {
 params:query {
   name: 
   state: 
+  ownership: 
   district: 
   page: 1
 }
@@ -23,6 +24,6 @@ headers {
 
 docs {
   The same registry search as `nhpr/2-hfr-search`, before a Care facility exists. `name` needs 3
-  characters; `state` and `district` are LGD codes. `?facility_id=IN...` looks 1 record up instead.
-  Needs `can_create_facility`.
+  characters; `state` (required) and `district` are LGD codes; `ownership` (required) is `G`, `P`
+  or `PP`. `?facility_id=IN...` looks 1 record up instead. Needs `can_create_facility`.
 }

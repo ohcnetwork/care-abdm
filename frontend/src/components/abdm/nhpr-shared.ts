@@ -73,3 +73,12 @@ export function addFacilityPath(organizationId?: string) {
     ? `/abdm/facilities/new?organization=${encodeURIComponent(organizationId)}`
     : "/abdm/facilities/new";
 }
+
+/**
+ * A card that a sheet holds drops its own frame and its side padding (ADR-017): the sheet is the
+ * frame, and its header carries the title the card header would repeat.
+ */
+export const embeddedCard = {
+  card: "border-0 bg-transparent py-0 shadow-none ring-0",
+  padding: "px-0",
+} as const;

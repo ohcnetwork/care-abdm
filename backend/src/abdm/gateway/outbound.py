@@ -93,6 +93,11 @@ def _error_code(payload: Any) -> str:
     return errors.normalize_code(payload.get("code"))
 
 
+def error_lines(payload: Any) -> list[str]:
+    """Public name of `_error_lines` for the modules that show ABDM's own words (M4)."""
+    return _error_lines(payload)
+
+
 def failure_detail(row: AbdmOutboundRequest) -> str:
     """One human-readable line for an outbound row that did not succeed."""
     lines = _error_lines(row.response_json)
