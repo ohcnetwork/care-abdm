@@ -70,7 +70,8 @@ class LinkageAndSearchTests(unittest.TestCase):
                 "districtLGDCode": "",
             },
         )
-        self.assertEqual(rules.facility_search_body(facility_id="IN1410000232", per_page=500)["resultsPerPage"], 50)
+        self.assertEqual(rules.facility_search_body(facility_id="IN1410000232", per_page=500)["resultsPerPage"], 15)
+        self.assertEqual(rules.facility_search_body(facility_id="IN1410000232", per_page=5)["resultsPerPage"], 10)
 
     def test_parse_facility_search_page_example(self):
         parsed = rules.parse_facility_search(

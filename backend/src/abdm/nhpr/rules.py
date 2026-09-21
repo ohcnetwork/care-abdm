@@ -44,6 +44,11 @@ ONBOARDING_STEPS = ("dedup", "basic", "additional", "detailed", "submit")
 # The facility statuses the pages show (`facilityStatus`, onboarding `status`).
 FACILITY_STATUSES = ("Draft", "Submitted", "Verified", "Created", "Saved", "success")
 
+# `facility/search` limits: HIS-4047 "Please enter valid resultsPerPage, Min value is 10, Max value
+# is 15" (observed 2026-09-21, findings N29). The page documents no limit.
+RESULTS_PER_PAGE_MIN = 10
+RESULTS_PER_PAGE_MAX = 15
+
 # The registry facts observed on the sandbox on 2026-09-21 (docs/findings.md N16-N19). A name search
 # needs `stateLGDCode` and `ownershipCode` (HIS-1070 "Required OwnershipCode Field is empty").
 # `get-master-types` names 17 master types; the wizard's pickers use these.
@@ -258,7 +263,9 @@ def facility_search_body(
     """`m4-search/02`: by facility ID, or by name with the filters. Every key is sent, empty when
     unused, as the page example does. Observed 2026-09-21: a name search is refused (HTTP 422,
     HIS-1070) unless `stateLGDCode` and `ownershipCode` are both set; `facility/search()` refuses
-    such a search locally before any call."""
+    such a search locally before any call. `resultsPerPage` must be 10 to 15 (HIS-4047 "Please enter
+    valid resultsPerPage, Min value is 10, Max value is 15", observed 2026-09-21, findings N29); the
+    page states no limit. The builder clamps the value, so no caller can send a refused one."""
     return {
         "ownershipCode": ownership or "",
         "subDistrictLGDCode": sub_district_lgd or "",
@@ -266,7 +273,7 @@ def facility_search_body(
         "facilityName": name or "",
         "facilityId": facility_id or "",
         "page": max(1, int(page or 1)),
-        "resultsPerPage": min(max(1, int(per_page or 10)), 50),
+        "resultsPerPage": min(max(RESULTS_PER_PAGE_MIN, int(per_page or RESULTS_PER_PAGE_MIN)), RESULTS_PER_PAGE_MAX),
         "stateLGDCode": state_lgd or "",
         "districtLGDCode": district_lgd or "",
     }

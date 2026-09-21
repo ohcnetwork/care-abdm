@@ -70,7 +70,7 @@ def lookup(facility_id: str) -> dict | None:
     if not rules.facility_id_ok(value):
         raise HfrError("FIX_REQUEST", "HFR facility ID must start with IN and have 12 characters.")
     try:
-        row = client.ok(client.search_facilities(facility_id=value, per_page=5))
+        row = client.ok(client.search_facilities(facility_id=value))
     except client.NhprError as exc:
         if exc.row is not None and exc.row.http_status == 404:
             return None
