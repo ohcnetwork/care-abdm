@@ -1,5 +1,6 @@
 import { type FieldHelpContent } from "@/components/abdm/field-help";
 import RegistryCard from "@/components/abdm/registry-card";
+import DevFooter from "@/components/abdm/dev/dev-footer";
 import PluginComponent from "@/components/common/plugin-component";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -395,6 +396,8 @@ export default function AbdmFacilitySetupPage({
             </>
           )}
         </div>
+
+        <DevFooter filters={{ facility: facilityId }} />
 
         {/* Sticky, not fixed: the host renders this page inside its scrolling
             <main>, so a fixed bar would sit under the host sidebar. */}

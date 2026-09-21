@@ -1,3 +1,4 @@
+import DevFooter from "@/components/abdm/dev/dev-footer";
 import HpidCreateWizard from "@/components/abdm/hpid-create-wizard";
 import HprDocuments from "@/components/abdm/hpr-documents";
 import HprLoginDialog from "@/components/abdm/hpr-login-dialog";
@@ -456,6 +457,8 @@ export default function AbdmUserProfileSection({
               </CardFooter>
             </Card>
           )}
+          {/* ADR-018: the M4 exchanges of this deployment, collapsed, last in the column. */}
+          <DevFooter filters={{ module: "m4" }} />
         </div>
 
         {/* Create an HPR ID. The Aadhaar page of the registry opens in a new tab. */}

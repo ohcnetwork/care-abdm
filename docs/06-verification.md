@@ -105,6 +105,26 @@ Read-only probes against the real registry (the way the 2026-09-21 facts were fo
 `manage.py shell`. Each leaves 1 `AbdmOutboundRequest` row, which is the evidence. Do not call a write
 (`authPassword`, the HFR steps, `createHprIdWithPreVerified`) without the user.
 
+The developer explorer (ADR-018) uses `dev_smoke.py` (session `3c44300c…`, 2026-09-21). Run it after
+`manage.py migrate abdm`; it needs 1 superuser and 1 active non-superuser:
+
+```sh
+.venv/bin/python manage.py shell < ~/.copilot/session-state/3c44300c-ac9c-475c-9a40-53adc8e4055f/files/dev_smoke.py
+```
+
+It patches `requests.request` once (1 fake routed by host: the ABHA host answers the M1 paths, the
+gateway host the rest), `get_access_token` on both transports, the callback signature check and
+`dispatch_callback.delay` (inline; a handler that raises is recorded on the row, as the worker would).
+It flips `ABDM_DEVELOPER_MODE` through `override_settings(PLUGIN_CONFIGS=…)` and `plugin_settings.reload()`.
+9 stages: off (403 with the setting named); on (status); an M1 login leaves redacted rows; an M2
+exchange through the 5 states; a handler traceback; an inbound with its ack; the 17 tables; readiness
+and the worker heartbeat; a leak count over every answer. Expected last lines: `DEV SMOKE OK — checks: 44`
+and `cleanup done`. It deletes only the rows it created and restores the heartbeat.
+
+The M3 smoke of this session (`m3_smoke.py`, same directory) creates its own superuser like the M4
+one: the real superuser holds a real HPR profile, and the requester-identifier check expects the medical
+council registration.
+
 FHIR bundles use `fhir_smoke.py` in the same directory. It builds the 3 record types from fixture
 CARE data, writes them to files and runs MCP `validate_fhir` on each
 (`python3 /tmp/mcp_tool.py validate_fhir '{"record_type":"<type>"}' --file <bundle>`; the helper
@@ -135,6 +155,7 @@ Observed 2026-09-19 (later): 149 tests in 0.9 s. Result: OK (`test_nhpr_rules.py
 Observed 2026-09-19 (later): 152 tests in 1.3 s. Result: OK (`CarePrefillTests` in `test_nhpr_rules.py` for ADR-016).
 Observed 2026-09-19 (later): 153 tests in 1.4 s. Result: OK (`test_validate_clamps_the_range_end_to_now` in `test_hiu_rules.py`, findings L9).
 Observed 2026-09-21: 157 tests in 1.3 s. Result: OK (`MastersTests.test_sandbox_shapes_of_2026_09_21`, `test_owner_subtype_codes`, `test_parse_facility_search_keeps_the_sandbox_codes` in `test_nhpr_rules.py`; `RedactHeadersTests` in `test_callback_signature.py`).
+Observed 2026-09-21 (later): 178 tests in 0.8 s. Result: OK (ADR-018: `test_dev_redact.py`, `test_dev_exchange.py`, `test_dev_tables.py`, `test_abha_audit.py`; the other session's 3 coordinate tests).
 
 The tests run without Django. Pure rules must live in a module with no Django import
 (`abha/checksums.py`, `share/rules.py`, `facility/rules.py`, `hip/rules.py`, `hip/crypto.py`, `hiu/rules.py`,
@@ -186,6 +207,16 @@ The agent cannot see the UI; ask the user for a screenshot and record what it sh
 - The host renders `FacilityHomeActions` inside a dropdown popup. The popup is a transformed
   ancestor, so a `position: fixed` panel in that subtree anchors to the popup. Do not open a
   dialog from that slot. Link to a plug page instead (ADR-009).
+
+## Developer explorer (ADR-018)
+
+With `ABDM_DEVELOPER_MODE=true`, the explorer is the first place to read after any run: `/abdm/developer`
+→ Exchanges (filter by module, state, operation or REQUEST-ID; the REQUEST-ID of a runserver log line
+opens the exchange) → the sheet shows the request, the answer, every callback and a traceback. The
+Readiness tab names a blocker before a flow runs. The API behind it: `GET /api/abdm/dev/exchanges?request_id=<id>`,
+`GET /api/abdm/dev/exchanges/<request_id>`, `GET /api/abdm/dev/inbound`, `GET /api/abdm/dev/tables/<name>`,
+`GET /api/abdm/dev/readiness` (Bruno `dev/`). Every value is redacted by name and length, so a body may be
+pasted into a finding as it came from the API.
 
 ## M2 ops probes
 

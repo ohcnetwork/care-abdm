@@ -10,6 +10,7 @@ import {
   viewFor,
 } from "@/components/abdm/care-context-state";
 import FetchRecordsCard from "@/components/abdm/fetch-records-card";
+import DevFooter from "@/components/abdm/dev/dev-footer";
 import PluginComponent from "@/components/common/plugin-component";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -473,6 +474,8 @@ export default function AbdmEncounterTab({
           patientId={patient.id}
           facilityId={encounter.facility.id}
         />
+        {/* ADR-018: the developer entry, last and collapsed, so the tab above never moves. */}
+        <DevFooter filters={{ encounter: encounter.id }} />
       </div>
     </PluginComponent>
   );

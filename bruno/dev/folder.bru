@@ -1,0 +1,11 @@
+meta {
+  name: dev
+  seq: 14
+}
+
+docs {
+  The developer explorer (ADR-018). Every route needs a Care login and `ABDM_DEVELOPER_MODE=true`;
+  otherwise HTTP 403 names the setting. `1. status` answers every authenticated user. Every body is
+  redacted by name and length: tokens, OTPs, passwords, keys and photos show as `<redacted, N chars>`,
+  header values never. Read-only.
+}

@@ -7,12 +7,28 @@ link for an Encounter. Both do ABDM I/O, so a Celery worker must run for M2.
 """
 
 import logging
+import traceback
 
 from celery import current_app, shared_task
+from django.core.cache import cache
+from django.utils import timezone
 
 from abdm.models import AbdmCallback
 
 logger = logging.getLogger(__name__)
+
+# ADR-018: the periodic tasks record that the worker is alive. The developer readiness check reads
+# it: with no worker, every callback stays `queued` and every link waits for ever, and nothing on
+# the desk says why.
+WORKER_HEARTBEAT_KEY = "abdm:worker:last_seen"
+WORKER_HEARTBEAT_TTL = 24 * 60 * 60
+# The traceback kept on a callback row. 20 KB holds every frame of a handler; a runaway repr does
+# not grow the row without bound.
+TRACEBACK_CHARS = 20_000
+
+
+def worker_heartbeat() -> None:
+    cache.set(WORKER_HEARTBEAT_KEY, timezone.now().isoformat(), timeout=WORKER_HEARTBEAT_TTL)
 
 
 def _handle_profile_share(callback: AbdmCallback) -> dict:
@@ -58,19 +74,25 @@ def dispatch_callback(callback_id: int):
     callback = AbdmCallback.objects.get(id=callback_id)
     handler = CALLBACK_HANDLERS.get(callback.operation_id)
     result = {"callback_id": callback_id, "operation_id": callback.operation_id}
+    worker_heartbeat()
     if handler is None:
         callback.processed_status = AbdmCallback.ProcessedStatus.UNHANDLED
-        callback.save(update_fields=["processed_status", "modified_date"])
+        callback.processed_at = timezone.now()
+        callback.save(update_fields=["processed_status", "processed_at", "modified_date"])
         return result
     try:
         result.update(handler(callback))
     except Exception:
         logger.exception("abdm callback %s (%s) failed", callback_id, callback.operation_id)
         callback.processed_status = AbdmCallback.ProcessedStatus.FAILED
-        callback.save(update_fields=["processed_status", "modified_date"])
+        callback.processing_error = traceback.format_exc()[-TRACEBACK_CHARS:]
+        callback.processed_at = timezone.now()
+        callback.save(update_fields=["processed_status", "processing_error", "processed_at", "modified_date"])
         raise
     callback.processed_status = AbdmCallback.ProcessedStatus.HANDLED
-    callback.save(update_fields=["processed_status", "modified_date"])
+    callback.processing_error = ""
+    callback.processed_at = timezone.now()
+    callback.save(update_fields=["processed_status", "processing_error", "processed_at", "modified_date"])
     return result
 
 
@@ -150,6 +172,7 @@ def retry_share_items():
     are due (ADR-013 D4)."""
     from abdm.hip import sharing
 
+    worker_heartbeat()
     return {"contexts": sharing.retry_due_items()}
 
 
@@ -181,6 +204,7 @@ def hiu_housekeeping():
     `dataEraseAt` is erased."""
     from abdm.hiu.service import housekeeping
 
+    worker_heartbeat()
     return housekeeping()
 
 

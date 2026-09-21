@@ -56,6 +56,10 @@ DEFAULTS = {
     # HIP ID and a context (docs/findings.md). Placeholders: {hip_id} and {context}.
     # Empty = the setup page shows no QR code and asks for the observed format.
     "SHARE_QR_URL_TEMPLATE": "",
+    # ADR-018. `true` opens the developer explorer (`/api/abdm/dev/*`, `/abdm/developer`) to every
+    # authenticated user of this deployment: every exchange, callback and plug table, redacted by
+    # name and length. A production deployment leaves it unset.
+    "DEVELOPER_MODE": True,
 }
 
 MANDATORY_SETTINGS = ("CLIENT_ID", "CLIENT_SECRET")
@@ -82,7 +86,9 @@ class PluginSettings:
             val = self.user_settings[attr]
         except KeyError:
             val = env(f"{ENV_PREFIX}{attr}", default=self.defaults[attr])
-            if isinstance(self.defaults[attr], int) and not isinstance(self.defaults[attr], bool):
+            if isinstance(self.defaults[attr], bool):
+                val = str(val).strip().lower() in ("1", "true", "yes", "on")
+            elif isinstance(self.defaults[attr], int):
                 val = int(val)
         self._cached_attrs.add(attr)
         setattr(self, attr, val)

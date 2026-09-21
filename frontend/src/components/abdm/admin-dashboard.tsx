@@ -1,3 +1,4 @@
+import { DEV_ROUTE, useDeveloperMode } from "@/components/abdm/dev/dev-state";
 import { addFacilityPath, statusTone } from "@/components/abdm/nhpr-shared";
 import PluginComponent from "@/components/common/plugin-component";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -41,6 +42,7 @@ import {
   CheckCircle2,
   CircleDashed,
   Hospital,
+  Bug,
   Inbox,
   Plus,
   RefreshCcw,
@@ -247,6 +249,46 @@ function ServicesCell({ row }: { row: AbdmAdminFacilityRow }) {
  * 1 primary action, "Add a facility". Counts first, a filter when the list grows, then the table,
  * which scrolls sideways on a narrow screen instead of stretching a column.
  */
+/** ADR-018: the entry to the developer explorer, shown when ABDM_DEVELOPER_MODE is on; when off, the
+ * card names the setting, so an administrator learns that the explorer exists. */
+function DeveloperCard() {
+  const { t } = useTranslation();
+  const mode = useDeveloperMode();
+  if (mode.isLoading) return null;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Bug className="text-muted-foreground size-4" />
+          {t("abdm_dev_title")}
+          <Badge
+            variant={mode.enabled ? "success" : "neutral"}
+            size="sm"
+            className="ml-auto"
+          >
+            {mode.enabled ? t("abdm_dev_card_on") : t("abdm_dev_card_off")}
+          </Badge>
+        </CardTitle>
+        <CardDescription>{t("abdm_dev_intro")}</CardDescription>
+      </CardHeader>
+      <CardFooter className="flex flex-wrap items-center gap-3 border-t">
+        {mode.enabled ? (
+          // A full page load: /admin/* and the app routes are 2 layouts (findings J7).
+          <Button asChild size="sm">
+            <a href={DEV_ROUTE}>
+              <Bug className="size-4" /> {t("abdm_dev_card_open")}
+            </a>
+          </Button>
+        ) : (
+          <code className="bg-muted rounded px-2 py-1 font-mono text-xs">
+            {mode.status?.setting ?? "ABDM_DEVELOPER_MODE"}=true
+          </code>
+        )}
+      </CardFooter>
+    </Card>
+  );
+}
+
 function FacilitiesCard({ rows }: { rows: AbdmAdminFacilityRow[] }) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState("");
@@ -610,6 +652,8 @@ export default function AbdmAdminDashboard() {
               </Card>
 
               <FacilitiesCard rows={data?.facilities ?? []} />
+
+              <DeveloperCard />
 
               <Card>
                 <CardHeader>

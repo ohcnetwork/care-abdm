@@ -20,6 +20,7 @@ from datetime import UTC, datetime
 
 import requests
 from django.core.cache import cache
+from django.utils import timezone
 
 from abdm.settings import plugin_settings
 
@@ -63,21 +64,38 @@ def gateway_headers(access_token: str | None = None) -> dict:
 
 def create_session() -> dict:
     """Call the sessions endpoint and return the raw response body."""
+    from abdm.gateway import outbound  # lazy: outbound imports this module
+
     plugin_settings.validate()
     headers = gateway_headers()
-    response = requests.post(
-        f"{plugin_settings.GATEWAY_URL}{SESSIONS_PATH}",
+    url = f"{plugin_settings.GATEWAY_URL}{SESSIONS_PATH}"
+    body = {
+        "clientId": plugin_settings.CLIENT_ID,
+        "clientSecret": plugin_settings.CLIENT_SECRET,
+        "grantType": "client_credentials",
+    }
+    sent_at = timezone.now()
+    response = requests.post(url, headers=headers, json=body, timeout=plugin_settings.REQUEST_TIMEOUT_SECONDS)
+    try:
+        answer = response.json() if response.text else {}
+    except ValueError:
+        answer = {"text": response.text}
+    # ADR-018: the session call is the first thing an integrator debugs ("everything returns 401").
+    # `record()` redacts `clientSecret` and the tokens before the save.
+    outbound.record(
+        "gateway-sessions-create",
+        method="POST",
+        url=url,
+        request_id=headers["REQUEST-ID"],
         headers=headers,
-        json={
-            "clientId": plugin_settings.CLIENT_ID,
-            "clientSecret": plugin_settings.CLIENT_SECRET,
-            "grantType": "client_credentials",
-        },
-        timeout=plugin_settings.REQUEST_TIMEOUT_SECONDS,
+        body=body,
+        http_status=response.status_code,
+        response_body=answer,
+        sent_at=sent_at,
     )
     if response.status_code != 200:
         raise GatewaySessionError(response.status_code, response.text, headers["REQUEST-ID"])
-    return response.json()
+    return answer
 
 
 def get_access_token(force_refresh: bool = False) -> str:

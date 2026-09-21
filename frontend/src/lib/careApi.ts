@@ -230,6 +230,185 @@ export type AbdmRefusal = {
   requestId?: string;
 };
 
+// --- Developer explorer (ADR-018) ---
+
+export type AbdmDevState =
+  | "sent"
+  | "accepted_waiting"
+  | "answered"
+  | "refused"
+  | "no_answer";
+export type AbdmDevKind = "call" | "ack" | "push" | "sync";
+export type AbdmDevModule =
+  | "gateway"
+  | "m1"
+  | "m2"
+  | "m3"
+  | "m4"
+  | "probe"
+  | "other";
+
+export type AbdmDevStatus = {
+  enabled: boolean;
+  setting: string;
+  redaction: string;
+  hosts?: {
+    gateway: string;
+    abha: string;
+    hsp: string;
+    cmId: string;
+    callbackBase: string;
+  };
+  callbackWindowSeconds?: number;
+  states?: AbdmDevState[];
+  modules?: AbdmDevModule[];
+};
+
+export type AbdmDevRef = { kind: string; id: string; label: string };
+
+/** 1 exchange: the call, the wait and the callback(s) that answer it. */
+export type AbdmDevExchange = {
+  requestId: string;
+  operationId: string;
+  module: AbdmDevModule;
+  kind: AbdmDevKind;
+  state: AbdmDevState;
+  reason: string;
+  status: "sent" | "succeeded" | "failed";
+  httpStatus: number | null;
+  errorCode: string;
+  errorSummary: string;
+  method: string;
+  path: string;
+  httpMs: number | null;
+  callbackSeconds: number | null;
+  callbacks: number;
+  callbackStatuses: string[];
+  sentAt: string | null;
+  completedAt: string | null;
+  facility: AbdmDevRef | null;
+  patient: AbdmDevRef | null;
+  encounter: AbdmDevRef | null;
+};
+
+export type AbdmDevExchangeList = {
+  rows: AbdmDevExchange[];
+  more: boolean;
+  next: string;
+  now: string;
+  callbackWindowSeconds: number;
+};
+
+export type AbdmDevRowRef = {
+  field: string;
+  table?: string;
+  kind?: string;
+  id: string;
+  label: string;
+};
+
+export type AbdmDevCallback = {
+  id: string;
+  path: string;
+  operationId: string;
+  receivedAt: string;
+  seconds: number | null;
+  requestIdHeader: string;
+  responseRequestId: string;
+  transactionId: string;
+  hipIdHeader: string;
+  signature: { status: string; header: string; error: string };
+  headers: Record<string, string>;
+  body: unknown;
+  rawBodyChars: number;
+  processed: { status: string; at: string | null; error: string };
+  rows: AbdmDevRowRef[];
+  answersRequestId?: string;
+  ack?: {
+    requestId: string;
+    operationId: string;
+    status: string;
+    httpStatus: number | null;
+    seconds: number | null;
+  } | null;
+};
+
+export type AbdmDevExchangeDetail = AbdmDevExchange & {
+  request: {
+    url: string;
+    method: string;
+    headers: Record<string, number>;
+    body: unknown;
+  };
+  response: {
+    status: number | null;
+    headers: Record<string, string>;
+    body: unknown;
+    ms: number | null;
+  };
+  callbackList: AbdmDevCallback[];
+  answers: AbdmDevCallback | null;
+  rows: AbdmDevRowRef[];
+  failure: AbdmFailureBlock;
+};
+
+export type AbdmDevInboundList = {
+  rows: AbdmDevCallback[];
+  more: boolean;
+  next: string;
+};
+
+export type AbdmDevTable = {
+  name: string;
+  title: string;
+  module: AbdmDevModule;
+  model: string;
+  count: number;
+  columns: string[];
+  filters: string[];
+  secretFields: string[];
+};
+
+export type AbdmDevTableRows = {
+  table: string;
+  title: string;
+  module: AbdmDevModule;
+  columns: string[];
+  filters: string[];
+  rows: Record<string, unknown>[];
+  more: boolean;
+  next: string;
+};
+
+export type AbdmDevTableRow = {
+  table: string;
+  title: string;
+  row: Record<string, unknown>;
+  exchanges: { field: string; requestId: string; operationId: string }[];
+  callbacks: { field: string; id: string; path: string }[];
+};
+
+export type AbdmDevCheck = {
+  id: string;
+  status: "ok" | "warning" | "blocker";
+  what: string;
+  nextStep: string;
+  [extra: string]: unknown;
+};
+
+export type AbdmDevReadiness = {
+  status: "ok" | "warning" | "blocker";
+  checkedAt: string;
+  checks: AbdmDevCheck[];
+  hosts: {
+    gateway: string;
+    abha: string;
+    hsp: string;
+    cmId: string;
+    callbackBase: string;
+  };
+};
+
 // --- M3 (HIU, ADR-014): consent requests this facility raised and the records it received ---
 
 export type AbdmFailureBlock = AbdmCareContextState["failure"];
@@ -1196,6 +1375,52 @@ const routes = apiRoutes({
     path: "/api/abdm/abha/transactions/{txnId}",
     method: HttpMethod.GET,
     TResponse: {} as AbhaTransactionSummary,
+  },
+  // --- Developer explorer (ADR-018): read-only; ABDM_DEVELOPER_MODE=true and a Care login ---
+  devStatus: {
+    path: "/api/abdm/dev/status",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmDevStatus,
+  },
+  devExchanges: {
+    path: "/api/abdm/dev/exchanges",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmDevExchangeList,
+  },
+  devExchange: {
+    path: "/api/abdm/dev/exchanges/{requestId}",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmDevExchangeDetail,
+  },
+  devInbound: {
+    path: "/api/abdm/dev/inbound",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmDevInboundList,
+  },
+  devCallback: {
+    path: "/api/abdm/dev/callbacks/{callbackId}",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmDevCallback,
+  },
+  devTables: {
+    path: "/api/abdm/dev/tables",
+    method: HttpMethod.GET,
+    TResponse: {} as { tables: AbdmDevTable[] },
+  },
+  devTableRows: {
+    path: "/api/abdm/dev/tables/{name}",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmDevTableRows,
+  },
+  devTableRow: {
+    path: "/api/abdm/dev/tables/{name}/{rowId}",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmDevTableRow,
+  },
+  devReadiness: {
+    path: "/api/abdm/dev/readiness",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmDevReadiness,
   },
   // --- Patient-scoped ---
   patientAbha: {

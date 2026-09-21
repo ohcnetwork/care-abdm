@@ -3,6 +3,7 @@ import AbhaWizard, {
   formatAbhaNumber,
   relayMessage,
 } from "@/components/abdm/abha-wizard";
+import DevFooter from "@/components/abdm/dev/dev-footer";
 import PluginComponent from "@/components/common/plugin-component";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -337,6 +338,7 @@ export default function AbdmDemographyGeneralInfo({
         phoneNumber={patientData.phone_number}
         canWrite={canWrite}
       />
+      <DevFooter filters={{ patient: patientId }} className="mt-3" />
     </PluginComponent>
   );
 }

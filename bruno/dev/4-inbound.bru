@@ -1,0 +1,25 @@
+meta {
+  name: 4. Inbound callbacks
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{careUrl}}/api/abdm/dev/inbound?limit=50&operation=&before=
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 50
+  operation: 
+  before: 
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  Callbacks the gateway started (discover, link init and confirm, consent notify, health-information request, Scan and Share), each with our `ack` joined through `body.response.requestId`.
+}

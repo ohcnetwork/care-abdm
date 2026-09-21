@@ -25,6 +25,9 @@ const AbdmHfrOnboardingWizard = lazy(
 const AbdmAddFacilityWizard = lazy(
   () => import("@/components/abdm/add-facility-wizard"),
 );
+const AbdmDeveloperPage = lazy(
+  () => import("@/components/abdm/dev/developer-page"),
+);
 
 const manifest = {
   plugin: "care-abdm-fe",
@@ -66,6 +69,13 @@ const manifest = {
     "/abdm/facilities/new": () => (
       <Suspense fallback={null}>
         <AbdmAddFacilityWizard />
+      </Suspense>
+    ),
+    // ADR-018: the developer explorer. An app route, so any authenticated user reaches it when
+    // ABDM_DEVELOPER_MODE=true; the page itself says so when the flag is off. `?tab=&exchange=&…`.
+    "/abdm/developer": () => (
+      <Suspense fallback={null}>
+        <AbdmDeveloperPage />
       </Suspense>
     ),
   },

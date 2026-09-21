@@ -1,0 +1,34 @@
+meta {
+  name: 2. Exchanges (list)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{careUrl}}/api/abdm/dev/exchanges?limit=50&module=&operation=&state=&status=&facility=&patient=&encounter=&request_id=&since=&until=&before=
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 50
+  module: 
+  operation: 
+  state: 
+  status: 
+  facility: 
+  patient: 
+  encounter: 
+  request_id: 
+  since: 
+  until: 
+  before: 
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  1 row per outbound call, newest first, with its callbacks joined. `state` is 1 of sent, accepted_waiting, answered, refused, no_answer; `module` gateway|m1|m2|m3|m4; `before` = the last `requestId` of the previous page.
+}

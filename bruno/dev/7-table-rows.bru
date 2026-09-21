@@ -1,0 +1,24 @@
+meta {
+  name: 7. Table rows
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{careUrl}}/api/abdm/dev/tables/outbound_requests?limit=50&before=
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 50
+  before: 
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  Rows of 1 table, newest first, the list columns only. Filters are the table's `filters` (`?patient=<external id>`, `?status=linked`). `before` = the last row `id`.
+}

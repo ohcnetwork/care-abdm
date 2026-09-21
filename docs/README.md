@@ -25,7 +25,7 @@ Repo layout:
 care-abdm-sbx/
   backend/          Django plug (pip-installable app for ohcnetwork/care)
   frontend/         MFE plug (Vite + module federation remote for ohcnetwork/care_fe)
-  bruno/            Bruno collection for every plug route (mirrors backend/src/abdm/urls.py)
+  bruno/            Bruno collection for every plug route (mirrors backend/src/abdm/urls.py; `dev/` = the developer explorer)
   scripts/          refresh-docs-mirror.py — rebuilds docs/abdm-docs-mirror and .agent/skills from the live site
                     abdm-docs-mcp.py — calls one docs MCP tool from a shell (get_operation, validate_fhir, ...)
   docs/             this knowledge base

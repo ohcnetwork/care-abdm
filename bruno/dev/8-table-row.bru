@@ -1,0 +1,19 @@
+meta {
+  name: 8. Table row
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{careUrl}}/api/abdm/dev/tables/outbound_requests/{{tableRowId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  1 row with every column (secrets by length, a heavy column by size), the exchanges and callbacks it names.
+}

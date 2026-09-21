@@ -1,0 +1,19 @@
+meta {
+  name: 6. Tables
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{careUrl}}/api/abdm/dev/tables
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  The 17 plug tables with counts, list columns, filters and secret columns.
+}

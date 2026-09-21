@@ -6,6 +6,7 @@ import requests
 from django.utils import timezone
 
 from abdm import errors
+from abdm.dev.redact import header_names, redact
 from abdm.facility.service import hip_id_for
 from abdm.gateway.session import gateway_headers, get_access_token, new_request_id  # noqa: F401
 from abdm.models import AbdmOutboundRequest
@@ -126,6 +127,56 @@ def failure(row: AbdmOutboundRequest, *, since: datetime | None = None) -> error
     )
 
 
+def record(
+    operation_id: str,
+    *,
+    method: str,
+    url: str,
+    request_id: str,
+    headers: dict | None,
+    body,
+    http_status: int | None,
+    response_body,
+    error: str = "",
+    sent_at: datetime | None = None,
+    facility=None,
+    patient=None,
+) -> AbdmOutboundRequest:
+    """Record 1 call another transport made (the ABHA service, the gateway session, the JWKS): the
+    same row `send()` writes, so the developer explorer shows every call the plug makes (ADR-018).
+
+    The body and the answer pass through `redact()` **before the save**: a login answer carries the
+    patient's X-token and the session answer the gateway token, and the row must never hold either.
+    Header names and lengths are kept, never a value. Never raises: a failure to record is logged and
+    the caller's own answer stands."""
+    now = timezone.now()
+    row = AbdmOutboundRequest(
+        request_id=request_id,
+        operation_id=operation_id,
+        facility=facility,
+        patient=patient,
+        request_json={"url": url, "method": method.upper(), "body": redact(body if body is not None else {})},
+        request_headers=header_names(headers),
+        http_status=http_status,
+        response_json=redact(response_body if response_body is not None else {}),
+        sent_at=sent_at or now,
+        completed_at=now,
+    )
+    if http_status is None:
+        row.status = AbdmOutboundRequest.Status.FAILED
+        row.error_code = (error or "TransportError")[:128]
+    elif 200 <= http_status < 300 and not response_errors(response_body):
+        row.status = AbdmOutboundRequest.Status.SUCCEEDED
+    else:
+        row.status = AbdmOutboundRequest.Status.FAILED
+        row.error_code = (_error_code(response_body) or error or f"HTTP_{http_status}")[:128]
+    try:
+        row.save()
+    except Exception:  # noqa: BLE001
+        logger.exception("abdm %s: the audit row could not be saved (REQUEST-ID %s)", operation_id, request_id)
+    return row
+
+
 def send(
     operation_id: str,
     url: str,
@@ -164,6 +215,8 @@ def send(
         encounter=encounter,
         status=AbdmOutboundRequest.Status.SENT,
         request_json=request_json,
+        # Names and lengths only (ADR-018): `Authorization` and `X-Link-Token` are credentials.
+        request_headers=header_names(headers),
         sent_at=timezone.now(),
     )
     try:

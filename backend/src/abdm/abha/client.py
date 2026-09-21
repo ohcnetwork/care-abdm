@@ -15,15 +15,25 @@ Docs (mirrored in docs/abdm-docs-mirror/pages/m1/):
 """
 
 import logging
+import re
 from typing import Literal
 
 import requests
+from django.utils import timezone
 
 from abdm.abha.crypto import encrypt
 from abdm.gateway.session import gateway_headers, get_access_token
 from abdm.settings import plugin_settings
 
 logger = logging.getLogger(__name__)
+
+
+def operation_id_for(method: str, path: str) -> str:
+    """`POST /v3/enrollment/request/otp` -> `m1-post-v3-enrollment-request-otp`, the form of the
+    docs' endpoint page slugs, so the developer explorer can name the page (ADR-018)."""
+    slug = re.sub(r"[^a-z0-9]+", "-", (path or "").split("?", 1)[0].lower()).strip("-")
+    return f"m1-{method.lower()}-{slug}"
+
 
 CONSENT = {"code": "abha-enrollment", "version": "1.4"}  # from the byAadhaar example
 
@@ -65,12 +75,34 @@ def _headers(extra: dict | None = None, x_token: str | None = None) -> dict:
 
 
 def _call(method: str, path: str, *, json=None, headers: dict | None = None, raw: bool = False):
+    """1 ABHA-service call. Every call is recorded as an `AbdmOutboundRequest` through
+    `outbound.record()` (ADR-018), with the body and the answer redacted before the save: the row
+    never holds an X-token or a ciphertext, and the service still receives the raw body."""
+    from abdm.gateway import outbound  # lazy: outbound imports the session module this module uses
+
     headers = headers or _headers()
     url = f"{plugin_settings.ABHA_URL}{path}"
-    response = requests.request(
-        method, url, headers=headers, json=json, timeout=plugin_settings.REQUEST_TIMEOUT_SECONDS
-    )
     request_id = headers["REQUEST-ID"]
+    operation_id = operation_id_for(method, path)
+    sent_at = timezone.now()
+    try:
+        response = requests.request(
+            method, url, headers=headers, json=json, timeout=plugin_settings.REQUEST_TIMEOUT_SECONDS
+        )
+    except requests.RequestException as exc:
+        outbound.record(
+            operation_id,
+            method=method,
+            url=url,
+            request_id=request_id,
+            headers=headers,
+            body=json,
+            http_status=None,
+            response_body={"message": str(exc)},
+            error=exc.__class__.__name__,
+            sent_at=sent_at,
+        )
+        raise
     if raw and 200 <= response.status_code < 300:
         body = None
     else:
@@ -78,6 +110,17 @@ def _call(method: str, path: str, *, json=None, headers: dict | None = None, raw
             body = response.json() if response.text else {}
         except ValueError:
             body = response.text
+    outbound.record(
+        operation_id,
+        method=method,
+        url=url,
+        request_id=request_id,
+        headers=headers,
+        body=json,
+        http_status=response.status_code,
+        response_body=body if body is not None else {"content_type": response.headers.get("Content-Type", "")},
+        sent_at=sent_at,
+    )
     logger.info("abha %s %s -> %s (REQUEST-ID %s)", method, path, response.status_code, request_id)
     if not 200 <= response.status_code < 300:
         raise AbhaServiceError(response.status_code, body, request_id)

@@ -9,6 +9,7 @@ was the one that signs the gateway's own session tokens (Keycloak realm `central
 
 import requests
 from django.core.cache import cache
+from django.utils import timezone
 
 from abdm.gateway.session import gateway_headers, get_access_token
 from abdm.settings import plugin_settings
@@ -23,14 +24,29 @@ class GatewayCertsError(Exception):
 
 
 def fetch_jwks() -> dict:
-    response = requests.get(
-        f"{plugin_settings.GATEWAY_URL}{CERTS_PATH}",
-        headers=gateway_headers(get_access_token()),
-        timeout=plugin_settings.REQUEST_TIMEOUT_SECONDS,
+    from abdm.gateway import outbound  # lazy: outbound imports the session module this module uses
+
+    headers = gateway_headers(get_access_token())
+    url = f"{plugin_settings.GATEWAY_URL}{CERTS_PATH}"
+    sent_at = timezone.now()
+    response = requests.get(url, headers=headers, timeout=plugin_settings.REQUEST_TIMEOUT_SECONDS)
+    try:
+        body = response.json() if response.text else {}
+    except ValueError:
+        body = {"text": response.text}
+    outbound.record(
+        "gateway-get-gateway-certs",
+        method="GET",
+        url=url,
+        request_id=headers["REQUEST-ID"],
+        headers=headers,
+        body=None,
+        http_status=response.status_code,
+        response_body=body,
+        sent_at=sent_at,
     )
     if response.status_code != 200:
         raise GatewayCertsError(f"gateway certs failed: HTTP {response.status_code}")
-    body = response.json()
     if not isinstance(body, dict) or not isinstance(body.get("keys"), list) or not body["keys"]:
         raise GatewayCertsError("gateway certs response has no keys")
     return body

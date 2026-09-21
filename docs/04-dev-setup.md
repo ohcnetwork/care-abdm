@@ -1,4 +1,4 @@
-# 04 — Local dev setup (as of 2026-09-21, ADR-011 to ADR-016)
+# 04 — Local dev setup (as of 2026-09-21, ADR-011 to ADR-018)
 
 ## Backend
 
@@ -39,7 +39,7 @@
   `cd ~/ohc.network/care && set -a && . ./.env && set +a && .venv/bin/python manage.py abdm_register_bridge_url`
   (`--dry-run` prints the URL only). The command also prints the live bridge state. A superuser can do
   the same from `/admin/abdm` (admin sidebar → ABDM). Run it before the HRP service registration.
-- Run Celery. Every callback handler, the record staging, the link calls, the retries and the M3 chain run in the worker:
+- Run Celery. Every callback handler, the record staging, the link calls, the retries and the M3 chain run in the worker. The developer readiness check reads a heartbeat the periodic tasks write (`abdm:worker:last_seen`): "Celery worker: blocker" means no worker has run in 15 minutes.
   `cd ~/ohc.network/care && ./scripts/celery-dev.sh`.
   `celery-dev.sh` starts the worker with `-B`, so Celery beat runs in the same process and the periodic tasks need nothing more: ADR-013 `abdm.tasks.retry_share_items` (every 5 min; cadence `ABDM_LINK_RETRY_INTERVAL_MINUTES` (60) × `ABDM_LINK_MAX_RETRIES` (3)) and ADR-014 `abdm.tasks.hiu_housekeeping` (every 15 min: fail a health-information request with no push inside 20 minutes, erase fetched bundles past the consent `dataEraseAt`).
   The worker does not reload plug code: `celery-dev.sh` watches only the Care tree, and a worker started
@@ -50,7 +50,13 @@
   plug stores the service id the registry issued (`IN1410000232_1` for facility `IN1410000232`) and
   sends it as `X-HIP-ID`. The setup page re-reads it on every load. A call sent with the bare HFR id
   is accepted with 202 but its callback is never delivered (2026-09-17).
-- Probes: `GET /api/abdm/health`; `GET /api/abdm/gateway/status`; `GET /api/abdm/bridge` (live gateway view); `GET /api/abdm/admin/overview` (superuser; backs `/admin/abdm`).
+- Developer mode (ADR-018): `ABDM_DEVELOPER_MODE=true` in `~/ohc.network/care/.env`, then restart Care
+  (`runserver` does not re-read `.env`). Every logged-in user may then open `/abdm/developer`
+  (Exchanges, Inbound, Tables, Readiness) and `GET /api/abdm/dev/*`; a collapsed "Developer" line
+  appears at the bottom of the encounter ABDM tab, the patient ABHA panel, the facility setup page and
+  the HPR section; `/admin/abdm` shows a "Developer explorer" card. Off, the routes answer 403 and the
+  page names the setting. Every value is redacted by name and length. Leave it unset in production.
+- Probes: `GET /api/abdm/health`; `GET /api/abdm/gateway/status`; `GET /api/abdm/bridge` (live gateway view); `GET /api/abdm/admin/overview` (superuser; backs `/admin/abdm`); `GET /api/abdm/dev/status` (is developer mode on).
 - Callback log (superuser): `GET /api/abdm/callbacks?limit=20`; `GET /api/abdm/callbacks/<callback_id>`.
 - Encounter link state: `GET /api/abdm/encounters/<encounter_id>/care-context`.
 - M3 (HIU) state: `GET /api/abdm/patients/<patient_id>/abha/consent-requests?facility=<facility_id>`; a fetched bundle: `GET /api/abdm/patients/<patient_id>/abha/records/<record_id>`.
@@ -95,7 +101,7 @@
 - It mirrors `backend/src/abdm/urls.py`.
   Change both files together.
 - Folders: `auth`, `probes`, `bridge`, `facility`, `abha-enrol`, `abha-login`,
-  `transactions`, `patient`, `encounters`, `hiu`, `nhpr`, `callbacks`, `scan-share`.
+  `transactions`, `patient`, `encounters`, `hiu`, `nhpr`, `add-facility`, `callbacks`, `scan-share`, `dev`.
 - Select the `local` environment.
   Set the secret variables `careUsername` and `carePassword`. `careToken` and `careRefreshToken`
   are secret variables too, so a saved token never lands in the file.

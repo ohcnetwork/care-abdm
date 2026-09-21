@@ -1,0 +1,19 @@
+meta {
+  name: 3. Exchange detail
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{careUrl}}/api/abdm/dev/exchanges/{{outboundRequestId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  The call (URL, method, header names + lengths, redacted body), the answer (status, headers, redacted body, ms), every callback (signature, headers, body, processed status, traceback), the inbound it answers (`answers`), the plug rows that name it (`rows`), and the ADR-012 `failure` block for a refusal.
+}

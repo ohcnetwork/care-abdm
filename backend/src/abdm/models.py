@@ -93,6 +93,10 @@ class AbdmOutboundRequest(BaseModel):
     # that refused: the API manager sends `WWW-Authenticate` and its own `Server` value. Kept for
     # failures only, because a success carries nothing a reader needs.
     response_headers = models.JSONField(default=dict, blank=True)
+    # The request header names and their value lengths (`{"Authorization": 1103}`), never a value:
+    # the developer explorer shows that a header was sent and how long it was (ADR-018; abdm-m2
+    # design.md "Redact by name and length, never by value").
+    request_headers = models.JSONField(default=dict, blank=True)
     error_code = models.CharField(max_length=128, blank=True, default="")
     sent_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
@@ -143,6 +147,10 @@ class AbdmCallback(BaseModel):
     processed_status = models.CharField(
         max_length=16, choices=ProcessedStatus.choices, default=ProcessedStatus.RECEIVED, db_index=True
     )
+    # The traceback of a handler that raised (ADR-018): the developer explorer shows it beside the
+    # callback. Empty when the handler returned.
+    processing_error = models.TextField(blank=True, default="")
+    processed_at = models.DateTimeField(null=True, blank=True)
     outbound_request = models.ForeignKey(AbdmOutboundRequest, null=True, blank=True, on_delete=models.SET_NULL)
     received_at = models.DateTimeField(db_index=True)
 

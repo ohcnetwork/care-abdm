@@ -1,0 +1,19 @@
+meta {
+  name: 5. Callback detail
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{careUrl}}/api/abdm/dev/callbacks/{{callbackId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  1 callback in full (redacted): headers by name and length, body, signature, processed status, traceback, `answersRequestId`.
+}

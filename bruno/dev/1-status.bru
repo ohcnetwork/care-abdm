@@ -1,0 +1,19 @@
+meta {
+  name: 1. Status
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{careUrl}}/api/abdm/dev/status
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  Is the explorer open? `{enabled, setting, redaction}`; with the flag on also `hosts`, `callbackWindowSeconds`, `states`, `modules`.
+}

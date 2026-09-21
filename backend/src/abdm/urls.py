@@ -8,6 +8,7 @@ from django.urls import path, re_path
 
 from abdm.abha import views as abha
 from abdm.callbacks import views as callbacks
+from abdm.dev import views as dev_views
 from abdm.facility import views as facility_views
 from abdm.gateway import views as gateway_views
 from abdm.hip import views as hip_views
@@ -64,6 +65,16 @@ urlpatterns = [
     # --- callback log (superuser) ---
     path("callbacks", callbacks.CallbackList.as_view()),
     path("callbacks/<uuid:callback_id>", callbacks.CallbackDetail.as_view()),
+    # --- developer explorer (ADR-018): any authenticated user when ABDM_DEVELOPER_MODE=true; read-only ---
+    path("dev/status", dev_views.Status.as_view()),
+    path("dev/exchanges", dev_views.Exchanges.as_view()),
+    path("dev/exchanges/<str:request_id>", dev_views.ExchangeDetail.as_view()),
+    path("dev/inbound", dev_views.Inbound.as_view()),
+    path("dev/callbacks/<uuid:callback_id>", dev_views.CallbackDetailDev.as_view()),
+    path("dev/tables", dev_views.Tables.as_view()),
+    path("dev/tables/<str:name>", dev_views.TableRows.as_view()),
+    path("dev/tables/<str:name>/<uuid:row_id>", dev_views.TableRow.as_view()),
+    path("dev/readiness", dev_views.Readiness.as_view()),
     # --- M2 desk endpoints ---
     path("encounters/<uuid:encounter_id>/care-context", hip_views.EncounterCareContext.as_view()),
     path("encounters/<uuid:encounter_id>/care-context/link", hip_views.EncounterCareContextLink.as_view()),
