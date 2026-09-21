@@ -1,0 +1,24 @@
+meta {
+  name: 13b. Update the professional
+  type: http
+  seq: 17
+}
+
+post {
+  url: {{careUrl}}/api/abdm/users/me/abdm/hpr/register/update
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  { "practitioner": { "healthProfessionalType": "doctor", "personalInformation": { "firstName": "Ana" }, "registrationAcademic": { "category": "1", "registrationData": [ { "registeredWithCouncil": "47", "registrationNumber": "REG1" } ] } } }
+}
+
+docs {
+  `update-professional-new` with the same body shape as 13.
+}

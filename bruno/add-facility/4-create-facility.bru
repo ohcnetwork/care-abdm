@@ -1,0 +1,46 @@
+meta {
+  name: 4. Create a Care facility and link the registry record
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{careUrl}}/api/abdm/facilities
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: ******
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "care": {
+      "name": "New Clinic",
+      "description": "",
+      "facility_type": "Private Hospital",
+      "features": [],
+      "pincode": 682001,
+      "address": "MG Road",
+      "phone_number": "+919876543210",
+      "latitude": 9.98,
+      "longitude": 76.28,
+      "geo_organization": "{{organizationId}}",
+      "is_public": true
+    },
+    "registry_id": "{{hfrFacilityId}}",
+    "hip_name": "",
+    "organization": "{{organizationId}}"
+  }
+}
+
+docs {
+  Creates the Care facility exactly as `POST /api/v1/facility/` does (FacilityCreateSpec, the
+  can_create_facility check, the root organization and the creator's admin role), then links the
+  registry record named by `registry_id` (looked up live) and stores `hip_name`. Omit `registry_id`
+  for a Care-only facility. `geo_organization` must be a government organization; the host form
+  accepts a leaf only; `organization` fills it when the form sent none. Care's own validation errors come back as `{"errors": [{loc, msg, ...}]}`.
+  400 `ALREADY_LINKED` when another Care facility holds that registry id.
+}

@@ -23,8 +23,9 @@ def validate_hip_name(value: str) -> None:
 
 
 def validate_facility_setup(config: dict) -> None:
+    """The stored setup. The registered name is the registry's own value (ADR-016), so only the
+    id and the HIP name are checked here; `validate_facility_name` stays for typed names."""
     validate_facility_id(str(config.get("facility_id") or ""))
-    validate_facility_name(str(config.get("facility_name") or ""))
     validate_hip_name(str(config.get("hip_name") or ""))
 
 

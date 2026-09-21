@@ -104,11 +104,16 @@ export function toDateInput(value: string | Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/** A date input value to the ISO instant at the start (or the end) of that local day. */
+/**
+ * A date input value to the ISO instant at the start (or the end) of that local day. The end of a
+ * day never passes now: the HIE-CM refuses a `dateRange.to` in the future with ABDM-9999 "Date must
+ * be a present/before date" (observed 2026-09-19, findings L9). The server clamps too.
+ */
 export function fromDateInput(value: string, endOfDay = false): string {
   const [y, m, d] = value.split("-").map(Number);
   const date = endOfDay
     ? new Date(y, m - 1, d, 23, 59, 59, 999)
     : new Date(y, m - 1, d, 0, 0, 0, 0);
-  return date.toISOString();
+  const now = new Date();
+  return (date > now ? now : date).toISOString();
 }

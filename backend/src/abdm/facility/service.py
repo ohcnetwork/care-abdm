@@ -1,7 +1,10 @@
 """
 Facility-level ABDM state lives in `Facility.extensions["abdm"]` (care_seams.AbdmFacilityExtension).
 
-Fields the user enters: `facility_id` (HFR), `facility_name`, `hip_name`, `counters`.
+Fields the user enters: `hip_name`, `counters`.
+Fields a registry link writes (ADR-016): `facility_id` (HFR), `facility_name`, `hfr` (the registry
+record at link time). Nobody types an HFR id: the setup page and the "Add a facility" wizard find the
+record in the registry and link it. `hfr_onboarding` holds the resumable HFR registration (journey 3).
 Fields the server writes: `hip_id`, `hrp_registered_at`, `last_error`.
 
 HIP ID. The docs say it equals the HFR facility ID, and the docs team confirmed that on
@@ -21,7 +24,27 @@ from abdm.facility.rules import find_hip_service, validate_facility_setup
 from abdm.share.rules import validate_counters
 
 EXTENSION_NAME = "abdm"
-EDITABLE_FIELDS = ("facility_id", "facility_name", "hip_name", "counters")
+EDITABLE_FIELDS = ("hip_name", "counters")
+# The registry fields the snapshot keeps (nhpr.rules.parse_facility_search names them).
+REGISTRY_FIELDS = (
+    "facilityId",
+    "facilityName",
+    "facilityStatus",
+    "facilityType",
+    "facilityTypeCode",
+    "ownership",
+    "ownershipCode",
+    "systemOfMedicine",
+    "address",
+    "pincode",
+    "stateName",
+    "stateLGDCode",
+    "districtName",
+    "districtLGDCode",
+    "subDistrictName",
+    "latitude",
+    "longitude",
+)
 
 
 def get_config(facility) -> dict:
@@ -29,7 +52,14 @@ def get_config(facility) -> dict:
     config.setdefault("counters", [])
     config["facility_id"] = str(config.get("facility_id") or "")
     config["hip_id"] = str(config.get("hip_id") or "")
+    config["hfr"] = dict(config.get("hfr") or {})
+    config.pop("hfr_onboarding", None)  # read through get_onboarding(); too large for every reader
     return config
+
+
+def is_linked(facility) -> bool:
+    """True when a registry record is linked: the facility has an HFR facility id."""
+    return bool(get_config(facility)["facility_id"])
 
 
 def hip_id_for(facility) -> str:
@@ -71,18 +101,63 @@ def _write_config(facility, config: dict) -> None:
 
 
 def save_config(facility, data: dict) -> dict:
+    """The 2 fields a person edits on the setup page. The registry fields come from `set_registry_link`."""
     stored = dict((facility.extensions or {}).get(EXTENSION_NAME) or {})
     for field in EDITABLE_FIELDS:
         if field in data:
             stored[field] = data[field]
-    if stored.get("facility_id") != get_config(facility)["facility_id"]:
-        # A new HFR id means a new service: forget the HIP ID until the registry names it again.
-        stored.pop("hip_id", None)
-        stored.pop("hrp_registered_at", None)
     validate_facility_setup(stored)
     stored["counters"] = validate_counters(list(stored.get("counters") or []), stored)
     _write_config(facility, stored)
     return get_config(facility)
+
+
+def registry_snapshot(record: dict, user=None) -> dict:
+    """The part of a registry record the extension keeps, plus who linked it and when."""
+    snapshot = {k: str(record.get(k) or "") for k in REGISTRY_FIELDS}
+    snapshot["linked_at"] = timezone.now().isoformat()
+    snapshot["linked_by"] = str(getattr(user, "username", "") or "")
+    return snapshot
+
+
+def set_registry_link(facility, record: dict, user=None) -> dict:
+    """Link 1 registry record to the Care facility: the HFR id, the registered name (the HRP linkage
+    must send it exactly) and the record itself. A default HIP name is derived when none is set.
+    A different HFR id means a different service: the HIP ID is forgotten until the registry
+    names it again (`sync_hip_id`)."""
+    from abdm.nhpr.rules import default_hip_name
+
+    stored = dict((facility.extensions or {}).get(EXTENSION_NAME) or {})
+    facility_id = str(record.get("facilityId") or "").strip().upper()
+    if not facility_id:
+        raise ValueError("The registry record has no facility id.")
+    if facility_id != str(stored.get("facility_id") or ""):
+        stored.pop("hip_id", None)
+        stored.pop("hrp_registered_at", None)
+    stored["facility_id"] = facility_id
+    stored["facility_name"] = str(record.get("facilityName") or "")
+    stored["hfr"] = registry_snapshot(record, user)
+    if not stored.get("hip_name"):
+        stored["hip_name"] = default_hip_name(stored["facility_name"])
+    stored["last_error"] = ""
+    validate_facility_setup(stored)
+    stored["counters"] = validate_counters(list(stored.get("counters") or []), stored)
+    _write_config(facility, stored)
+    return get_config(facility)
+
+
+def get_onboarding(facility) -> dict:
+    """The resumable HFR onboarding state, or an empty dict when none was started."""
+    stored = (facility.extensions or {}).get(EXTENSION_NAME) or {}
+    state = stored.get("hfr_onboarding")
+    return dict(state) if isinstance(state, dict) else {}
+
+
+def save_onboarding(facility, state: dict) -> dict:
+    stored = dict((facility.extensions or {}).get(EXTENSION_NAME) or {})
+    stored["hfr_onboarding"] = dict(state)
+    _write_config(facility, stored)
+    return get_onboarding(facility)
 
 
 def _save_operational_fields(facility, **fields) -> dict:

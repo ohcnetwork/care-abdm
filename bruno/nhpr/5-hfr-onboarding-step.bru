@@ -1,0 +1,28 @@
+meta {
+  name: 5. HFR onboarding step
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{careUrl}}/api/abdm/facilities/{{facilityId}}/abdm/hfr/onboarding
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "step": "dedup",
+    "payload": { "name": "Smoke New Clinic", "address": "MG Road", "district": "588", "subDistrict": "5271" }
+  }
+}
+docs {
+  `step` in dedup | basic | additional | detailed | submit; `payload` is the documented body of the step
+  without `trackingId` (m4-onboarding-apis/01-05). basic and submit need the caller HPR session
+  (`x-hprid-auth`). 400 NO_HPR_SESSION without it.
+}

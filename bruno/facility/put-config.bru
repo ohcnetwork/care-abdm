@@ -17,16 +17,16 @@ headers {
 
 body:json {
   {
-    "facility_id": "",
-    "facility_name": "",
     "hip_name": "",
     "counters": ["OPD1", "Pharmacy"]
   }
 }
 
 docs {
-  Write the facility ABDM config. Send the full object. Empty strings clear a field.
-  The server ignores hip_id in the body. GET returns hip_id derived from facility_id.
+  Write the 2 typed fields of the facility ABDM config (ADR-016). `facility_id` and `facility_name`
+  are read-only: a registry link sets them (`nhpr/3-hfr-link`, the HFR wizard, or the "Add a
+  facility" wizard). A typed `facility_id` in this body is ignored. Empty `hip_name` clears it.
+  The server ignores hip_id in the body. GET returns hip_id as the gateway issued it.
   The bridge is instance-level: see the `bridge` folder.
   `counters` lists the Scan and Share counter codes. Each code has 1 to 20 letters or digits.
   A code must not be the facility ID, the HIP ID, or the HIP name.

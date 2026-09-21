@@ -1,0 +1,11 @@
+meta {
+  name: nhpr
+  seq: 12
+}
+
+docs {
+  M4, the NHPR (ADR-015). Facility side: look a registry facility up, search, link it to this Care
+  facility, run the HFR onboarding wizard (needs the manager's HPR login), verify a programme link by
+  OTP. User side: the caller's own HPR ID (login, HPID creation, register professional, documents).
+  Masters: the registry code lists, cached 24 h. Set `facilityId`; the user routes act on the caller.
+}

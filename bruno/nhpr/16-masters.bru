@@ -1,0 +1,23 @@
+meta {
+  name: 16. Masters
+  type: http
+  seq: 16
+}
+
+get {
+  url: {{careUrl}}/api/abdm/nhpr/masters/lgd-states
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  Kinds: lgd-states, lgd-districts?state=, lgd-subdistricts?district=, facility-master-types, facility-master?type=,
+  facility-types?ownership=&som=, facility-subtypes?type=, owner-subtypes?ownership=&subtype=, specialities?som=, psu,
+  hpr-categories, hpr-subcategories?category=, hpr-states, hpr-districts?state=, hpr-subdistricts?district=, countries,
+  languages, system-of-medicines, medical-councils, nurse-councils, courses?system=&hpr_type=, colleges?state=&medicine=,
+  colleges-by-state?state=, universities?college=, all-universities, affiliated-boards, affiliated-boards-by-state?state=.
+}

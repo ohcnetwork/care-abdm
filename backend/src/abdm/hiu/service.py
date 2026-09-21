@@ -76,12 +76,17 @@ def data_push_url() -> str:
 
 
 def _requester(user) -> tuple[str, dict]:
+    """The HPR ID when the user linked one (ADR-015), else the council registration or the username."""
+    from abdm.nhpr.professional import requester_identifier as hpr_identifier
+
     name = rules.safe_text(getattr(user, "full_name", "") or getattr(user, "username", ""), "Care user")
-    identifier = rules.requester_identifier(
-        registration=getattr(user, "doctor_medical_council_registration", "") or "",
-        username=getattr(user, "username", "") or "",
-        system=str(plugin_settings.CALLBACK_BASE_URL or "care"),
-    )
+    identifier = hpr_identifier(user) if getattr(user, "pk", None) else None
+    if identifier is None:
+        identifier = rules.requester_identifier(
+            registration=getattr(user, "doctor_medical_council_registration", "") or "",
+            username=getattr(user, "username", "") or "",
+            system=str(plugin_settings.CALLBACK_BASE_URL or "care"),
+        )
     return name, identifier
 
 

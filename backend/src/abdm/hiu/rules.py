@@ -125,6 +125,10 @@ def validate_request(params: dict, now: datetime) -> dict:
     erase_at = parse_iso(params.get("data_erase_at")) if params.get("data_erase_at") else defaults["data_erase_at"]
     if date_from is None or date_to is None or erase_at is None:
         raise ValueError("Dates must be ISO 8601.")
+    # Observed on the sandbox 2026-09-19 (findings L9): a `dateRange.to` in the future is refused with
+    # ABDM-9999 "Invalid from/to date and Date must be a present/before date". The desk picks a day, and
+    # the end of today is in the future, so the range ends now at the latest.
+    date_to = min(date_to, now)
     if date_from > date_to:
         raise ValueError("The start of the date range is after its end.")
     if erase_at <= now:

@@ -1,0 +1,23 @@
+meta {
+  name: 10. HPR login: verify the Aadhaar OTP
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{careUrl}}/api/abdm/users/me/abdm/hpr/login/verify
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  { "login_id": "{{hprLoginId}}", "otp": "{{otp}}" }
+}
+docs {
+  `confirmWithAadhaarOtp` for the pending login named by `login_id` (from 7 or 9).
+}

@@ -1,5 +1,7 @@
 import { Suspense, lazy } from "react";
-import { Network } from "lucide-react";
+import { IdCard, Network } from "lucide-react";
+// Static: an override renders inside the host tree with no Suspense boundary of its own.
+import AddFacilitySheetOverride from "@/components/abdm/add-facility-sheet-override";
 
 // Slot names must match care_fe/src/pluginTypes.ts `SupportedPluginComponents`
 // (read 2026-09-09). Host mount points:
@@ -15,6 +17,13 @@ const AbdmFacilitySetupPage = lazy(
 );
 const AbdmAdminDashboard = lazy(
   () => import("@/components/abdm/admin-dashboard"),
+);
+const AbdmHfrOnboardingWizard = lazy(
+  () => import("@/components/abdm/hfr-onboarding-wizard"),
+);
+const AbdmHprPage = lazy(() => import("@/components/abdm/hpr-page"));
+const AbdmAddFacilityWizard = lazy(
+  () => import("@/components/abdm/add-facility-wizard"),
 );
 
 const manifest = {
@@ -41,7 +50,62 @@ const manifest = {
         <AbdmAdminDashboard />
       </Suspense>
     ),
+    // ADR-015 (M4). The HFR onboarding wizard stays outside the host's
+    // /facility/:facilityId/settings* prefix, like the setup page.
+    "/facility/:facilityId/abdm/hfr/register": ({
+      facilityId,
+    }: {
+      facilityId: string;
+    }) => (
+      <Suspense fallback={null}>
+        <AbdmHfrOnboardingWizard facilityId={facilityId} />
+      </Suspense>
+    ),
+    // The caller's own HPR ID. The host turns a `userNavItems` entry into
+    // `/facility/:facilityId/users/:username/<url>` (nav-user.tsx:123-131) and
+    // matches plug routes before its own `:tab` route (AppRouter.tsx:25-32,
+    // raviger first match), so this static path wins.
+    "/facility/:facilityId/users/:username/abdm-hpr": ({
+      username,
+    }: {
+      facilityId: string;
+      username: string;
+    }) => (
+      <Suspense fallback={null}>
+        <AbdmHprPage username={username} />
+      </Suspense>
+    ),
+    "/users/:username/abdm-hpr": ({ username }: { username: string }) => (
+      <Suspense fallback={null}>
+        <AbdmHprPage username={username} />
+      </Suspense>
+    ),
+    // ADR-016: "Add a facility", from the ABDM admin dashboard or the organization facilities page
+    // (the AddFacilitySheet override). `?organization=<id>` is optional context for the geo picker.
+    "/abdm/facilities/new": () => (
+      <Suspense fallback={null}>
+        <AbdmAddFacilityWizard />
+      </Suspense>
+    ),
   },
+  // ADR-016: replace the host's "Add facility" sheet with the wizard entry. Needs the host build
+  // variable REACT_MFE_REGISTERED_COMPONENTS to name AddFacilitySheet (care_fe
+  // docs/care-apps-plugin-overrides.md); otherwise the host keeps its own sheet.
+  overrides: [
+    {
+      component: "AddFacilitySheet",
+      replacement: AddFacilitySheetOverride,
+      description:
+        "ABDM: every new facility passes the registry choice (Add a facility wizard).",
+    },
+  ],
+  userNavItems: [
+    {
+      name: "My HPR ID",
+      url: "abdm-hpr",
+      icon: <IdCard />,
+    },
+  ],
   adminNavItems: [
     {
       name: "ABDM",
@@ -70,9 +134,7 @@ const manifest = {
     PatientSearchActions: lazy(
       () => import("@/components/abdm/patient-search-actions"),
     ),
-    EncounterActions: lazy(
-      () => import("@/components/abdm/encounter-actions"),
-    ),
+    EncounterActions: lazy(() => import("@/components/abdm/encounter-actions")),
     EncounterOverviewTop: lazy(
       () => import("@/components/abdm/encounter-overview-top"),
     ),

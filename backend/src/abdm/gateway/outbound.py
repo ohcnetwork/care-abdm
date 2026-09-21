@@ -138,12 +138,13 @@ def send(
 
     `request_id` lets a caller reuse the REQUEST-ID it already put in the body (SMS deep link).
     `role` names the header that carries the facility's gateway service id: `X-HIP-ID` for the HIP
-    calls (M2), `X-HIU-ID` for the HIU calls (M3). The sandbox issues 1 service id with both types
-    (findings B18), so the value is the same and only the header name changes."""
+    calls (M2), `X-HIU-ID` for the HIU calls (M3), and `none` for the NHPR calls (M4), whose pages
+    list no facility header. The sandbox issues 1 service id with both types (findings B18), so the
+    value is the same and only the header name changes."""
     headers = gateway_headers(get_access_token())
     if request_id:
         headers["REQUEST-ID"] = request_id
-    service_id = hip_id_for(facility)
+    service_id = hip_id_for(facility) if role != "none" else ""
     if service_id:
         headers["X-HIU-ID" if role == "hiu" else "X-HIP-ID"] = service_id
     if extra_headers:

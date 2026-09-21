@@ -21,7 +21,8 @@ What it cannot do yet matters as much. Read **Before anything else** below befor
 
 ## What is in this folder
 
-- **Scaffold.** Build it flow by flow against the sandbox, as a loop that ends when the step's exit condition holds rather than on a call returning 200. [references/scaffold.md](references/scaffold.md)
+- **Scaffold.** Survey the codebase first when one exists, then build it flow by flow against the sandbox, as a loop that ends when the step's exit condition holds rather than on a call returning 200. [references/scaffold.md](references/scaffold.md)
+- **Design.** What the journey around the calls has to do, and what a screen is forbidden to claim. [references/design.md](references/design.md)
 - **Integrate.** 23 operations, with their hosts and headers. [references/integrate.md](references/integrate.md)
 - **Debug.** The specification's examples return no error code for this module. [references/debug.md](references/debug.md)
 
@@ -29,10 +30,11 @@ This file is the map. Each line above is a file beside it, opened one at a time 
 
 ## Before anything else
 
-- Nothing here has been run against the ABDM sandbox. Treat request and response shapes as unconfirmed, and check a response before you rely on its shape.
+- No call in this skill has been run against the ABDM sandbox. Treat request and response shapes as unconfirmed, and check a response before you rely on its shape.
+- The design section is the exception. Its rules come from building a working front desk against the sandbox, and each atom it cites names what was observed and the date it was seen.
+- One consent request can produce more than one artefact, so store the request id and every artefact id. Taking the first element is the bug that silently drops half a fetch.
 - You act as the HIU. The HIE-CM holds the consent and asks the patient on your behalf. No artefact, no records.
 - The patient must be known to you by ABHA address before you can raise a request.
-- One consent request can produce more than one artefact. Store the request id and every artefact id.
 - Records arrive encrypted at the `dataPushUrl` the health information request names. Decrypt them with the key material that request carries.
 
 ## Practices that hold across every call

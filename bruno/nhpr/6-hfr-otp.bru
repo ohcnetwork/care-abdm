@@ -1,0 +1,23 @@
+meta {
+  name: 6. Facility OTP (programme link)
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{careUrl}}/api/abdm/facilities/{{facilityId}}/abdm/hfr/otp
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  { "action": "send", "facility_id": "{{hfrFacilityId}}" }
+}
+docs {
+  `sendOtpToContact`; then `{"action": "validate", "transaction_id", "otp", "source", "source_id"}` (m4-hfr-hrp-linkage-apis).
+}

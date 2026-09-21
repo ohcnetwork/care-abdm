@@ -11,26 +11,37 @@ export type AbdmRelayError = {
   upstream_status: number;
 };
 
+/** The registry record kept at link time (ADR-016), plus who linked it and when. */
+export type AbdmRegistrySnapshot = Partial<AbdmHfrFacility> & {
+  linked_at?: string;
+  linked_by?: string;
+};
+
 export type AbdmFacilityConfig = {
   /**
    * Read-only. The service id the gateway issued when the HRP service was registered
    * (e.g. IN1410000232_1). Empty until then; not the HFR facility ID.
    */
   hip_id?: string;
+  /** Read-only: set by a registry link (lookup, search or the HFR wizard), never typed. */
   facility_id: string;
+  /** Read-only: the registered name, exactly as the registry holds it. */
   facility_name: string;
   hip_name: string;
   /** Scan and Share counter codes; each 1 to 20 letters or digits. */
   counters: string[];
+  /** Read-only: the registry record behind `facility_id`. Empty when not linked. */
+  hfr?: AbdmRegistrySnapshot;
   /** Read-only, from ABDM_SHARE_QR_URL_TEMPLATE. Placeholders {hip_id} and {context}. */
   share_qr_url_template?: string;
   hrp_registered_at?: string;
   last_error?: string;
 };
 
-export type AbdmFacilityConfigUpdate = Omit<
+/** PUT body: the 2 typed fields. */
+export type AbdmFacilityConfigUpdate = Pick<
   AbdmFacilityConfig,
-  "hip_id" | "share_qr_url_template" | "hrp_registered_at" | "last_error"
+  "hip_name" | "counters"
 >;
 
 /** GET /api/abdm/bridge: the derived callback URL plus the live gateway view (1 bridge per clientId). */
@@ -56,34 +67,42 @@ export type AbdmAdminOverview = AbdmBridgeState & {
     status_code?: number;
     request_id?: string;
   };
-  facilities: {
-    id: string;
-    name: string;
-    /** HFR facility ID (e.g. IN1410000232). */
-    facility_id: string;
-    /** Gateway-issued HIP service id (e.g. IN1410000232_1); empty until the HRP service is registered. */
-    hip_id: string;
-    facility_name: string;
-    hip_name: string;
-    counters: string[];
-    hrp_registered_at: string | null;
-    last_error: string;
-    /** The most recent refused ABDM call at this facility (backend errors.py, ADR-012). */
-    last_failure: {
-      operation_id: string;
-      request_id: string;
-      sent_at: string;
-      http_status: number | null;
-      code: string;
-      action: string;
-      retry: "now" | "after" | "never";
-      retryAt: string | null;
-      what: string;
-      nextStep: string;
-      detail: string;
-      supportReference: string;
-    } | null;
-  }[];
+  /** Every facility the caller can see (ADR-016), linked to the registry or not. */
+  facilities: AbdmAdminFacilityRow[];
+};
+
+export type AbdmAdminFacilityRow = {
+  id: string;
+  name: string;
+  /** Care's facility type name. */
+  facility_type: string;
+  /** HFR facility ID (e.g. IN1410000232); empty when not linked. */
+  facility_id: string;
+  /** Gateway-issued HIP service id (e.g. IN1410000232_1); empty until the HRP service is registered. */
+  hip_id: string;
+  facility_name: string;
+  /** The registry's own status of the linked record (Verified, Submitted, ...). */
+  registry_status: string;
+  hip_name: string;
+  counters: string[];
+  hrp_registered_at: string | null;
+  onboarding_status: AbdmHfrOnboardingStatus | "";
+  last_error: string;
+  /** The most recent refused ABDM call at this facility (backend errors.py, ADR-012). */
+  last_failure: {
+    operation_id: string;
+    request_id: string;
+    sent_at: string;
+    http_status: number | null;
+    code: string;
+    action: string;
+    retry: "now" | "after" | "never";
+    retryAt: string | null;
+    what: string;
+    nextStep: string;
+    detail: string;
+    supportReference: string;
+  } | null;
 };
 
 // --- M2: care contexts, consents, data requests ---
@@ -324,6 +343,256 @@ export type AbdmConsentRequestCreate = {
 };
 
 export type AbdmProvider = { id: string; name: string; isHip: boolean };
+
+// --- M4 (NHPR, ADR-015): HFR lookup/link/onboarding for a facility; the caller's own HPR ID ---
+
+export type AbdmMasterRow = {
+  code: string;
+  name: string;
+  children?: AbdmMasterRow[];
+};
+
+/** 1 registry facility (m4-search/02). */
+export type AbdmHfrFacility = {
+  facilityId: string;
+  facilityName: string;
+  facilityStatus: string;
+  facilityType: string;
+  facilityTypeCode: string;
+  ownership: string;
+  ownershipCode: string;
+  systemOfMedicine: string;
+  address: string;
+  pincode: string;
+  stateName: string;
+  stateLGDCode: string;
+  districtName: string;
+  districtLGDCode: string;
+  subDistrictName: string;
+  latitude: string;
+  longitude: string;
+};
+
+export type AbdmHfrSearchResult = {
+  facilities: AbdmHfrFacility[];
+  message: string;
+  total: number;
+  pages: number;
+};
+
+export type AbdmHfrOnboardingStatus =
+  | "draft"
+  | "basic_saved"
+  | "additional_saved"
+  | "detailed_saved"
+  | "submitted"
+  | "failed";
+
+export type AbdmHfrOnboarding = {
+  status: AbdmHfrOnboardingStatus;
+  nextStep: AbdmHfrStep;
+  trackingId: string;
+  facilityId: string;
+  dedupResults: Record<string, unknown>[];
+  basic: Record<string, unknown>;
+  additional: Record<string, unknown>;
+  detailed: Record<string, unknown>;
+  submit: Record<string, unknown>;
+  lastMessage: string;
+  submittedAt: string | null;
+  createdAt: string;
+  startedBy: string;
+  hprId: string;
+  failure: AbdmFailureBlock;
+};
+
+// --- "Add a facility" (ADR-016): organization-level create + registry search ----------------------
+
+/** GET care/facility-form-options: Care's own choice lists. */
+export type AbdmFacilityFormOptions = {
+  facilityTypes: { id: number; name: string }[];
+  features: { id: number; name: string }[];
+};
+
+/** A Care government organization as `OrganizationReadSpec` serialises it. */
+export type CareGovtOrganizationParent = {
+  id?: string;
+  name?: string;
+  org_type?: string;
+  level_cache?: number;
+  metadata?: Record<string, unknown>;
+  parent?: CareGovtOrganizationParent | Record<string, never>;
+};
+
+export type CareGovtOrganization = {
+  id: string;
+  name: string;
+  org_type: string;
+  level_cache: number;
+  has_children: boolean;
+  parent?: CareGovtOrganizationParent | Record<string, never>;
+  metadata?: Record<string, unknown>;
+};
+
+/** GET organizations/{id}/hfr/prefill?facility_id= */
+export type AbdmFacilityPrefill = {
+  registry: AbdmHfrFacility;
+  care: {
+    name: string;
+    address: string;
+    pincode: number | null;
+    latitude: number | null;
+    longitude: number | null;
+    facility_type: string;
+    state_name: string;
+    district_name: string;
+  };
+  geo: {
+    state: CareGovtOrganization | null;
+    district: CareGovtOrganization | null;
+  };
+  hipName: string;
+  alreadyLinked: { id: string; name: string } | null;
+};
+
+/** The Care facility form, as `FacilityCreateSpec` takes it. */
+export type CareFacilityCreate = {
+  name: string;
+  description: string;
+  facility_type: string;
+  features: number[];
+  pincode: number;
+  address: string;
+  phone_number: string;
+  latitude?: number;
+  longitude?: number;
+  geo_organization: string;
+  is_public: boolean;
+};
+
+export type AbdmCreateFacilityRequest = {
+  care: CareFacilityCreate;
+  registry_id?: string;
+  hip_name?: string;
+  /** Optional context: the default `geo_organization` when the form sent none. */
+  organization?: string;
+};
+
+export type AbdmCreateFacilityResponse = {
+  facility: { id: string; name: string } & Record<string, unknown>;
+  abdm: AbdmFacilityConfig;
+  registry: AbdmHfrFacility | null;
+};
+
+/** GET/POST facilities/{id}/abdm/hfr/onboarding */
+export type AbdmHfrState = {
+  config: AbdmFacilityConfig;
+  onboarding: AbdmHfrOnboarding | null;
+  hprSession: {
+    hprId: string;
+    active: boolean;
+    expiresAt: string | null;
+    role: number | null;
+  };
+  prefill: {
+    facilityName: string;
+    address: string;
+    pincode: string;
+    phone: string;
+    latitude: string;
+    longitude: string;
+  };
+  errors?: string;
+  code?: string;
+};
+
+export type AbdmHfrStep =
+  "dedup" | "basic" | "additional" | "detailed" | "submit";
+
+export type AbdmHpidStatus =
+  | "link_created"
+  | "aadhaar_verified"
+  | "account_exists"
+  | "mobile_verified"
+  | "created"
+  | "failed";
+
+export type AbdmHpidTransaction = {
+  id: string;
+  status: AbdmHpidStatus;
+  aadhaarUrl: string;
+  linkExpiresAt: string | null;
+  details: Record<string, string>;
+  mobileMasked: string;
+  mobileVerified: boolean;
+  otpSentAt: string | null;
+  suggestions: string[];
+  existing: Record<string, unknown>;
+  hprId: string;
+  hprIdNumber: string;
+  failure: AbdmFailureBlock;
+};
+
+/** GET users/me/abdm/hpr */
+export type AbdmHprState = {
+  profile: {
+    hprId: string;
+    hprIdNumber: string;
+    name: string;
+    categoryCode: string;
+    subCategoryCode: string;
+    role: number | null;
+    source: "login" | "created";
+    account: Record<string, unknown>;
+    registeredAt: string | null;
+    verifiedAt: string | null;
+    professional: Record<string, unknown>;
+  } | null;
+  session: { active: boolean; expiresAt: string | null; method: string };
+  pendingLogin: {
+    id: string;
+    hprId: string;
+    mobileMasked: string;
+    attempts: number;
+  } | null;
+  transaction: AbdmHpidTransaction | null;
+  loginMethods: string[];
+  roles: { code: number; name: string }[];
+  careUser: { username: string; name: string; councilRegistration: string };
+  errors?: string;
+  code?: string;
+};
+
+export type AbdmHprPublicRecord = {
+  hpr_id_number: string;
+  hpr_id: string;
+  name: string;
+  auth_methods: string[];
+  category_id: string;
+  sub_category_id: string;
+};
+
+export type AbdmHpidFinishBody = {
+  username: string;
+  email: string;
+  password: string;
+  first_name?: string;
+  middle_name?: string;
+  last_name?: string;
+  category_code: number | string;
+  sub_category_code: number | string;
+  state_code: string;
+  district_code: string;
+  role: number;
+};
+
+export type AbdmDocumentSlot = {
+  group: string;
+  type: string;
+  id: number;
+  hasData: boolean;
+  system: string;
+};
 
 export type FacilityBridgeActionResponse = {
   config: AbdmFacilityConfig;
@@ -684,6 +953,166 @@ const routes = apiRoutes({
     path: "/api/abdm/providers",
     method: HttpMethod.GET,
     TResponse: {} as { results: AbdmProvider[] },
+  },
+  // --- M4 facility side: HFR lookup, search, link, onboarding, facility OTP ---
+  hfrLookup: {
+    path: "/api/abdm/facilities/{facilityId}/abdm/hfr/lookup",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmHfrFacility,
+  },
+  hfrSearch: {
+    path: "/api/abdm/facilities/{facilityId}/abdm/hfr/search",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmHfrSearchResult,
+  },
+  hfrLink: {
+    path: "/api/abdm/facilities/{facilityId}/abdm/hfr/link",
+    method: HttpMethod.POST,
+    TRequest: {} as { facility_id: string },
+    TResponse: {} as { config: AbdmFacilityConfig; registry: AbdmHfrFacility },
+  },
+  hfrOnboarding: {
+    path: "/api/abdm/facilities/{facilityId}/abdm/hfr/onboarding",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmHfrState,
+  },
+  // --- "Add a facility" (ADR-016) ---
+  facilityFormOptions: {
+    path: "/api/abdm/care/facility-form-options",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmFacilityFormOptions,
+  },
+  createFacility: {
+    path: "/api/abdm/facilities",
+    method: HttpMethod.POST,
+    TRequest: {} as AbdmCreateFacilityRequest,
+    TResponse: {} as AbdmCreateFacilityResponse,
+  },
+  hfrSearchForCreate: {
+    path: "/api/abdm/hfr/search",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmHfrSearchResult,
+  },
+  hfrPrefill: {
+    path: "/api/abdm/hfr/prefill",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmFacilityPrefill,
+  },
+  /** Care's public government organization list (care/emr/api/viewsets/organization.py). */
+  govtOrganizations: {
+    path: "/api/v1/govt/organization/",
+    method: HttpMethod.GET,
+    TResponse: {} as { results: CareGovtOrganization[]; count: number },
+  },
+  govtOrganization: {
+    path: "/api/v1/govt/organization/{organizationId}/",
+    method: HttpMethod.GET,
+    TResponse: {} as CareGovtOrganization,
+  },
+  hfrOnboardingStep: {
+    path: "/api/abdm/facilities/{facilityId}/abdm/hfr/onboarding",
+    method: HttpMethod.POST,
+    TRequest: {} as { step: AbdmHfrStep; payload: Record<string, unknown> },
+    TResponse: {} as AbdmHfrState,
+  },
+  hfrOtp: {
+    path: "/api/abdm/facilities/{facilityId}/abdm/hfr/otp",
+    method: HttpMethod.POST,
+    TRequest: {} as {
+      action: "send" | "validate";
+      facility_id: string;
+      transaction_id?: string;
+      otp?: string;
+      source?: string;
+      source_id?: string;
+    },
+    TResponse: {} as {
+      transactionId?: string;
+      message: string;
+      status: string;
+    },
+  },
+  // --- M4 user side: the caller's own HPR ID ---
+  hprState: {
+    path: "/api/abdm/users/me/abdm/hpr",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmHprState,
+  },
+  hprVerifyId: {
+    path: "/api/abdm/users/me/abdm/hpr/verify-id",
+    method: HttpMethod.GET,
+    TResponse: {} as AbdmHprPublicRecord,
+  },
+  hprLogin: {
+    path: "/api/abdm/users/me/abdm/hpr/login",
+    method: HttpMethod.POST,
+    TRequest: {} as {
+      method: "password" | "aadhaar_otp";
+      hpr_id: string;
+      password?: string;
+    },
+    TResponse: {} as AbdmHprState,
+  },
+  hprLoginVerify: {
+    path: "/api/abdm/users/me/abdm/hpr/login/verify",
+    method: HttpMethod.POST,
+    TRequest: {} as { login_id: string; otp: string },
+    TResponse: {} as AbdmHprState,
+  },
+  hprSessionAction: {
+    path: "/api/abdm/users/me/abdm/hpr/session/{action}",
+    method: HttpMethod.POST,
+    TRequest: {} as Record<string, never>,
+    TResponse: {} as AbdmHprState,
+  },
+  hpidCreate: {
+    path: "/api/abdm/users/me/abdm/hpr/create/{action}",
+    method: HttpMethod.POST,
+    TRequest: {} as Partial<AbdmHpidFinishBody> & {
+      mobile?: string;
+      otp?: string;
+    },
+    TResponse: {} as AbdmHprState,
+  },
+  hprRegister: {
+    path: "/api/abdm/users/me/abdm/hpr/register",
+    method: HttpMethod.POST,
+    TRequest: {} as { practitioner: Record<string, unknown> },
+    TResponse: {} as AbdmHprState,
+  },
+  hprRegisterUpdate: {
+    path: "/api/abdm/users/me/abdm/hpr/register/update",
+    method: HttpMethod.POST,
+    TRequest: {} as { practitioner: Record<string, unknown> },
+    TResponse: {} as AbdmHprState,
+  },
+  hprDocuments: {
+    path: "/api/abdm/users/me/abdm/hpr/documents",
+    method: HttpMethod.GET,
+    TResponse: {} as { slots: AbdmDocumentSlot[] },
+  },
+  hprUploadDocuments: {
+    path: "/api/abdm/users/me/abdm/hpr/documents",
+    method: HttpMethod.POST,
+    TRequest: {} as {
+      documents: {
+        document_id: number;
+        document_type: string;
+        fileType: string;
+        data: string;
+      }[];
+    },
+    TResponse: {} as Record<string, { status: string; msg: string } | null>,
+  },
+  hprProfessionalInfo: {
+    path: "/api/abdm/users/me/abdm/hpr/professional-info",
+    method: HttpMethod.GET,
+    TResponse: {} as Record<string, unknown>,
+  },
+  nhprMasters: {
+    path: "/api/abdm/nhpr/masters/{kind}",
+    method: HttpMethod.GET,
+    TResponse: {} as { results: AbdmMasterRow[] },
   },
   // --- M1 Journey 1: ABHA creation by Aadhaar OTP ---
   requestAadhaarOtp: {

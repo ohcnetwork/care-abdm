@@ -12,6 +12,7 @@ from abdm.facility import views as facility_views
 from abdm.gateway import views as gateway_views
 from abdm.hip import views as hip_views
 from abdm.hiu import views as hiu_views
+from abdm.nhpr import views as nhpr_views
 from abdm.share import views as share_views
 
 
@@ -29,6 +30,30 @@ urlpatterns = [
     # --- facility setup (ADR-007): HFR facility ID, names, counters; HRP service registration ---
     path("facilities/<uuid:facility_id>/abdm", facility_views.FacilityAbdmConfig.as_view()),
     path("facilities/<uuid:facility_id>/abdm/hrp-services", facility_views.FacilityHrpServices.as_view()),
+    # --- "Add a facility" (ADR-016): registry search before a facility exists, prefill, create; Care's lists ---
+    path("facilities", facility_views.CreateFacility.as_view()),
+    path("hfr/search", facility_views.HfrSearchForCreate.as_view()),
+    path("hfr/prefill", facility_views.HfrPrefill.as_view()),
+    path("care/facility-form-options", facility_views.FacilityFormOptions.as_view()),
+    # --- M4 facility side (ADR-015): HFR lookup, search, link, onboarding wizard, facility OTP ---
+    path("facilities/<uuid:facility_id>/abdm/hfr/lookup", nhpr_views.HfrLookup.as_view()),
+    path("facilities/<uuid:facility_id>/abdm/hfr/search", nhpr_views.HfrSearch.as_view()),
+    path("facilities/<uuid:facility_id>/abdm/hfr/link", nhpr_views.HfrLink.as_view()),
+    path("facilities/<uuid:facility_id>/abdm/hfr/onboarding", nhpr_views.HfrOnboarding.as_view()),
+    path("facilities/<uuid:facility_id>/abdm/hfr/otp", nhpr_views.HfrOtp.as_view()),
+    # --- M4 user side (ADR-015): the caller's own HPR ID ---
+    path("users/me/abdm/hpr", nhpr_views.HprState.as_view()),
+    path("users/me/abdm/hpr/verify-id", nhpr_views.HprVerifyId.as_view()),
+    path("users/me/abdm/hpr/login", nhpr_views.HprLogin.as_view()),
+    path("users/me/abdm/hpr/login/verify", nhpr_views.HprLoginVerify.as_view()),
+    path("users/me/abdm/hpr/session/<str:action>", nhpr_views.HprSessionAction.as_view()),
+    path("users/me/abdm/hpr/create/<str:action>", nhpr_views.HpidCreate.as_view()),
+    path("users/me/abdm/hpr/register", nhpr_views.HprRegister.as_view()),
+    path("users/me/abdm/hpr/register/<str:action>", nhpr_views.HprRegister.as_view()),
+    path("users/me/abdm/hpr/documents", nhpr_views.HprDocuments.as_view()),
+    path("users/me/abdm/hpr/professional-info", nhpr_views.HprProfessionalInfo.as_view()),
+    # --- M4 masters (NHPR code lists, cached) ---
+    path("nhpr/masters/<str:kind>", nhpr_views.Masters.as_view()),
     # --- M1 Scan and Share: front desk inbox (the gateway callback lands on the catch-all below) ---
     path("facilities/<uuid:facility_id>/abdm/profile-shares", share_views.ProfileShareList.as_view()),
     path("facilities/<uuid:facility_id>/abdm/profile-shares/<uuid:share_id>", share_views.ProfileShareDetail.as_view()),

@@ -1,0 +1,26 @@
+meta {
+  name: 3. Care prefill for 1 registry record
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{careUrl}}/api/abdm/hfr/prefill?facility_id={{hfrFacilityId}}
+  body: none
+  auth: none
+}
+
+params:query {
+  facility_id: {{hfrFacilityId}}
+}
+
+headers {
+  Authorization: ******
+}
+
+docs {
+  1 registry record, the Care form fields it fills (`care`: name, address, pincode, latitude,
+  longitude, a suggested facility type), the Care government organizations whose names equal the
+  record's state and district (`geo`), a default HIP name, and the Care facility already linked to
+  this record if any (`alreadyLinked`). 404 when the registry holds no such record.
+}

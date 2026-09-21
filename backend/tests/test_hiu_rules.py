@@ -53,6 +53,13 @@ class DefaultsAndValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "id and a name"):
             rules.validate_request({"hip_id": "IN123"}, NOW)
 
+    def test_validate_clamps_the_range_end_to_now(self):
+        # findings L9: the sandbox refuses a `to` in the future (ABDM-9999).
+        clean = rules.validate_request({"date_to": "2099-01-01T00:00:00Z"}, NOW)
+        self.assertEqual(clean["date_to"], NOW)
+        clean = rules.validate_request({"date_to": "2026-09-01T00:00:00Z"}, NOW)
+        self.assertEqual(clean["date_to"].isoformat(), "2026-09-01T00:00:00+00:00")
+
     def test_validate_dedupes_hi_types_and_keeps_order(self):
         clean = rules.validate_request({"hi_types": ["Prescription", "OPConsultation", "Prescription"]}, NOW)
         self.assertEqual(clean["hi_types"], ["Prescription", "OPConsultation"])

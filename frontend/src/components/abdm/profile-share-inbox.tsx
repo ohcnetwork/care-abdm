@@ -52,16 +52,14 @@ export default function ProfileShareInbox({
     refetchInterval: open ? 10_000 : false,
   });
 
-  const dismiss = useMutation<AbdmProfileShare, unknown, { shareId: string }>(
-    {
-      mutationFn: ({ shareId }) =>
-        mutate(careApi.dismissProfileShare, {
-          pathParams: { facilityId, shareId },
-          silent: true,
-        })({}),
-      onSuccess: () => qc.invalidateQueries({ queryKey: key }),
-    },
-  );
+  const dismiss = useMutation<AbdmProfileShare, unknown, { shareId: string }>({
+    mutationFn: ({ shareId }) =>
+      mutate(careApi.dismissProfileShare, {
+        pathParams: { facilityId, shareId },
+        silent: true,
+      })({}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: key }),
+  });
 
   const rows = shares.data?.results ?? [];
 
@@ -70,7 +68,9 @@ export default function ProfileShareInbox({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{t("abdm_shared_profiles")}</DialogTitle>
-          <DialogDescription>{t("abdm_shared_profiles_help")}</DialogDescription>
+          <DialogDescription>
+            {t("abdm_shared_profiles_help")}
+          </DialogDescription>
         </DialogHeader>
 
         {shares.isError && (

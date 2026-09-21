@@ -38,6 +38,8 @@ docs {
   | `transactionId` | Health-information transaction id, from the `on-request` callback |
   | `fetchedRecordId` | `id` of a fetched record (hiu > 1 saves the newest) |
   | `encryptedContent`, `contentChecksum`, `hipPublicKey`, `hipNonce` | A HIP-side encrypted entry for the data push probe |
+  | `hfrFacilityId` | An `IN` facility id to look up or link (nhpr folder) |
+  | `hprId`, `hprPassword` (secret), `hprLoginId` | The caller's HPR ID, its password, and a pending OTP login id |
 
   The pre-request script of this collection sets 2 more variables for each request:
   `requestId` is a new UUID, and `timestamp` is the time now in UTC with milliseconds.

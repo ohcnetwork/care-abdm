@@ -27061,12 +27061,13 @@ The whole of M1: the calls, the loop that builds them, every error code and the 
 [SKILL.md](/skills/abdm-m1/SKILL.md "The router. Use the command below to take the references with it.")
 
 - ScaffoldThe loop that builds the module flow by flow against the sandbox, ending on an observed result rather than on a call returning 200.
+- Design
 - Integrate41 operations, with their hosts, headers and the rules that hold across them.
 - Debug14 recorded error codes, each with its message and what to do about it.
 
-`mkdir -p .claude/skills/abdm-m1/references && curl -fsSL https://abdm-docs.dev.eka.care/skills/abdm-m1/SKILL.md -o .claude/skills/abdm-m1/SKILL.md && for f in scaffold integrate debug; do curl -fsSL https://abdm-docs.dev.eka.care/skills/abdm-m1/references/$f.md -o .claude/skills/abdm-m1/references/$f.md; done`
+`mkdir -p .claude/skills/abdm-m1/references && curl -fsSL https://abdm-docs.dev.eka.care/skills/abdm-m1/SKILL.md -o .claude/skills/abdm-m1/SKILL.md && for f in scaffold design integrate debug; do curl -fsSL https://abdm-docs.dev.eka.care/skills/abdm-m1/references/$f.md -o .claude/skills/abdm-m1/references/$f.md; done`
 
-[Open in Claude](claude://code/new?q=Install%20the%20ABDM%20M1%20agent%20skill%20into%20this%20project%2C%20then%20help%20me%20use%20it.%0A%0ARun%20this%3A%0Amkdir%20-p%20.claude%2Fskills%2Fabdm-m1%2Freferences%20%26%26%20curl%20-fsSL%20https%3A%2F%2Fabdm-docs.dev.eka.care%2Fskills%2Fabdm-m1%2FSKILL.md%20-o%20.claude%2Fskills%2Fabdm-m1%2FSKILL.md%20%26%26%20for%20f%20in%20scaffold%20integrate%20debug%3B%20do%20curl%20-fsSL%20https%3A%2F%2Fabdm-docs.dev.eka.care%2Fskills%2Fabdm-m1%2Freferences%2F%24f.md%20-o%20.claude%2Fskills%2Fabdm-m1%2Freferences%2F%24f.md%3B%20done%0A%0AIf%20this%20session%20did%20not%20open%20in%20the%20repository%20I%20am%20integrating%20ABDM%20into%2C%20ask%20me%20for%20the%20path%20before%20you%20write%20anything.)
+[Open in Claude](claude://code/new?q=Install%20the%20ABDM%20M1%20agent%20skill%20into%20this%20project%2C%20then%20help%20me%20use%20it.%0A%0ARun%20this%3A%0Amkdir%20-p%20.claude%2Fskills%2Fabdm-m1%2Freferences%20%26%26%20curl%20-fsSL%20https%3A%2F%2Fabdm-docs.dev.eka.care%2Fskills%2Fabdm-m1%2FSKILL.md%20-o%20.claude%2Fskills%2Fabdm-m1%2FSKILL.md%20%26%26%20for%20f%20in%20scaffold%20design%20integrate%20debug%3B%20do%20curl%20-fsSL%20https%3A%2F%2Fabdm-docs.dev.eka.care%2Fskills%2Fabdm-m1%2Freferences%2F%24f.md%20-o%20.claude%2Fskills%2Fabdm-m1%2Freferences%2F%24f.md%3B%20done%0A%0AIf%20this%20session%20did%20not%20open%20in%20the%20repository%20I%20am%20integrating%20ABDM%20into%2C%20ask%20me%20for%20the%20path%20before%20you%20write%20anything.)
 
 Drops the skill into this project. Claude loads it when a task matches.
 
@@ -27451,7 +27452,7 @@ Questions about the exit process itself, including where to submit the form or w
 
 # Get started
 
-Connect your application to India's health data network.
+Connect your application to India's Interoperable Digital Health Infrastructure.
 
 ## What ABDM is
 
@@ -27872,12 +27873,13 @@ Every M1 call, its error codes and its certification cases in one file: 55 opera
 [SKILL.md](/skills/abdm-m1/SKILL.md "The router. Use the command below to take the references with it.")
 
 - ScaffoldThe loop that builds the module flow by flow against the sandbox, ending on an observed result rather than on a call returning 200.
+- Design
 - Integrate41 operations, with their hosts, headers and the rules that hold across them.
 - Debug14 recorded error codes, each with its message and what to do about it.
 
-`mkdir -p .claude/skills/abdm-m1/references && curl -fsSL https://abdm-docs.dev.eka.care/skills/abdm-m1/SKILL.md -o .claude/skills/abdm-m1/SKILL.md && for f in scaffold integrate debug; do curl -fsSL https://abdm-docs.dev.eka.care/skills/abdm-m1/references/$f.md -o .claude/skills/abdm-m1/references/$f.md; done`
+`mkdir -p .claude/skills/abdm-m1/references && curl -fsSL https://abdm-docs.dev.eka.care/skills/abdm-m1/SKILL.md -o .claude/skills/abdm-m1/SKILL.md && for f in scaffold design integrate debug; do curl -fsSL https://abdm-docs.dev.eka.care/skills/abdm-m1/references/$f.md -o .claude/skills/abdm-m1/references/$f.md; done`
 
-[Open in Claude](claude://code/new?q=Install%20the%20ABDM%20M1%20agent%20skill%20into%20this%20project%2C%20then%20help%20me%20use%20it.%0A%0ARun%20this%3A%0Amkdir%20-p%20.claude%2Fskills%2Fabdm-m1%2Freferences%20%26%26%20curl%20-fsSL%20https%3A%2F%2Fabdm-docs.dev.eka.care%2Fskills%2Fabdm-m1%2FSKILL.md%20-o%20.claude%2Fskills%2Fabdm-m1%2FSKILL.md%20%26%26%20for%20f%20in%20scaffold%20integrate%20debug%3B%20do%20curl%20-fsSL%20https%3A%2F%2Fabdm-docs.dev.eka.care%2Fskills%2Fabdm-m1%2Freferences%2F%24f.md%20-o%20.claude%2Fskills%2Fabdm-m1%2Freferences%2F%24f.md%3B%20done%0A%0AIf%20this%20session%20did%20not%20open%20in%20the%20repository%20I%20am%20integrating%20ABDM%20into%2C%20ask%20me%20for%20the%20path%20before%20you%20write%20anything.)
+[Open in Claude](claude://code/new?q=Install%20the%20ABDM%20M1%20agent%20skill%20into%20this%20project%2C%20then%20help%20me%20use%20it.%0A%0ARun%20this%3A%0Amkdir%20-p%20.claude%2Fskills%2Fabdm-m1%2Freferences%20%26%26%20curl%20-fsSL%20https%3A%2F%2Fabdm-docs.dev.eka.care%2Fskills%2Fabdm-m1%2FSKILL.md%20-o%20.claude%2Fskills%2Fabdm-m1%2FSKILL.md%20%26%26%20for%20f%20in%20scaffold%20design%20integrate%20debug%3B%20do%20curl%20-fsSL%20https%3A%2F%2Fabdm-docs.dev.eka.care%2Fskills%2Fabdm-m1%2Freferences%2F%24f.md%20-o%20.claude%2Fskills%2Fabdm-m1%2Freferences%2F%24f.md%3B%20done%0A%0AIf%20this%20session%20did%20not%20open%20in%20the%20repository%20I%20am%20integrating%20ABDM%20into%2C%20ask%20me%20for%20the%20path%20before%20you%20write%20anything.)
 
 Drops the skill into this project. Claude loads it when a task matches.
 
@@ -28321,12 +28323,13 @@ Every M2 call and callback, its error codes and its certification cases in one f
 [SKILL.md](/skills/abdm-m2/SKILL.md "The router. Use the command below to take the references with it.")
 
 - ScaffoldThe loop that builds the module flow by flow against the sandbox, ending on an observed result rather than on a call returning 200.
+- Design
 - Integrate32 operations, with their hosts, headers and the rules that hold across them.
 - DebugNo error code is recorded for this module yet.
 
-`mkdir -p .claude/skills/abdm-m2/references && curl -fsSL https://abdm-docs.dev.eka.care/skills/abdm-m2/SKILL.md -o .claude/skills/abdm-m2/SKILL.md && for f in scaffold integrate debug; do curl -fsSL https://abdm-docs.dev.eka.care/skills/abdm-m2/references/$f.md -o .claude/skills/abdm-m2/references/$f.md; done`
+`mkdir -p .claude/skills/abdm-m2/references && curl -fsSL https://abdm-docs.dev.eka.care/skills/abdm-m2/SKILL.md -o .claude/skills/abdm-m2/SKILL.md && for f in scaffold design integrate debug; do curl -fsSL https://abdm-docs.dev.eka.care/skills/abdm-m2/references/$f.md -o .claude/skills/abdm-m2/references/$f.md; done`
 
-[Open in Claude](claude://code/new?q=Install%20the%20ABDM%20M2%20agent%20skill%20into%20this%20project%2C%20then%20help%20me%20use%20it.%0A%0ARun%20this%3A%0Amkdir%20-p%20.claude%2Fskills%2Fabdm-m2%2Freferences%20%26%26%20curl%20-fsSL%20https%3A%2F%2Fabdm-docs.dev.eka.care%2Fskills%2Fabdm-m2%2FSKILL.md%20-o%20.claude%2Fskills%2Fabdm-m2%2FSKILL.md%20%26%26%20for%20f%20in%20scaffold%20integrate%20debug%3B%20do%20curl%20-fsSL%20https%3A%2F%2Fabdm-docs.dev.eka.care%2Fskills%2Fabdm-m2%2Freferences%2F%24f.md%20-o%20.claude%2Fskills%2Fabdm-m2%2Freferences%2F%24f.md%3B%20done%0A%0AIf%20this%20session%20did%20not%20open%20in%20the%20repository%20I%20am%20integrating%20ABDM%20into%2C%20ask%20me%20for%20the%20path%20before%20you%20write%20anything.)
+[Open in Claude](claude://code/new?q=Install%20the%20ABDM%20M2%20agent%20skill%20into%20this%20project%2C%20then%20help%20me%20use%20it.%0A%0ARun%20this%3A%0Amkdir%20-p%20.claude%2Fskills%2Fabdm-m2%2Freferences%20%26%26%20curl%20-fsSL%20https%3A%2F%2Fabdm-docs.dev.eka.care%2Fskills%2Fabdm-m2%2FSKILL.md%20-o%20.claude%2Fskills%2Fabdm-m2%2FSKILL.md%20%26%26%20for%20f%20in%20scaffold%20design%20integrate%20debug%3B%20do%20curl%20-fsSL%20https%3A%2F%2Fabdm-docs.dev.eka.care%2Fskills%2Fabdm-m2%2Freferences%2F%24f.md%20-o%20.claude%2Fskills%2Fabdm-m2%2Freferences%2F%24f.md%3B%20done%0A%0AIf%20this%20session%20did%20not%20open%20in%20the%20repository%20I%20am%20integrating%20ABDM%20into%2C%20ask%20me%20for%20the%20path%20before%20you%20write%20anything.)
 
 Drops the skill into this project. Claude loads it when a task matches.
 
@@ -28494,12 +28497,13 @@ Every M3 call and callback with its error codes in one file: 25 operations, 95 c
 [SKILL.md](/skills/abdm-m3/SKILL.md "The router. Use the command below to take the references with it.")
 
 - ScaffoldThe loop that builds the module flow by flow against the sandbox, ending on an observed result rather than on a call returning 200.
+- Design
 - Integrate23 operations, with their hosts, headers and the rules that hold across them.
 - DebugNo error code is recorded for this module yet.
 
-`mkdir -p .claude/skills/abdm-m3/references && curl -fsSL https://abdm-docs.dev.eka.care/skills/abdm-m3/SKILL.md -o .claude/skills/abdm-m3/SKILL.md && for f in scaffold integrate debug; do curl -fsSL https://abdm-docs.dev.eka.care/skills/abdm-m3/references/$f.md -o .claude/skills/abdm-m3/references/$f.md; done`
+`mkdir -p .claude/skills/abdm-m3/references && curl -fsSL https://abdm-docs.dev.eka.care/skills/abdm-m3/SKILL.md -o .claude/skills/abdm-m3/SKILL.md && for f in scaffold design integrate debug; do curl -fsSL https://abdm-docs.dev.eka.care/skills/abdm-m3/references/$f.md -o .claude/skills/abdm-m3/references/$f.md; done`
 
-[Open in Claude](claude://code/new?q=Install%20the%20ABDM%20M3%20agent%20skill%20into%20this%20project%2C%20then%20help%20me%20use%20it.%0A%0ARun%20this%3A%0Amkdir%20-p%20.claude%2Fskills%2Fabdm-m3%2Freferences%20%26%26%20curl%20-fsSL%20https%3A%2F%2Fabdm-docs.dev.eka.care%2Fskills%2Fabdm-m3%2FSKILL.md%20-o%20.claude%2Fskills%2Fabdm-m3%2FSKILL.md%20%26%26%20for%20f%20in%20scaffold%20integrate%20debug%3B%20do%20curl%20-fsSL%20https%3A%2F%2Fabdm-docs.dev.eka.care%2Fskills%2Fabdm-m3%2Freferences%2F%24f.md%20-o%20.claude%2Fskills%2Fabdm-m3%2Freferences%2F%24f.md%3B%20done%0A%0AIf%20this%20session%20did%20not%20open%20in%20the%20repository%20I%20am%20integrating%20ABDM%20into%2C%20ask%20me%20for%20the%20path%20before%20you%20write%20anything.)
+[Open in Claude](claude://code/new?q=Install%20the%20ABDM%20M3%20agent%20skill%20into%20this%20project%2C%20then%20help%20me%20use%20it.%0A%0ARun%20this%3A%0Amkdir%20-p%20.claude%2Fskills%2Fabdm-m3%2Freferences%20%26%26%20curl%20-fsSL%20https%3A%2F%2Fabdm-docs.dev.eka.care%2Fskills%2Fabdm-m3%2FSKILL.md%20-o%20.claude%2Fskills%2Fabdm-m3%2FSKILL.md%20%26%26%20for%20f%20in%20scaffold%20design%20integrate%20debug%3B%20do%20curl%20-fsSL%20https%3A%2F%2Fabdm-docs.dev.eka.care%2Fskills%2Fabdm-m3%2Freferences%2F%24f.md%20-o%20.claude%2Fskills%2Fabdm-m3%2Freferences%2F%24f.md%3B%20done%0A%0AIf%20this%20session%20did%20not%20open%20in%20the%20repository%20I%20am%20integrating%20ABDM%20into%2C%20ask%20me%20for%20the%20path%20before%20you%20write%20anything.)
 
 Drops the skill into this project. Claude loads it when a task matches.
 
@@ -41567,6 +41571,91 @@ flowchart TD
 
 ---
 
+# Introduction
+
+## What it is
+
+The National Health Claims Exchange is a single road between hospitals and insurers. A hospital asks whether a patient is covered, asks permission to treat, sends the bill, and gets paid. Today each of those steps runs differently for every insurer. On the exchange they run the same way for all of them.
+
+It carries the whole journey: checking cover before admission, getting treatment approved, submitting the claim at discharge, being paid, and arguing when the answer is wrong. Every step is a message out and an answer back later, so nothing is left hanging and there is a record of both halves.
+
+Hospitals, insurers, patients, regulators and observers all connect to it the same way.
+
+NHCX is developed under the Ayushman Bharat Digital Mission (ABDM) by the National Health Authority (NHA), in consultation with the Insurance Regulatory and Development Authority of India (IRDAI). The idea is to introduce a platform of exchange to Providers and Payers so that both can transfer digitised health records and other pertinent information directly, in a machine readable format, to their counterpart.
+
+## What NHCX aims to achieve
+
+NHA states five objectives for the exchange.
+
+- **Wider cover.** Bring new kinds of claim onto the network, including outpatient (OPD) visits and pharmacy bills, so insurance is not only about hospital stays.
+- **Faster money.** Shorten the time between treatment and payment, and make cashless treatment workable even in small hospitals.
+- **Room to innovate.** Give insurers the structured data they need to automate decisions and to spot fraud.
+- **One way of doing things.** A single, rule-based process that both sides trust, instead of every insurer running its own.
+- **A better patient experience.** Fewer forms, fewer delays, fewer surprises at discharge.
+
+Underneath all five sits one requirement. A hospital's software and an insurer's software are built by different people on different technology, and a message has to mean exactly the same thing at both ends. That is why everything on the exchange is written in one agreed format, with agreed words for diagnoses, procedures and test results. How Claims Move on NHCX introduces that format, and Bundles and Conventions in the FHIR Reference sets out its rules.
+
+## NHCX operating framework
+
+A stock exchange works because a buyer and a seller each connect to the exchange rather than to each other. NHCX works the same way. A hospital connects once, an insurer connects once, and from then on either can reach the other without having built anything specific to them.
+
+## What NHCX is made of
+
+It helps to think of NHCX as three rulebooks and one referee.
+
+- **The protocol** says how a message travels: how it is addressed, sealed, acknowledged and answered. It is deliberately like email: a message goes to the exchange, the exchange passes it on, and the reply comes back the same way.
+- **The data specifications** say what goes inside a message. Claims, policies, payments and the rest are written as FHIR records, using profiles published by NRCeS, so that both sides read the same thing.
+- **The operational guidelines** say who may join, how they are checked, what they may do, and how they can be removed.
+- **NHA is the referee.** It publishes the rules, runs the exchange, and works with NRCeS and IRDAI to change them.
+
+The portal also publishes a live Swagger specification for each of the exchange's services, and Environments and Addresses in the Reference section lists them.
+
+Five principles run through all of it. The rules are **open**, published under a permissive licence so anyone can build against them. They are **evolvable**, so a scheme can add what it needs without breaking everyone else. They are **minimal**, so they are easy to understand and do not hold back innovation. They protect **privacy and security**, with sealed contents and tamper-proof records. And they are **unbundled**, so a participant can adopt one part without adopting all of it.
+
+## Who is on the network
+
+```mermaid
+flowchart LR
+  H1[Hospital] --- X((NHCX))
+  H2[Clinic] --- X
+  A[Patient app] --- X
+  X --- P1[Insurer]
+  X --- P2[Government scheme]
+  X --- T[TPA]
+  X --- R[Regulator]
+  X --- N[Another exchange]
+```
+
+Most of this documentation talks about two parties, the hospital and the insurer. The network recognises more.
+
+- **Providers.** Hospitals and clinics, identified by their Health Facility Registry entry.
+- **Payers.** Insurance companies, and the government agencies that pay for schemes.
+- **TPAs.** Third-party administrators who process claims on an insurer's behalf. On the network a TPA behaves like a payer.
+- **Regulators.** IRDAI and bodies like it, who can search claims across every payer.
+- **Scheme sponsors.** The owner of a programme, for example NHA for Ayushman Bharat, with payer-level access.
+- **Researchers and insurance marketplaces.** Given aggregated or consented data only.
+- **Patient apps.** Personal health record apps that receive notifications on a beneficiary's behalf.
+- **Other exchanges.** NHCX is designed so that more than one instance can exist and relay to each other.
+
+Each role comes with a fixed list of what it may send and receive. A hospital can ask about eligibility and submit claims; it cannot search another hospital's claims. A regulator can search; it cannot submit.
+
+## What changes in practice
+
+Four things are different once a hospital is on the exchange, and the rest of this documentation is about making them work.
+
+**Records go across as records.** A hospital's software already holds the diagnosis, the test results and the treatment as data. Today most of it is printed or turned into a picture before it is sent, and the insurer's software cannot read a picture. On the exchange it goes across as data and stays readable.
+
+**That makes automatic decisions possible.** An insurer can only decide a claim by machine if it can read the values. A blood test sent as ten separate results can be checked automatically; the same test sent as a scan cannot.
+
+**One place to type things.** The hospital's own system becomes the single place the information is entered, rather than being re-keyed into an insurer's portal afterwards. Most rejections on technical grounds come from that second typing.
+
+**Any hospital can reach any insurer.** A small hospital that could never afford to integrate with thirty insurers separately can integrate once.
+
+How Claims Move on NHCX follows a claim from admission to payment, in the ordinary language of the people who do it, before any of this becomes technical.
+
+
+---
+
 # JWE, status and errors
 
 The previous chapter got you onto the network. This one is about what a message is, how to tell where it is in its life, and what to do when it is refused. None of it belongs to any single use case, and all of it applies to every one.
@@ -43561,11 +43650,29 @@ The exchange's production base is `https://apisprod.nha.gov.in/hcx`. The partici
 
 # Build with AI
 
-Give your coding agent the NHCX documentation while it builds. Connect it to the Docs MCP server, install the NHCX agent skills, or have it fetch these pages as Markdown.
+Every fact on this site is a public URL. There are three ways to put it in front of your agent, and they combine. From lightest to fullest:
+
+- Copy one skill into your project.
+- Install all seven skills as a plugin.
+- Connect the docs server, so the agent can look things up as it works.
+
+[Recommended](#connect-the-docs-mcp-server)
+
+[Docs MCP server](#connect-the-docs-mcp-server)
+
+[This documentation live, queried a paragraph at a time as your agent works. It cannot go stale, because it is this site answering.](#connect-the-docs-mcp-server)
+
+[AI plugin](#install-the-plugin)
+
+[All seven NHCX skills in one install, updated in place. Add the marketplace once, then install the plugin.](#install-the-plugin)
+
+[Agent skills](#install-a-skill)
+
+[One folder per NHCX use case, in episode order. Works offline, and ages until you update it.](#install-a-skill)
 
 ## Connect the Docs MCP server
 
-The Docs MCP server searches the portal's catalogue. For NHCX it holds an entry for each concept, call, callback, error, flow and test case. It also holds the operations in the NHCX specifications. HIE-CM uses the same server, so one connection covers both.
+A skill is a snapshot. The Docs MCP server is the same documentation live, queried a paragraph at a time instead of loaded whole. The agent searches it, decodes error codes and checks request bodies as it works, alongside a skill or on its own. Add it as `nhcx-docs` at `https://docs.abdm.gov.in/mcp`.
 
 Docs MCP server
 
@@ -43589,15 +43696,57 @@ Run this in the repository you are integrating.
 
 Any MCP client that reads an `mcpServers` config, Claude Desktop included, takes this block as is.
 
-## Read these pages as Markdown
+## Install the plugin
 
-- `/llms.txt` lists every page on this site. `/llms-full.txt` carries the text of every page in one file.
-- Each NHCX API module has its own index at `/docs/nhcx/v1/api/<module>/llms.txt`. [API references](/docs/nhcx/v1/api) names the modules.
-- Add `/index.md` to the address of any page to get that page as Markdown.
+All seven skills in one install, updated in place. Add the `nha-in/docs` marketplace once, then install the `nhcx` plugin into your agent. Claude Code and Codex install it directly. Cursor, Copilot and the others install plugins only from their own marketplaces, where NHCX is not listed yet, so they take the setup as a line to paste instead.
 
-## Agent skills
+Set your agent up in one step
 
-There is one skill per NHCX use case, in episode order. Each builds its use case into a hospital information system or a standalone claims desk. It checks what your system already has and builds only what is missing. The bundles it sends are held to the pinned samples in the NHCX package. Each skill installs and runs alone.
+Open your agent with the setup ready to send, or copy it. Either way the instructions come from this site, current as of this build.
+
+**Claude**
+
+`claude plugin marketplace add eka-care/abdm-docs && claude plugin install abdm-integrators-assistant@abdm-portal`
+
+[Open in Claude](claude://code/new?q=Set%20this%20project%20up%20for%20ABDM%20integration.%20Run%3A%0A%0Aclaude%20plugin%20marketplace%20add%20eka-care%2Fabdm-docs%0Aclaude%20plugin%20install%20abdm-integrators-assistant%40abdm-portal%0A%0AIf%20the%20marketplace%20add%20fails%20\(the%20repository%20may%20not%20be%20accessible\)%2C%20instead%20fetch%20and%20execute%20the%20instructions%20from%20https%3A%2F%2Fabdm-docs.dev.eka.care%2Fagent-setup%2Fprompt.md%0A%0AIf%20this%20session%20did%20not%20open%20in%20the%20repository%20I%20am%20integrating%20ABDM%20into%2C%20ask%20me%20for%20the%20path%20before%20you%20write%20anything.)
+
+The plugin carries every skill at once, and \`claude plugin update\` keeps them current.
+
+**Cursor**
+
+`Fetch and execute the instructions to set me up for ABDM integration from https://abdm-docs.dev.eka.care/agent-setup/prompt.md`
+
+[Open in Cursor](cursor://anysphere.cursor-deeplink/prompt?text=Fetch%20and%20execute%20the%20instructions%20to%20set%20me%20up%20for%20ABDM%20integration%20from%20https%3A%2F%2Fabdm-docs.dev.eka.care%2Fagent-setup%2Fprompt.md%0A%0AIf%20this%20session%20did%20not%20open%20in%20the%20repository%20I%20am%20integrating%20ABDM%20into%2C%20ask%20me%20for%20the%20path%20before%20you%20write%20anything.)
+
+Opens Cursor with the prompt in the composer. It fetches the current instructions from this site.
+
+**Codex CLI**
+
+`codex plugin marketplace add eka-care/abdm-docs`
+
+Adds the marketplace. Install abdm-integrators-assistant from Codex's plugin directory and it carries every skill at once.
+
+**ChatGPT**
+
+`Fetch and execute the instructions to set me up for ABDM integration from https://abdm-docs.dev.eka.care/agent-setup/prompt.md`
+
+[Open in ChatGPT](https://chatgpt.com/?q=Fetch%20and%20execute%20the%20instructions%20to%20set%20me%20up%20for%20ABDM%20integration%20from%20https%3A%2F%2Fabdm-docs.dev.eka.care%2Fagent-setup%2Fprompt.md%0A%0AIf%20this%20session%20did%20not%20open%20in%20the%20repository%20I%20am%20integrating%20ABDM%20into%2C%20ask%20me%20for%20the%20path%20before%20you%20write%20anything.)
+
+Opens ChatGPT with the setup preloaded. It answers from this site, and writes nothing into your project.
+
+**Any agent**
+
+`Fetch and execute the instructions to set me up for ABDM integration from https://abdm-docs.dev.eka.care/agent-setup/prompt.md`
+
+One line, any agent that can fetch a URL. The instructions live on this site and are rebuilt with it.
+
+The setup also connects the [Docs MCP server](/docs/hiecm/v3/getting-started/build-with-ai#connect-the-docs-mcp-server): the live version of these docs, queried by your agent as it works.
+
+## Install a skill
+
+There is one skill per NHCX use case, in episode order. Each builds its use case into a hospital information system or a standalone claims desk. It checks what your system already has and builds only what is missing. The bundles it sends are held to the pinned samples in the NHCX package.
+
+Each skill is self-contained, so install only the ones your integration needs. `npx skills` finds every coding agent in the project and sets the skill up for each. With git alone, the command fetches just the skill's folder into the directory your agent reads skills from.
 
 | Skill                | What it builds                                                                              | [Use cases](/docs/nhcx/v1/concepts/nhcx-use-cases) |
 | -------------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------- |
@@ -43619,7 +43768,34 @@ Download all skills
 - [Communication](https://abdm-docs.dev.eka.care/skills/nhcx-communication/SKILL.md)
 - [Reprocess and status](https://abdm-docs.dev.eka.care/skills/nhcx-reprocess/SKILL.md)
 
-In Claude Code the portal's `nhcx` plugin carries all seven. Add the portal's marketplace as [Install the plugin](/docs/hiecm/v3/getting-started/build-with-ai#install-the-plugin) shows, then run `claude plugin install nhcx@abdm-portal`.
+## Prompting an agent to build against NHCX
+
+An agent with this site loaded still writes a plausible integration rather than a correct one, because the parts of NHCX that catch people are the parts a model cannot infer. Tell it these, and check its output against them.
+
+| Tell it                                                                        | Because                                                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Look the operation up here before writing the call                             | An agent fills gaps in the envelope and the bundle from memory. The MCP server above is this site answering live, so it cannot be recalling another shape                                                                                                                   |
+| Every answer arrives at your server, not in the response to your call          | Left alone, an agent writes a response handler for a call whose 202 means accepted and nothing else. See [receiving a callback](/docs/nhcx/v1/getting-started/receiving-a-callback)                                                                                         |
+| Open each cycle with a new correlation ID, and match answers on it             | An agent matches on arrival order, or reuses a failed cycle's ID, which the exchange refuses with `NHCX-1006`. See [responses arrive against the wrong request](/docs/nhcx/v1/troubleshooting/responses-arrive-against-the-wrong-request)                                   |
+| Every bundle is sealed for its recipient, with the recipient's certificate     | An agent seals with your own certificate, or with the first one it finds. See [fetching a recipient certificate](/docs/nhcx/v1/getting-started/fetching-a-recipient-certificate) and [building and sending a JWE](/docs/nhcx/v1/getting-started/building-and-sending-a-jwe) |
+| Host `/v1/error` beside the other callbacks                                    | It is where the exchange reports a message it could not deliver. Without it you never find out                                                                                                                                                                              |
+| Run the NRCeS validator on the exact bundle you seal                           | A bundle that looks right is refused by the payer with a `PAYR-` code. See [the payer rejects your bundle](/docs/nhcx/v1/troubleshooting/the-payer-rejects-your-bundle)                                                                                                     |
+| Do not invent an error code or a workflow code                                 | Both exist here in full. See [workflow codes](/docs/nhcx/v1/concepts/workflow-codes) and [error codes](/docs/nhcx/v1/reference/error-code-guide)                                                                                                                            |
+| Patient identifiers and bundle contents never reach a log, a fixture or a test | An agent writing test data will otherwise put a real looking beneficiary in your repository                                                                                                                                                                                 |
+
+Point it at the [provider checklist](/docs/nhcx/v1/roles/provider/provider-checklist) or the [payer checklist](/docs/nhcx/v1/roles/payer/payer-checklist) for what your side has to have in place before go live.
+
+## Read this site as an agent
+
+`llms.txt` is a map of every page here; `llms-full.txt` is every page's text in one file. Each NHCX API module also has its own index at `/docs/nhcx/v1/api/<module>/llms.txt`, and [API references](/docs/nhcx/v1/api) names the modules. Add `/index.md` to any URL on this site to get that page as plain Markdown, no scraping required.
+
+[View llms.txt](/llms.txt)[View llms-full.txt](/llms-full.txt)[This page as Markdown](/docs/nhcx/v1/getting-started/build-with-ai/index.md)
+
+## Ask AI
+
+Ask this catalogue a question directly, without setting anything up.
+
+The same assistant sits in the search box at the top of every page, labelled "Search or ask AI".
 
 ## Next steps
 
@@ -45063,91 +45239,6 @@ On approval, the sandbox issues a completion certificate, valid for a configured
 
 - [Going Live](/docs/nhcx/v1/go-live): the production credentials, registration and switch that follow.
 - [Governance and Audit](/docs/nhcx/v1/reference/governance-and-audit): the security obligations that continue in production, and the full onboarding question list.
-
-
----
-
-# Introduction
-
-## What it is
-
-The National Health Claims Exchange is a single road between hospitals and insurers. A hospital asks whether a patient is covered, asks permission to treat, sends the bill, and gets paid. Today each of those steps runs differently for every insurer. On the exchange they run the same way for all of them.
-
-It carries the whole journey: checking cover before admission, getting treatment approved, submitting the claim at discharge, being paid, and arguing when the answer is wrong. Every step is a message out and an answer back later, so nothing is left hanging and there is a record of both halves.
-
-Hospitals, insurers, patients, regulators and observers all connect to it the same way.
-
-NHCX is developed under the Ayushman Bharat Digital Mission (ABDM) by the National Health Authority (NHA), in consultation with the Insurance Regulatory and Development Authority of India (IRDAI). The idea is to introduce a platform of exchange to Providers and Payers so that both can transfer digitised health records and other pertinent information directly, in a machine readable format, to their counterpart.
-
-## What NHCX aims to achieve
-
-NHA states five objectives for the exchange.
-
-- **Wider cover.** Bring new kinds of claim onto the network, including outpatient (OPD) visits and pharmacy bills, so insurance is not only about hospital stays.
-- **Faster money.** Shorten the time between treatment and payment, and make cashless treatment workable even in small hospitals.
-- **Room to innovate.** Give insurers the structured data they need to automate decisions and to spot fraud.
-- **One way of doing things.** A single, rule-based process that both sides trust, instead of every insurer running its own.
-- **A better patient experience.** Fewer forms, fewer delays, fewer surprises at discharge.
-
-Underneath all five sits one requirement. A hospital's software and an insurer's software are built by different people on different technology, and a message has to mean exactly the same thing at both ends. That is why everything on the exchange is written in one agreed format, with agreed words for diagnoses, procedures and test results. How Claims Move on NHCX introduces that format, and Bundles and Conventions in the FHIR Reference sets out its rules.
-
-## NHCX operating framework
-
-A stock exchange works because a buyer and a seller each connect to the exchange rather than to each other. NHCX works the same way. A hospital connects once, an insurer connects once, and from then on either can reach the other without having built anything specific to them.
-
-## What NHCX is made of
-
-It helps to think of NHCX as three rulebooks and one referee.
-
-- **The protocol** says how a message travels: how it is addressed, sealed, acknowledged and answered. It is deliberately like email: a message goes to the exchange, the exchange passes it on, and the reply comes back the same way.
-- **The data specifications** say what goes inside a message. Claims, policies, payments and the rest are written as FHIR records, using profiles published by NRCeS, so that both sides read the same thing.
-- **The operational guidelines** say who may join, how they are checked, what they may do, and how they can be removed.
-- **NHA is the referee.** It publishes the rules, runs the exchange, and works with NRCeS and IRDAI to change them.
-
-The portal also publishes a live Swagger specification for each of the exchange's services, and Environments and Addresses in the Reference section lists them.
-
-Five principles run through all of it. The rules are **open**, published under a permissive licence so anyone can build against them. They are **evolvable**, so a scheme can add what it needs without breaking everyone else. They are **minimal**, so they are easy to understand and do not hold back innovation. They protect **privacy and security**, with sealed contents and tamper-proof records. And they are **unbundled**, so a participant can adopt one part without adopting all of it.
-
-## Who is on the network
-
-```mermaid
-flowchart LR
-  H1[Hospital] --- X((NHCX))
-  H2[Clinic] --- X
-  A[Patient app] --- X
-  X --- P1[Insurer]
-  X --- P2[Government scheme]
-  X --- T[TPA]
-  X --- R[Regulator]
-  X --- N[Another exchange]
-```
-
-Most of this documentation talks about two parties, the hospital and the insurer. The network recognises more.
-
-- **Providers.** Hospitals and clinics, identified by their Health Facility Registry entry.
-- **Payers.** Insurance companies, and the government agencies that pay for schemes.
-- **TPAs.** Third-party administrators who process claims on an insurer's behalf. On the network a TPA behaves like a payer.
-- **Regulators.** IRDAI and bodies like it, who can search claims across every payer.
-- **Scheme sponsors.** The owner of a programme, for example NHA for Ayushman Bharat, with payer-level access.
-- **Researchers and insurance marketplaces.** Given aggregated or consented data only.
-- **Patient apps.** Personal health record apps that receive notifications on a beneficiary's behalf.
-- **Other exchanges.** NHCX is designed so that more than one instance can exist and relay to each other.
-
-Each role comes with a fixed list of what it may send and receive. A hospital can ask about eligibility and submit claims; it cannot search another hospital's claims. A regulator can search; it cannot submit.
-
-## What changes in practice
-
-Four things are different once a hospital is on the exchange, and the rest of this documentation is about making them work.
-
-**Records go across as records.** A hospital's software already holds the diagnosis, the test results and the treatment as data. Today most of it is printed or turned into a picture before it is sent, and the insurer's software cannot read a picture. On the exchange it goes across as data and stays readable.
-
-**That makes automatic decisions possible.** An insurer can only decide a claim by machine if it can read the values. A blood test sent as ten separate results can be checked automatically; the same test sent as a scan cannot.
-
-**One place to type things.** The hospital's own system becomes the single place the information is entered, rather than being re-keyed into an insurer's portal afterwards. Most rejections on technical grounds come from that second typing.
-
-**Any hospital can reach any insurer.** A small hospital that could never afford to integrate with thirty insurers separately can integrate once.
-
-How Claims Move on NHCX follows a claim from admission to payment, in the ordinary language of the people who do it, before any of this becomes technical.
 
 
 ---

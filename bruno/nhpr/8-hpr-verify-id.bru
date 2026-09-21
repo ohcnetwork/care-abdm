@@ -1,0 +1,19 @@
+meta {
+  name: 8. Verify an HPR ID
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{careUrl}}/api/abdm/users/me/abdm/hpr/verify-id?hpr_id={{hprId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  `GET /v1/search/searchByHprId/{hprId}`: the public record (m4-searched/02). 404 when unknown.
+}

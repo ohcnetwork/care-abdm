@@ -1,0 +1,19 @@
+meta {
+  name: 7. My HPR ID: state
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{careUrl}}/api/abdm/users/me/abdm/hpr
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  Profile, session, pending OTP login, HPID transaction, roles, login methods.
+}

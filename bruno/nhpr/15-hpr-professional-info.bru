@@ -1,0 +1,19 @@
+meta {
+  name: 15. Professional info
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{careUrl}}/api/abdm/users/me/abdm/hpr/professional-info
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  `fetch-professional-info` for the linked HPR ID; stored trimmed on the profile.
+}

@@ -1,6 +1,6 @@
 {
   "source": "https://abdm-docs.dev.eka.care",
-  "fetched_at": "2026-09-19T12:30:25Z",
+  "fetched_at": "2026-09-21T01:40:55Z",
   "catalogue_version": "2026.09.16",
   "skills_built": "2026-09-16",
   "page_prefixes": [
@@ -24,6 +24,6 @@
     "abdm-scan-and-pay",
     "abdm-fhir"
   ],
-  "skill_files_written": 47,
+  "skill_files_written": 50,
   "skill_files_failed": []
 }

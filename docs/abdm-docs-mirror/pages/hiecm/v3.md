@@ -1,6 +1,6 @@
 # Get started
 
-Connect your application to India's health data network.
+Connect your application to India's Interoperable Digital Health Infrastructure.
 
 ## What ABDM is
 

@@ -228,7 +228,7 @@ export default function AbdmEncounterTab({
          * ABHA address and the share state first. `isolate` holds the decorative
          * layers in this card, and the card's own `overflow-hidden` trims them.
          */}
-        <Card className="text-primary-50 shadow-primary-950/25 relative isolate ring-white/10 shadow-lg">
+        <Card className="text-primary-50 shadow-primary-950/25 relative isolate shadow-lg ring-white/10">
           <div
             aria-hidden
             className="from-primary-700 via-primary-900 to-primary-950 pointer-events-none absolute inset-0 -z-10 bg-linear-to-br"
@@ -296,7 +296,7 @@ export default function AbdmEncounterTab({
               <span className="text-primary-200 text-[11px] font-medium tracking-wide uppercase">
                 {t("abdm_tab_counts")}
               </span>
-              <span className="text-xs tabular-nums text-white">
+              <span className="text-xs text-white tabular-nums">
                 {counts.linked} {t("abdm_item_status_linked").toLowerCase()} ·{" "}
                 {counts.staged} {t("abdm_item_status_staged").toLowerCase()} ·{" "}
                 {counts.queued} {t("abdm_item_status_queued").toLowerCase()}

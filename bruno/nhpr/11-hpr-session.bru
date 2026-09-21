@@ -1,0 +1,23 @@
+meta {
+  name: 11. HPR session: logout | unlink
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{careUrl}}/api/abdm/users/me/abdm/hpr/session/logout
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {}
+}
+docs {
+  logout blanks the token; unlink removes the HPR ID from this Care account.
+}

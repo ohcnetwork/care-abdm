@@ -1,0 +1,12 @@
+meta {
+  name: add-facility
+  seq: 13
+}
+
+docs {
+  "Add a facility" (ADR-016): search the Health Facility Registry before a Care facility exists, read
+  the Care prefill for 1 record, and create the Care facility through Care's own create path with the
+  record linked in the same call. Entered from the ABDM admin dashboard or an organization's facilities
+  page. The routes need Care's `can_create_facility`. `organizationId` is optional context: the default
+  `geo_organization` when the form sends none.
+}

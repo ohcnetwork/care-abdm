@@ -421,7 +421,7 @@ Add `.md` to any link below to get that page as markdown. Individual API operati
 - [Pharmacy](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/participants/pharmacy): A pharmacy takes the same roles as a hospital, with a narrower record surface. What differs, and what runs on another gateway.
 - [PHR app](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/participants/phr): The citizen facing app: what identifies it, the three milestones it builds, and why it is where consent happens.
 - [PHR applications](https://abdm-docs.dev.eka.care/docs/hiecm/v3/concepts/phr): What a personal health record app does in ABDM, the screens it needs, and the modules you have to build.
-- [Get started](https://abdm-docs.dev.eka.care/docs/hiecm/v3/getting-started): Connect your application to India's health data network, from sandbox credentials to your first call to going live.
+- [Get started](https://abdm-docs.dev.eka.care/docs/hiecm/v3/getting-started): Connect your application to India's Interoperable Digital Health Infrastructure, from sandbox credentials to your first call to going live.
 - [Build it well](https://abdm-docs.dev.eka.care/docs/hiecm/v3/getting-started/build-it-well): What to validate before you call, what to do with each error, what is safe to retry, and what the person at the counter sees while it happens.
 - [Build with AI](https://abdm-docs.dev.eka.care/docs/hiecm/v3/getting-started/build-with-ai): Set a coding agent up to build your ABDM integration, from a one-file skill to live retrieval over MCP.
 - [Quickstart](https://abdm-docs.dev.eka.care/docs/hiecm/v3/getting-started/first-fifteen-minutes): Create a gateway session and then create your first ABHA, live from this page, with your own sandbox credentials.
@@ -455,7 +455,6 @@ Add `.md` to any link below to get that page as markdown. Individual API operati
 
 ## docs/nhcx
 
-- [Introduction](https://abdm-docs.dev.eka.care/docs/nhcx/v1): What NHCX is, objectives, participants, machine-readable specifications
 - [API references](https://abdm-docs.dev.eka.care/docs/nhcx/v1/api): Every operation published for this gateway, module by module.
 - [PMJAY adjudicator](https://abdm-docs.dev.eka.care/docs/nhcx/v1/api/adjudicator): The PMJAY adjudicator calls on NHCX: what each one does, the hosts they go to, and the guides that use them.
 - [ABHA biometric authentication](https://abdm-docs.dev.eka.care/docs/nhcx/v1/api/biometric): The ABHA biometric authentication calls on NHCX: what each one does, the hosts they go to, and the guides that use them.
@@ -480,6 +479,7 @@ Add `.md` to any link below to get that page as markdown. Individual API operati
 - [Session](https://abdm-docs.dev.eka.care/docs/nhcx/v1/api/session): The Session calls on NHCX: what each one does, the hosts they go to, and the guides that use them.
 - [Status and search](https://abdm-docs.dev.eka.care/docs/nhcx/v1/api/status): The Status and search calls on NHCX: what each one does, the hosts they go to, and the guides that use them.
 - [Status and search errors](https://abdm-docs.dev.eka.care/docs/nhcx/v1/api/status/errors): What Status and search returns when a call fails, and what to do about it.
+- [Introduction](https://abdm-docs.dev.eka.care/docs/nhcx/v1/concepts): What NHCX is, objectives, participants, machine-readable specifications
 - [How claims move on NHCX](https://abdm-docs.dev.eka.care/docs/nhcx/v1/concepts/how-claims-move-on-nhcx): End-to-end claim journey in plain language
 - [JWE, status and errors](https://abdm-docs.dev.eka.care/docs/nhcx/v1/concepts/jwe-status-and-errors): Envelope/letter model, cross-gateway relay, unified correlation ID, status lifecycle (`request.stopped`)
 - [NHCX Use Cases](https://abdm-docs.dev.eka.care/docs/nhcx/v1/concepts/nhcx-use-cases): Catalog of all 40 NHA use cases across A, B, C, D, E series
@@ -489,7 +489,7 @@ Add `.md` to any link below to get that page as markdown. Individual API operati
 - [PMJAY use cases](https://abdm-docs.dev.eka.care/docs/nhcx/v1/concepts/pmjay-use-cases): PMJAY-specific use cases D1 to D13
 - [Workflow Codes](https://abdm-docs.dev.eka.care/docs/nhcx/v1/concepts/workflow-codes): The 74 workflow IDs and their message directions
 - [Base URLs](https://abdm-docs.dev.eka.care/docs/nhcx/v1/getting-started/base-urls): Every service's base in the sandbox and in production, from `baseurl.yaml`
-- [Build with AI](https://abdm-docs.dev.eka.care/docs/nhcx/v1/getting-started/build-with-ai): Give your coding agent the NHCX documentation and skills: over the Docs MCP server, as agent skills, or as Markdown it fetches.
+- [Build with AI](https://abdm-docs.dev.eka.care/docs/nhcx/v1/getting-started/build-with-ai): Set a coding agent up to build your NHCX integration, from one use case skill to live retrieval over MCP.
 - [Building and sending a JWE](https://abdm-docs.dev.eka.care/docs/nhcx/v1/getting-started/building-and-sending-a-jwe): RSA-OAEP-256 + A256GCM compact serialisation
 - [Creating and updating a participant](https://abdm-docs.dev.eka.care/docs/nhcx/v1/getting-started/creating-and-updating-a-participant): Registry onboarding and participant updates
 - [Fetching a recipient certificate](https://abdm-docs.dev.eka.care/docs/nhcx/v1/getting-started/fetching-a-recipient-certificate): Certificate discovery and caching discipline

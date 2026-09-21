@@ -1,3 +1,4 @@
+import { addFacilityPath, statusTone } from "@/components/abdm/nhpr-shared";
 import PluginComponent from "@/components/common/plugin-component";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -19,8 +21,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useTranslation } from "@/hooks/use-translation";
 import careApi, {
+  type AbdmAdminFacilityRow,
   type AbdmAdminOverview,
   type AbdmBridgeState,
 } from "@/lib/careApi";
@@ -28,15 +37,17 @@ import { mutate, query } from "@/lib/request";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  AlertTriangle,
   CheckCircle2,
   CircleDashed,
   Hospital,
   Inbox,
+  Plus,
   RefreshCcw,
   Router,
   Server,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 /**
  * Instance dashboard at /admin/abdm (manifest `routes` + `adminNavItems`).
@@ -120,6 +131,282 @@ function StatusLine({ done, label }: { done: boolean; label: string }) {
   );
 }
 
+/**
+ * The last problem of a facility (ADR-012 D7), as a small badge with the code; the words open on
+ * hover or tap. A long ABDM message never widens the table (Rithvik, 2026-09-19).
+ */
+function ProblemBadge({ row }: { row: AbdmAdminFacilityRow }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const failure = row.last_failure;
+  if (!failure && !row.last_error) {
+    return <span className="text-muted-foreground text-xs">{"\u2014"}</span>;
+  }
+  const code = failure?.code || t("abdm_admin_problem");
+  return (
+    <TooltipProvider delay={150}>
+      <Tooltip open={open} onOpenChange={setOpen}>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex max-w-full items-center"
+            aria-label={t("abdm_admin_problem_details")}
+            onClick={(event) => {
+              event.preventDefault();
+              setOpen((current) => !current);
+            }}
+          >
+            <Badge variant="destructive" size="sm" className="max-w-full">
+              <AlertTriangle className="size-3 shrink-0" />
+              <span className="truncate font-mono">{code}</span>
+            </Badge>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent
+          side="top"
+          align="start"
+          className="grid max-w-sm gap-1.5 text-left text-xs leading-snug break-words whitespace-normal"
+        >
+          {failure && (
+            <>
+              <p className="font-semibold">
+                {failure.operation_id}
+                {failure.code && ` \u00b7 ${failure.code}`}
+              </p>
+              <p className="opacity-80">{formatDate(failure.sent_at)}</p>
+              <p>{failure.detail || failure.what}</p>
+              {failure.nextStep && <p>{failure.nextStep}</p>}
+            </>
+          )}
+          {row.last_error && (
+            <p className={failure ? "border-t pt-1.5" : undefined}>
+              {row.last_error}
+            </p>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function RegistryCell({ row }: { row: AbdmAdminFacilityRow }) {
+  const { t } = useTranslation();
+  if (row.facility_id) {
+    return (
+      <div className="grid gap-0.5">
+        <span className="font-mono text-xs">{row.facility_id}</span>
+        {row.registry_status && (
+          <Badge
+            variant={statusTone(row.registry_status)}
+            size="sm"
+            className="w-fit"
+          >
+            {row.registry_status}
+          </Badge>
+        )}
+      </div>
+    );
+  }
+  if (row.onboarding_status && row.onboarding_status !== "failed") {
+    return (
+      <Badge variant="warning" size="sm">
+        {t(`abdm_hfr_ob_${row.onboarding_status}`)}
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="neutral" size="sm">
+      {t("abdm_hfr_not_linked_badge")}
+    </Badge>
+  );
+}
+
+function ServicesCell({ row }: { row: AbdmAdminFacilityRow }) {
+  const { t } = useTranslation();
+  if (!row.hip_id) {
+    return (
+      <Badge variant="neutral" size="sm">
+        {t("abdm_admin_hip_not_registered")}
+      </Badge>
+    );
+  }
+  return (
+    <div className="grid gap-0.5">
+      <span className="font-mono text-xs">{row.hip_id}</span>
+      <span className="text-muted-foreground truncate text-[11px]">
+        {[row.hip_name, formatDate(row.hrp_registered_at)]
+          .filter((v) => v && v !== "\u2014")
+          .join(" \u00b7 ")}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Every Care facility with its ABDM state (ADR-016): registry link, services, last problem, and the
+ * 1 primary action, "Add a facility". Counts first, a filter when the list grows, then the table,
+ * which scrolls sideways on a narrow screen instead of stretching a column.
+ */
+function FacilitiesCard({ rows }: { rows: AbdmAdminFacilityRow[] }) {
+  const { t } = useTranslation();
+  const [filter, setFilter] = useState("");
+  const counts = useMemo(
+    () => ({
+      linked: rows.filter((r) => r.facility_id).length,
+      services: rows.filter((r) => r.hip_id).length,
+      problems: rows.filter((r) => r.last_failure || r.last_error).length,
+    }),
+    [rows],
+  );
+  const shown = useMemo(() => {
+    const needle = filter.trim().toLowerCase();
+    return needle
+      ? rows.filter(
+          (r) =>
+            r.name.toLowerCase().includes(needle) ||
+            r.facility_id.toLowerCase().includes(needle) ||
+            r.hip_id.toLowerCase().includes(needle),
+        )
+      : rows;
+  }, [rows, filter]);
+  // Full page load on purpose: a client-side move from /admin to an app route crashes the host's
+  // PinPageDialog (hooks order).
+  const addFacility = () => window.location.assign(addFacilityPath());
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex flex-wrap items-center gap-2">
+          <Hospital className="text-muted-foreground size-4" />
+          {t("abdm_admin_facilities")}
+          <Button
+            type="button"
+            size="sm"
+            className="ml-auto"
+            onClick={addFacility}
+          >
+            <Plus className="size-4" /> {t("abdm_add_facility")}
+          </Button>
+        </CardTitle>
+        <CardDescription>
+          {t("abdm_admin_facilities_description")}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        {rows.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <Badge variant="neutral" size="sm">
+              {t("abdm_admin_count_facilities").replace(
+                "{{n}}",
+                String(rows.length),
+              )}
+            </Badge>
+            <Badge variant={counts.linked ? "success" : "neutral"} size="sm">
+              {t("abdm_admin_count_linked").replace(
+                "{{n}}",
+                String(counts.linked),
+              )}
+            </Badge>
+            <Badge variant={counts.services ? "success" : "neutral"} size="sm">
+              {t("abdm_admin_count_services").replace(
+                "{{n}}",
+                String(counts.services),
+              )}
+            </Badge>
+            <Badge
+              variant={counts.problems ? "destructive" : "neutral"}
+              size="sm"
+            >
+              {t("abdm_admin_count_problems").replace(
+                "{{n}}",
+                String(counts.problems),
+              )}
+            </Badge>
+          </div>
+        )}
+        {rows.length > 5 && (
+          <Input
+            value={filter}
+            placeholder={t("abdm_admin_filter_facilities")}
+            className="md:max-w-xs"
+            onChange={(e) => setFilter(e.target.value)}
+          />
+        )}
+        {rows.length === 0 ? (
+          <div className="grid justify-items-center gap-3 rounded-md border border-dashed py-8 text-center">
+            <Hospital className="text-muted-foreground size-8" />
+            <p className="text-muted-foreground text-sm">
+              {t("abdm_admin_no_facilities")}
+            </p>
+            <Button type="button" size="sm" onClick={addFacility}>
+              <Plus className="size-4" /> {t("abdm_add_facility")}
+            </Button>
+          </div>
+        ) : shown.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            {t("abdm_admin_filter_none")}
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-md border">
+            <Table className="min-w-[44rem] table-fixed">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[30%]">
+                    {t("abdm_facility_name")}
+                  </TableHead>
+                  <TableHead className="w-[20%]">
+                    {t("abdm_org_col_registry")}
+                  </TableHead>
+                  <TableHead className="w-[24%]">
+                    {t("abdm_org_col_services")}
+                  </TableHead>
+                  <TableHead className="w-[14%]">
+                    {t("abdm_admin_problem")}
+                  </TableHead>
+                  <TableHead className="w-[12%]" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {shown.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell className="align-top">
+                      <div className="grid min-w-0 gap-0.5">
+                        <span className="truncate font-medium" title={row.name}>
+                          {row.name}
+                        </span>
+                        <span className="text-muted-foreground truncate text-xs">
+                          {row.facility_type || "\u2014"}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <RegistryCell row={row} />
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <ServicesCell row={row} />
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <ProblemBadge row={row} />
+                    </TableCell>
+                    <TableCell className="text-right align-top">
+                      <a
+                        href={`/facility/${row.id}/abdm/setup`}
+                        className="text-primary text-xs whitespace-nowrap underline-offset-4 hover:underline"
+                      >
+                        {t("abdm_open_setup")}
+                      </a>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AbdmAdminDashboard() {
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -138,7 +425,11 @@ export default function AbdmAdminDashboard() {
     }),
     retry: false,
   });
-  const registerUrl = useMutation<AbdmBridgeState, unknown, Record<string, never>>({
+  const registerUrl = useMutation<
+    AbdmBridgeState,
+    unknown,
+    Record<string, never>
+  >({
     mutationFn: mutate(careApi.bridgeRegisterUrl, { silent: true }),
     onMutate: () => setActionError(undefined),
     onSuccess: () => qc.invalidateQueries({ queryKey: OVERVIEW_KEY }),
@@ -226,20 +517,36 @@ export default function AbdmAdminDashboard() {
                     <Router className="text-muted-foreground size-4" />
                     {t("abdm_bridge")}
                   </CardTitle>
-                  <CardDescription>{t("abdm_bridge_description")}</CardDescription>
+                  <CardDescription>
+                    {t("abdm_bridge_description")}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-3 md:grid-cols-2">
-                  <Value label={t("abdm_callback_url")} value={data?.callback_url} />
+                  <Value
+                    label={t("abdm_callback_url")}
+                    value={data?.callback_url}
+                  />
                   <Value label={t("abdm_registered_url")} value={bridgeUrl} />
                   <Value label={t("abdm_bridge_id")} value={data?.bridge?.id} />
-                  <Value label={t("abdm_bridge_name")} value={data?.bridge?.name} />
+                  <Value
+                    label={t("abdm_bridge_name")}
+                    value={data?.bridge?.name}
+                  />
                   <Value
                     label={t("abdm_active")}
-                    value={text(data?.bridge?.active, t("abdm_yes"), t("abdm_no"))}
+                    value={text(
+                      data?.bridge?.active,
+                      t("abdm_yes"),
+                      t("abdm_no"),
+                    )}
                   />
                   <Value
                     label={t("abdm_blocklisted")}
-                    value={text(data?.bridge?.blocklisted, t("abdm_yes"), t("abdm_no"))}
+                    value={text(
+                      data?.bridge?.blocklisted,
+                      t("abdm_yes"),
+                      t("abdm_no"),
+                    )}
                   />
                 </CardContent>
                 <CardFooter className="flex flex-wrap items-center gap-3 border-t">
@@ -314,97 +621,7 @@ export default function AbdmAdminDashboard() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Hospital className="text-muted-foreground size-4" />
-                    {t("abdm_admin_facilities")}
-                  </CardTitle>
-                  <CardDescription>
-                    {t("abdm_admin_facilities_description")}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {!data?.facilities.length ? (
-                    <p className="text-muted-foreground text-sm">
-                      {t("abdm_admin_no_facilities")}
-                    </p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>{t("abdm_facility_name")}</TableHead>
-                          <TableHead>{t("abdm_facility_hfr_id")}</TableHead>
-                          <TableHead>{t("abdm_hip_id")}</TableHead>
-                          <TableHead>{t("abdm_hip_name")}</TableHead>
-                          <TableHead>{t("abdm_admin_hip_status")}</TableHead>
-                          <TableHead />
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {data.facilities.map((row) => (
-                          <TableRow key={row.id}>
-                            <TableCell>
-                              <div className="grid">
-                                <span>{row.name}</span>
-                                {row.last_error && (
-                                  <span className="text-destructive text-xs">
-                                    {row.last_error}
-                                  </span>
-                                )}
-                                {row.last_failure && (
-                                  <span className="text-destructive text-xs">
-                                    {row.last_failure.operation_id}
-                                    {row.last_failure.code &&
-                                      ` \u00b7 ${row.last_failure.code}`}
-                                    {` \u00b7 ${formatDate(row.last_failure.sent_at)}`}
-                                    {row.last_failure.detail &&
-                                      ` \u00b7 ${row.last_failure.detail}`}
-                                  </span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="font-mono text-xs">
-                              {row.facility_id}
-                            </TableCell>
-                            <TableCell className="font-mono text-xs">
-                              {row.hip_id || "\u2014"}
-                            </TableCell>
-                            <TableCell>{row.hip_name || "\u2014"}</TableCell>
-                            <TableCell>
-                              <div className="grid gap-0.5">
-                                <Badge
-                                  variant={row.hip_id ? "success" : "neutral"}
-                                  size="sm"
-                                >
-                                  {row.hip_id
-                                    ? t("abdm_admin_hip_registered")
-                                    : t("abdm_admin_hip_not_registered")}
-                                </Badge>
-                                {row.hrp_registered_at && (
-                                  <span className="text-muted-foreground text-[11px]">
-                                    {formatDate(row.hrp_registered_at)}
-                                  </span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {/* Full page load on purpose: a client-side move from /admin to an
-                                  app route crashes the host's PinPageDialog (hooks order). */}
-                              <a
-                                href={`/facility/${row.id}/abdm/setup`}
-                                className="text-primary text-xs underline-offset-4 hover:underline"
-                              >
-                                {t("abdm_open_setup")}
-                              </a>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
+              <FacilitiesCard rows={data?.facilities ?? []} />
 
               <Card>
                 <CardHeader>
@@ -444,7 +661,8 @@ export default function AbdmAdminDashboard() {
                             <TableCell className="font-mono text-[11px]">
                               <div className="grid gap-0.5">
                                 <span title={row.request_id_header}>
-                                  {row.request_id_header.slice(0, 13) || "\u2014"}
+                                  {row.request_id_header.slice(0, 13) ||
+                                    "\u2014"}
                                 </span>
                                 {row.response_request_id && (
                                   <span
@@ -468,7 +686,8 @@ export default function AbdmAdminDashboard() {
                                   size="sm"
                                 >
                                   {row.signature_status}
-                                  {row.signature_header && ` · ${row.signature_header}`}
+                                  {row.signature_header &&
+                                    ` · ${row.signature_header}`}
                                 </Badge>
                                 {row.signature_error && (
                                   <span className="text-muted-foreground max-w-xs truncate text-[11px]">

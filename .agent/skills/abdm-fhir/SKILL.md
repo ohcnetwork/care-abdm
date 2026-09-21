@@ -11,6 +11,7 @@ This file is a snapshot. Re-download the whole folder from https://abdm-docs.dev
 
 ## What this skill covers
 
+- **Design.** What a generator gets wrong before it reaches a profile table. [references/design.md](references/design.md)
 - **Generate.** Build NRCES compliant bundle generation into a codebase. [references/generate.md](references/generate.md)
 - **Audit.** Check an existing FHIR store's output against the same profiles. [references/audit.md](references/audit.md)
 
@@ -18,8 +19,9 @@ Open one when the work calls for it. This file is the map, not the material.
 
 ## Before anything else
 
-- Nothing here has been run against the ABDM sandbox. Treat request and response shapes as unconfirmed, and check a response before you rely on its shape.
-- A bundle that validates is not a bundle ABDM accepts. The NRCES profiles are the floor, and the milestone the bundle travels under adds its own rules.
+- No call in this skill has been run against the ABDM sandbox. Treat request and response shapes as unconfirmed, and check a response before you rely on its shape.
+- The design section is the exception. Its rules come from building a working front desk against the sandbox, and each atom it cites names what was observed and the date it was seen.
+- A bundle that validates is not a bundle ABDM accepts. The NRCES profiles are the floor, and the milestone the bundle travels under adds its own rules on top.
 
 ## Practices that hold across every call
 

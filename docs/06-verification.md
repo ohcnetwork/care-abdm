@@ -75,6 +75,19 @@ the providers proxy; 403 without `can_view_clinical_data`. It snapshots every pl
 deletes only what it created. Expected last lines: `M3 SMOKE OK — outbound calls: 16 callbacks: 11` and
 `cleanup done`.
 
+M4 uses `m4_smoke.py` (session `f18b6f36…`, 2026-09-19). Run it after `manage.py migrate abdm`; it needs
+a superuser without an HPR profile and 2 more active users:
+
+```sh
+.venv/bin/python manage.py shell < ~/.copilot/session-state/f18b6f36-94a4-4be3-968f-8a0ed28422c9/files/m4_smoke.py
+```
+
+It patches only `gateway.outbound.requests.request` and `gateway.outbound.get_access_token`. The script
+is the NHPR: it generates an RSA key, serves it on `/api/v1/auth/cert`, and decrypts the mobile number,
+the OTP and the password the plug sends, which proves the RSA/ECB/PKCS1 path. It drives the 4 tiers
+(`03-roadmap.md` Phase 5) and the masters cache, then deletes what it created and restores the facility
+extension. Expected last lines: `M4 SMOKE OK — NHPR calls: 50 total calls: 54` and `cleanup done`.
+
 FHIR bundles use `fhir_smoke.py` in the same directory. It builds the 3 record types from fixture
 CARE data, writes them to files and runs MCP `validate_fhir` on each
 (`python3 /tmp/mcp_tool.py validate_fhir '{"record_type":"<type>"}' --file <bundle>`; the helper
@@ -101,19 +114,34 @@ Observed 2026-09-17 (later): 78 tests. Result: OK (`test_errors.py`: the ADR-012
 
 Observed 2026-09-18: 90 tests. Result: OK (`test_sharing_rules.py` added for ADR-013).
 Observed 2026-09-19: 118 tests in 0.8 s. Result: OK (`test_hiu_rules.py` added for ADR-014: every M3 parser is run on the example body of its docs page; the 6 M3 paths in `test_callback_paths.py`).
+Observed 2026-09-19 (later): 149 tests in 0.9 s. Result: OK (`test_nhpr_rules.py` and `test_nhpr_crypto.py` added for ADR-015).
+Observed 2026-09-19 (later): 152 tests in 1.3 s. Result: OK (`CarePrefillTests` in `test_nhpr_rules.py` for ADR-016).
+Observed 2026-09-19 (later): 153 tests in 1.4 s. Result: OK (`test_validate_clamps_the_range_end_to_now` in `test_hiu_rules.py`, findings L9).
 
 The tests run without Django. Pure rules must live in a module with no Django import
 (`abha/checksums.py`, `share/rules.py`, `facility/rules.py`, `hip/rules.py`, `hip/crypto.py`, `hiu/rules.py`,
-`fhir/bundle.py`, `callbacks/paths.py`).
+`nhpr/rules.py`, `nhpr/crypto.py`, `fhir/bundle.py`, `callbacks/paths.py`).
 
 ## Frontend
 
 ```sh
 cd ~/ohc.network/care-abdm-sbx/frontend
+npx tsc --noEmit -p tsconfig.app.json   # 0 errors
 npm run build          # tsc -b && vite build; must produce dist/assets/remoteEntry.js
-npx eslint src         # 0 errors
-grep -oh 't("abdm_[a-z_]*"' -r src | sort -u   # every key must exist in public/locale/en.json
+npx eslint src         # 0 errors (10 pre-existing fast-refresh warnings in ui/*)
+grep -oh 't("abdm_[a-z_0-9]*"' -r src | sort -u   # every key must exist in public/locale/en.json
 ```
+
+Field help (ADR-016) is keyed by label: `abdm_nhpr_help_<label key without abdm_>_{title,what,how,example}`.
+A field whose 4 keys are missing renders without the icon, so the grep above does not cover them; check
+with `python3 -c 'import json;d=json.load(open("public/locale/en.json"));print(len([k for k in d if k.startswith("abdm_nhpr_help_") and k.endswith("_what")]))'`
+(125 on 2026-09-19).
+
+Smokes (session files; real Care auth and DB; the network mocked): `m2_smoke.py` prints
+`M2 SMOKE OK — outbound calls: 33`, `m3_smoke.py` prints `M3 SMOKE OK — outbound calls: 18 callbacks: 11`,
+`m4_smoke.py` prints `M4 SMOKE OK — NHPR calls: 58 total calls: 64` (2026-09-19, ADR-016: every smoke links
+the facility through the registry mock; `m4_smoke.py` section G runs the "Add a facility" create path and
+reads the admin overview rows).
 
 Definition of done for the MFE is `remoteEntry.js` fetchable over HTTP with
 `Access-Control-Allow-Origin: *` from the preview the user runs — a build alone is not proof.
@@ -153,3 +181,6 @@ if(f.endsWith(".bru")&&f!=="collection.bru"&&f!=="folder.bru")bruToJsonV2(fs.rea
 
 Observed 2026-09-15: 59 files parsed, 47 requests, and the request paths matched `urls.py` both ways.
 Observed 2026-09-19: 60 requests parsed (`hiu/` folder and 6 M3 callbacks added); the route diff against `urls.py` is empty both ways.
+Observed 2026-09-19 (later): 77 requests parsed (`nhpr/` folder added); the route diff against `urls.py` is empty both ways.
+Observed 2026-09-19 (later): 82 requests parsed (`organizations/` folder, 5 requests, ADR-016); the 5 new paths match `urls.py`.
+Observed 2026-09-19 (later): 81 requests parsed (`organizations/` renamed `add-facility/`, 4 requests on the organization-less routes; the list request folded into `admin/overview`).

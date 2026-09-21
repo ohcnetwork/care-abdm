@@ -1,0 +1,23 @@
+meta {
+  name: 13. Register the professional
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{careUrl}}/api/abdm/users/me/abdm/hpr/register
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  { "practitioner": { "healthProfessionalType": "doctor", "personalInformation": { "firstName": "Ana" }, "registrationAcademic": { "category": "1", "registrationData": [ { "registeredWithCouncil": "47", "registrationNumber": "REG1", "registrationCertificate": { "fileType": "pdf", "data": "JVBERi0xLjM=" }, "qualifications": [] } ] }, "currentWorkDetails": { "currentlyWorking": "0" } } }
+}
+docs {
+  The full `practitioner` block of m4-enrollment/01; the plug adds `hprToken`. `register/update` sends `update-professional-new`.
+}

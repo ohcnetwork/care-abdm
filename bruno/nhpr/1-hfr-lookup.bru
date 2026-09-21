@@ -1,0 +1,19 @@
+meta {
+  name: 1. HFR lookup by facility ID
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{careUrl}}/api/abdm/facilities/{{facilityId}}/abdm/hfr/lookup?facility_id={{hfrFacilityId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  `POST FacilityManagement/v1.5/facility/search` by `facilityId` (m4-search/02). 404 when the HFR holds no such facility.
+}

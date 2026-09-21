@@ -631,3 +631,109 @@ class AbdmFetchedRecord(BaseModel):
 
     def __str__(self):
         return f"record:{self.hi_type or '?'}:{self.care_context_reference}"
+
+
+# --- M4: NHPR (HPR + HFR), ADR-015 --------------------------------------------------------------
+
+
+class AbdmHprProfile(BaseModel):
+    """
+    The HPR ID a Care user linked (by an HPR login) or created (journey 1). 1 row per user.
+
+    Holds the person's HPR token: the `x-hprid-auth` of the HFR create and submit calls and the
+    bearer of the profile calls (registries/nhpr/hfr §The link to the HPR token). It is a secret
+    and never leaves the server. Photos are never stored here.
+    """
+
+    class Source(models.TextChoices):
+        LOGIN = "login"  # verified by an HPR login (password or Aadhaar OTP)
+        CREATED = "created"  # the HPID was created through the plug
+
+    user = models.OneToOneField("users.User", on_delete=models.CASCADE, related_name="abdm_hpr_profile")
+    hpr_id = models.CharField(max_length=128, blank=True, default="", db_index=True)  # name@hpr.abdm
+    hpr_id_number = models.CharField(max_length=32, blank=True, default="", db_index=True)  # 14 digits
+    name = models.CharField(max_length=256, blank=True, default="")
+    category_code = models.CharField(max_length=16, blank=True, default="")
+    sub_category_code = models.CharField(max_length=16, blank=True, default="")
+    role = models.PositiveSmallIntegerField(null=True, blank=True)
+    source = models.CharField(max_length=16, choices=Source.choices, default=Source.LOGIN)
+    account = models.JSONField(default=dict, blank=True)  # parse_account_information, no photo
+    professional = models.JSONField(default=dict, blank=True)  # fetch-professional-info, trimmed
+    registered_at = models.DateTimeField(null=True, blank=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    token = models.TextField(blank=True, default="")
+    token_expires_at = models.DateTimeField(null=True, blank=True)
+    refresh_token = models.TextField(blank=True, default="")
+    refresh_expires_at = models.DateTimeField(null=True, blank=True)
+    token_method = models.CharField(max_length=16, blank=True, default="")
+    token_issued_at = models.DateTimeField(null=True, blank=True)
+
+    @property
+    def token_valid(self) -> bool:
+        from django.utils import timezone
+
+        return bool(self.token) and (self.token_expires_at is None or self.token_expires_at > timezone.now())
+
+    def __str__(self):
+        return f"hpr:{self.user_id}:{self.hpr_id or self.hpr_id_number}"
+
+
+class AbdmHprLogin(BaseModel):
+    """1 HPR login in progress by OTP (`auth/init` -> `confirmWithAadhaarOtp`). Keyed by the registry txn."""
+
+    class Status(models.TextChoices):
+        OTP_SENT = "otp_sent"
+        VERIFIED = "verified"
+        FAILED = "failed"
+
+    user = models.ForeignKey("users.User", on_delete=models.CASCADE)
+    hpr_id = models.CharField(max_length=128)
+    auth_method = models.CharField(max_length=16)
+    txn_id = models.CharField(max_length=128, blank=True, default="", db_index=True)
+    mobile_masked = models.CharField(max_length=32, blank=True, default="")
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.OTP_SENT)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    error_code = models.CharField(max_length=64, blank=True, default="")
+    error_message = models.CharField(max_length=512, blank=True, default="")
+
+    def __str__(self):
+        return f"hpr-login:{self.hpr_id}:{self.status}"
+
+
+class AbdmHpidTransaction(BaseModel):
+    """
+    1 HPID creation (M4 journey 1) for 1 Care user: Aadhaar link -> authenticated -> details ->
+    account check -> mobile -> username -> create. The Aadhaar photo is kept only until the HPID
+    is created (it is the `profilePhoto` of the create call), then blanked.
+    """
+
+    class Status(models.TextChoices):
+        LINK_CREATED = "link_created"
+        AADHAAR_VERIFIED = "aadhaar_verified"
+        ACCOUNT_EXISTS = "account_exists"
+        MOBILE_VERIFIED = "mobile_verified"
+        CREATED = "created"
+        FAILED = "failed"
+
+    user = models.ForeignKey("users.User", on_delete=models.CASCADE)
+    txn_id = models.CharField(max_length=128, blank=True, default="", db_index=True)
+    status = models.CharField(max_length=24, choices=Status.choices, default=Status.LINK_CREATED, db_index=True)
+    aadhaar_url = models.URLField(max_length=1024, blank=True, default="")
+    link_expires_at = models.DateTimeField(null=True, blank=True)
+    details = models.JSONField(default=dict, blank=True)  # Aadhaar demographics, no photo
+    photo = models.TextField(blank=True, default="")  # base64, blanked at creation
+    mobile_masked = models.CharField(max_length=32, blank=True, default="")
+    mobile_verified = models.BooleanField(default=False)
+    otp_sent_at = models.DateTimeField(null=True, blank=True)
+    suggestions = models.JSONField(default=list, blank=True)
+    existing = models.JSONField(default=dict, blank=True)  # parse_account_exists, no token
+    hpr_id = models.CharField(max_length=128, blank=True, default="")
+    hpr_id_number = models.CharField(max_length=32, blank=True, default="")
+    error_code = models.CharField(max_length=64, blank=True, default="")
+    error_message = models.CharField(max_length=512, blank=True, default="")
+    last_request = models.ForeignKey(
+        AbdmOutboundRequest, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+
+    def __str__(self):
+        return f"hpid-txn:{self.user_id}:{self.status}"

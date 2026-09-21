@@ -1,0 +1,19 @@
+meta {
+  name: 2. HFR search by name
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{careUrl}}/api/abdm/facilities/{{facilityId}}/abdm/hfr/search?name=hospital&state=
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  Fuzzy on the name, exact on the LGD state code. At least 3 characters.
+}

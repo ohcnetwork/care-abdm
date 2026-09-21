@@ -1,0 +1,24 @@
+meta {
+  name: 12. Create an HPID: step
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{careUrl}}/api/abdm/users/me/abdm/hpr/create/start
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {}
+}
+docs {
+  Actions: start (generateLink), poll (isAuthenticated -> verifyOTP -> checkHpIdAccountExist), mobile {"mobile"},
+  mobile-verify {"otp"}, suggestions, finish {"username","email","password","category_code","sub_category_code","state_code","district_code","role"}, cancel.
+}

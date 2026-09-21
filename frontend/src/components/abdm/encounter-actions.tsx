@@ -29,9 +29,14 @@ export default function AbdmEncounterActions({
   const { data, isLoading } = useCareContext(encounter.id);
   if (isLoading || !data || !data.facilityConfigured) return null;
   const view = viewFor(data);
-  const waiting = data.shareItems.filter((i) => i.status === "staged" || i.status === "failed").length;
+  const waiting = data.shareItems.filter(
+    (i) => i.status === "staged" || i.status === "failed",
+  ).length;
   // The tab route is the encounter route with its last segment replaced (EncounterShow `tab`).
-  const target = path.replace(/\/encounter\/([^/]+)(\/[^/]*)?$/, "/encounter/$1/abdm");
+  const target = path.replace(
+    /\/encounter\/([^/]+)(\/[^/]*)?$/,
+    "/encounter/$1/abdm",
+  );
   return (
     <PluginComponent>
       <button

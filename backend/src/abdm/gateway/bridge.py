@@ -118,15 +118,19 @@ REQUIRED_HRP_FIELDS = {"facility_id": "HFR facility ID", "facility_name": "Facil
 
 
 def hrp_registration_body(config: dict, bridge: str) -> dict:
-    """Body of gateway-register-bridge-services for 1 facility in the HIP role."""
+    """Body of gateway-register-bridge-services for 1 facility, in the HIP and the HIU role.
+
+    ADR-015: M3 needs the HIU role, so both types are named (`m4-multiple-hrp-api/01`, 1 HRP entry
+    per type). The sandbox returned both types for a HIP-only registration (findings B18)."""
     missing = [label for field, label in REQUIRED_HRP_FIELDS.items() if not str(config.get(field) or "").strip()]
     if missing:
         raise HrpRegistrationError(f"Fill these fields on the ABDM setup page first: {', '.join(missing)}.")
-    return {
-        "facilityId": config["facility_id"],
-        "facilityName": config["facility_name"],
-        "HRP": [{"bridgeId": bridge, "hipName": config["hip_name"], "type": "HIP", "active": True}],
-    }
+    from abdm.nhpr.rules import hrp_linkage_body
+
+    try:
+        return hrp_linkage_body(config["facility_id"], config["facility_name"], bridge, config["hip_name"])
+    except ValueError as exc:
+        raise HrpRegistrationError(str(exc)) from exc
 
 
 def register_hrp_service(facility, config: dict) -> dict:

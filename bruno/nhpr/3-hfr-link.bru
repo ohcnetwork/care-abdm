@@ -1,0 +1,23 @@
+meta {
+  name: 3. Link a registry facility
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{careUrl}}/api/abdm/facilities/{{facilityId}}/abdm/hfr/link
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  { "facility_id": "{{hfrFacilityId}}" }
+}
+docs {
+  Stores the HFR ID and the registered name on the Care facility, sets a default HIP name, and re-reads the HIP ID from the bridge services.
+}

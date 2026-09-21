@@ -1,4 +1,5 @@
-import FieldHelp, { type FieldHelpContent } from "@/components/abdm/field-help";
+import { type FieldHelpContent } from "@/components/abdm/field-help";
+import RegistryCard from "@/components/abdm/registry-card";
 import PluginComponent from "@/components/common/plugin-component";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +8,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -22,17 +22,9 @@ import careApi, {
   type FacilityBridgeActionResponse,
 } from "@/lib/careApi";
 import { mutate, query } from "@/lib/request";
-import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  CheckCircle2,
-  CircleDashed,
-  Hospital,
-  QrCode,
-  X,
-} from "lucide-react";
+import { QrCode, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
 /**
@@ -59,15 +51,9 @@ const blankConfig: AbdmFacilityConfig = {
   counters: [],
 };
 
-const FACILITY_ID_RE = /^IN[A-Za-z0-9]{10}$/;
-const FACILITY_NAME_RE = /^[A-Za-z0-9 \-_.(),/]+$/;
 const HIP_NAME_RE = /^[A-Za-z0-9 ]{1,15}$/;
-const editableConfigKeys = [
-  "facility_id",
-  "facility_name",
-  "hip_name",
-  "counters",
-] as const;
+// The 2 typed fields (ADR-016). The HFR id and name come from a registry link.
+const editableConfigKeys = ["hip_name", "counters"] as const;
 
 /**
  * The docs say only that the counter QR code holds a URL with the HIP ID and a
@@ -85,18 +71,8 @@ function shareQrUrl(
     .replace("{context}", encodeURIComponent(context));
 }
 
-type TextField = keyof Pick<
-  AbdmFacilityConfig,
-  "facility_id" | "facility_name" | "hip_name"
->;
-
 function editablePayload(config: AbdmFacilityConfig): AbdmFacilityConfigUpdate {
-  return {
-    facility_id: config.facility_id,
-    facility_name: config.facility_name,
-    hip_name: config.hip_name,
-    counters: config.counters,
-  };
+  return { hip_name: config.hip_name, counters: config.counters };
 }
 
 function errorMessage(error: unknown, fallback: string) {
@@ -106,53 +82,6 @@ function errorMessage(error: unknown, fallback: string) {
     if (typeof value === "string") return value;
   }
   return fallback;
-}
-
-function Field({
-  name,
-  label,
-  hint,
-  placeholder,
-  help,
-  disabled,
-  value,
-  validationMessage,
-  trailing,
-  config,
-  onChange,
-}: {
-  name: TextField;
-  label: string;
-  hint?: string;
-  placeholder?: string;
-  help: FieldHelpContent;
-  disabled?: boolean;
-  value?: string;
-  validationMessage?: string;
-  trailing?: ReactNode;
-  config: AbdmFacilityConfig;
-  onChange: (next: Partial<AbdmFacilityConfig>) => void;
-}) {
-  return (
-    <div className="grid gap-1.5">
-      <div className="flex min-h-5 items-center gap-1.5">
-        <Label htmlFor={`abdm-${name}`}>{label}</Label>
-        <FieldHelp {...help} />
-        {trailing}
-      </div>
-      <Input
-        id={`abdm-${name}`}
-        value={value ?? config[name] ?? ""}
-        placeholder={placeholder}
-        autoComplete="off"
-        disabled={disabled}
-        spellCheck={false}
-        onChange={(e) => onChange({ [name]: e.target.value })}
-      />
-      <p className="text-muted-foreground min-h-4 text-xs">{hint || "\u00A0"}</p>
-      <p className="text-destructive min-h-4 text-xs">{validationMessage || "\u00A0"}</p>
-    </div>
-  );
 }
 
 function labelHelp(
@@ -165,34 +94,6 @@ function labelHelp(
     how: t(`abdm_facility_help_${field}_how`),
     example: t(`abdm_facility_help_${field}_example`),
   };
-}
-
-/** Shows when an ABDM registration call last succeeded. */
-function RegistrationStatus({
-  label,
-  timestamp,
-  notRecorded,
-}: {
-  label: string;
-  timestamp?: string;
-  notRecorded: string;
-}) {
-  const done = Boolean(timestamp);
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 text-xs",
-        done ? "text-green-800" : "text-muted-foreground",
-      )}
-    >
-      {done ? (
-        <CheckCircle2 className="size-3.5" />
-      ) : (
-        <CircleDashed className="size-3.5" />
-      )}
-      {label}: {timestamp ? new Date(timestamp).toLocaleString() : notRecorded}
-    </span>
-  );
 }
 
 export default function AbdmFacilitySetupPage({
@@ -279,14 +180,8 @@ export default function AbdmFacilitySetupPage({
         JSON.stringify(config[key] ?? "") !== JSON.stringify(saved[key] ?? ""),
     );
   }, [config, saved]);
-  const facilityIdInvalid =
-    Boolean(config.facility_id) && !FACILITY_ID_RE.test(config.facility_id);
-  const facilityNameInvalid =
-    Boolean(config.facility_name) &&
-    !FACILITY_NAME_RE.test(config.facility_name);
-  const hipNameInvalid =
+  const formInvalid =
     Boolean(config.hip_name) && !HIP_NAME_RE.test(config.hip_name);
-  const formInvalid = facilityIdInvalid || facilityNameInvalid || hipNameInvalid;
 
   const busy = save.isPending || hrp.isPending;
   const [newCounter, setNewCounter] = useState("");
@@ -375,114 +270,18 @@ export default function AbdmFacilitySetupPage({
             </div>
           ) : (
             <>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Hospital className="text-muted-foreground size-4" />
-                    {t("abdm_section_facility_identity")}
-                  </CardTitle>
-                  <CardDescription>
-                    {t("abdm_section_facility_identity_help")}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-2">
-                  <Field
-                    name="facility_id"
-                    label={t("abdm_facility_hfr_id")}
-                    hint={t("abdm_facility_hfr_id_help")}
-                    placeholder="IN1410000232"
-                    help={labelHelp("facility_id", t)}
-                    validationMessage={
-                      facilityIdInvalid
-                        ? t("abdm_facility_hfr_id_invalid")
-                        : undefined
-                    }
-                    config={config}
-                    onChange={update}
-                  />
-                  <Field
-                    name="facility_name"
-                    label={t("abdm_facility_name")}
-                    hint={t("abdm_facility_name_help")}
-                    help={labelHelp("facility_name", t)}
-                    validationMessage={
-                      facilityNameInvalid
-                        ? t("abdm_facility_name_invalid")
-                        : undefined
-                    }
-                    config={config}
-                    onChange={update}
-                  />
-                  <Field
-                    name="hip_name"
-                    label={t("abdm_hip_name")}
-                    hint={t("abdm_hip_name_help")}
-                    help={labelHelp("hip_name", t)}
-                    validationMessage={
-                      hipNameInvalid ? t("abdm_hip_name_invalid") : undefined
-                    }
-                    trailing={
-                      <span className="text-muted-foreground ml-auto w-12 text-right font-mono text-xs tabular-nums">
-                        {config.hip_name.length}/15
-                      </span>
-                    }
-                    config={config}
-                    onChange={update}
-                  />
-                  {/* Read-only: the gateway issues the HIP ID when the HRP service is registered. */}
-                  <div className="grid gap-1.5">
-                    <Label>{t("abdm_hip_id_issued")}</Label>
-                    {config.hip_id ? (
-                      <p className="font-mono text-sm">{config.hip_id}</p>
-                    ) : (
-                      <p className="text-muted-foreground text-sm">
-                        {t("abdm_hip_id_pending")}
-                      </p>
-                    )}
-                    <p className="text-muted-foreground text-xs">
-                      {t("abdm_hip_id_help")}
-                    </p>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex flex-wrap items-center gap-3 border-t">
-                  <div className="grid gap-1">
-                    <RegistrationStatus
-                      label={t("abdm_hrp_registered_at")}
-                      timestamp={config.hrp_registered_at}
-                      notRecorded={t("abdm_not_recorded")}
-                    />
-                    {/* The bridge is instance level; HRP registration needs it first. */}
-                    <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
-                      {bridge.data?.bridge?.url &&
-                      bridge.data.bridge.url === bridge.data.callback_url
-                        ? t("abdm_bridge_registered")
-                        : t("abdm_bridge_not_registered")}
-                      <a
-                        href="/admin/abdm"
-                        className="text-primary underline-offset-4 hover:underline"
-                      >
-                        {t("abdm_bridge_admin_link")}
-                      </a>
-                    </span>
-                  </div>
-                  <div className="ml-auto flex items-center gap-2">
-                    {dirty && (
-                      <span className="text-muted-foreground text-xs">
-                        {t("abdm_save_before_register")}
-                      </span>
-                    )}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={busy || dirty || formInvalid || !config.facility_id}
-                      onClick={() => hrp.mutate({})}
-                    >
-                      {t("abdm_register_hrp_service")}
-                    </Button>
-                  </div>
-                </CardFooter>
-              </Card>
+              {/* ADR-016: 1 card for the registry link, the HIP name and the services registration. */}
+              <RegistryCard
+                facilityId={facilityId}
+                config={config}
+                hipNameHelp={labelHelp("hip_name", t)}
+                dirty={dirty}
+                busy={busy}
+                bridge={bridge.data}
+                onChange={update}
+                onLinked={applyResult}
+                onRegisterServices={() => hrp.mutate({})}
+              />
 
               <Card>
                 <CardHeader>

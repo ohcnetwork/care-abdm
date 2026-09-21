@@ -102,8 +102,21 @@ class AbdmFacilityExtension(PlugExtension):
         "title": "ABDM",
         "type": "object",
         "properties": {
-            "facility_id": {"type": "string", "title": "HFR facility ID", "default": ""},
-            "facility_name": {"type": "string", "title": "Facility name", "default": ""},
+            # Set only by a registry link (lookup, search or the HFR wizard), never typed (ADR-016).
+            "facility_id": {
+                "type": "string",
+                "title": "HFR facility ID",
+                "default": "",
+                "readOnly": True,
+                "x-ui": {"render_blacklist": SERVER_OWNED},
+            },
+            "facility_name": {
+                "type": "string",
+                "title": "Registered facility name",
+                "default": "",
+                "readOnly": True,
+                "x-ui": {"render_blacklist": SERVER_OWNED},
+            },
             "hip_name": {"type": "string", "title": "HIP name", "default": ""},
             "counters": {
                 "type": "array",
@@ -131,6 +144,22 @@ class AbdmFacilityExtension(PlugExtension):
                 "type": "string",
                 "title": "Last ABDM error",
                 "readOnly": True,
+                "x-ui": {"render_blacklist": SERVER_OWNED},
+            },
+            # The registry record behind `facility_id`, as the HFR returned it at link time (nhpr/facility.py).
+            "hfr": {
+                "type": "object",
+                "title": "Registry record",
+                "readOnly": True,
+                "additionalProperties": True,
+                "x-ui": {"render_blacklist": SERVER_OWNED},
+            },
+            # The resumable HFR onboarding (journey 3): tracking id, status, the step bodies without photo bytes.
+            "hfr_onboarding": {
+                "type": "object",
+                "title": "HFR onboarding",
+                "readOnly": True,
+                "additionalProperties": True,
                 "x-ui": {"render_blacklist": SERVER_OWNED},
             },
         },

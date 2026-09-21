@@ -7,9 +7,9 @@ Complete the steps yourself by running the commands directly. Ask the user only 
 Ask the user which of these this project needs, and install only what they name:
 
 - `abdm-gateway`: Gateway, sessions and the bridge registry. Sections: scaffold, integrate, debug.
-- `abdm-m1`: M1, ABHA identity. Sections: scaffold, integrate, debug.
-- `abdm-m2`: M2, linking and sharing. Sections: scaffold, integrate, debug.
-- `abdm-m3`: M3, consent and fetching. Sections: scaffold, integrate, debug.
+- `abdm-m1`: M1, ABHA identity. Sections: scaffold, design, integrate, debug.
+- `abdm-m2`: M2, linking and sharing. Sections: scaffold, design, integrate, debug.
+- `abdm-m3`: M3, consent and fetching. Sections: scaffold, design, integrate, debug.
 - `abdm-m4`: M4, facility and professional registries. Sections: scaffold, integrate, debug.
 - `abdm-p1`: P1, PHR registration and login. Sections: scaffold, integrate, debug.
 - `abdm-p2`: P2, PHR management. Sections: scaffold, integrate, debug.

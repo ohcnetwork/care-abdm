@@ -1,0 +1,19 @@
+meta {
+  name: 4. HFR onboarding state
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{careUrl}}/api/abdm/facilities/{{facilityId}}/abdm/hfr/onboarding
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  The wizard state: the current onboarding, the caller HPR session, and the Care prefill.
+}

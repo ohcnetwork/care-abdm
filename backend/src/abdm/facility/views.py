@@ -1,3 +1,4 @@
+from care.emr.models.organization import Organization
 from care.facility.models import Facility
 from care.security.authorization import AuthorizationController
 from django.shortcuts import get_object_or_404
@@ -8,14 +9,15 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from abdm.facility import service
+from abdm.facility import create, service
 from abdm.gateway.bridge import HrpRegistrationError
+from abdm.nhpr import facility as hfr
 from abdm.settings import plugin_settings
 
 
 class FacilityAbdmConfigBody(BaseModel):
-    facility_id: str = ""
-    facility_name: str = ""
+    """The 2 typed fields. The HFR id and name come only from a registry link (ADR-016)."""
+
     hip_name: str = ""
     counters: list[str] = []
 
@@ -58,7 +60,7 @@ class FacilityAbdmConfig(APIView):
         _can_update(request, facility)
         data = _parse(FacilityAbdmConfigBody, request.data)
         try:
-            return Response(_with_share_settings(service.save_config(facility, data.model_dump())))
+            return Response(_with_share_settings(service.save_config(facility, data.model_dump(exclude_unset=True))))
         except ValueError as exc:
             raise ValidationError({"errors": str(exc)}) from exc
 
@@ -71,7 +73,105 @@ class FacilityHrpServices(APIView):
     def post(self, request, facility_id):
         facility = _facility(facility_id)
         _can_update(request, facility)
+        if not service.is_linked(facility):
+            raise ValidationError({"errors": "Link the facility to its Health Facility Registry record first."})
         try:
             return Response(service.register_hrp_service(facility))
         except HrpRegistrationError as exc:
             raise ValidationError({"errors": str(exc)}) from exc
+
+
+# --- "Add a facility" (ADR-016): gated on Care's `can_create_facility`; the organization is optional ---
+
+
+def _organization(organization_id) -> Organization | None:
+    if not organization_id:
+        return None
+    return get_object_or_404(Organization, external_id=organization_id, org_type="govt")
+
+
+def _refused(exc: hfr.HfrError) -> ValidationError:
+    return ValidationError({"errors": exc.message, "code": exc.code, "requestId": exc.request_id})
+
+
+class FacilityFormOptions(APIView):
+    """GET: Care's facility type and feature lists, for the plug's own facility form."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(create.form_options())
+
+
+class HfrSearchForCreate(APIView):
+    """GET ?facility_id=IN... | ?name=&state=&district=&page=: the registry, before a Care facility exists."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        create.require_can_create(request.user)
+        q = request.query_params
+        try:
+            if q.get("facility_id"):
+                record = hfr.lookup(str(q.get("facility_id")))
+                return Response({"facilities": [record] if record else [], "message": "", "total": 1, "pages": 1})
+            try:
+                page = int(q.get("page") or 1)
+            except ValueError:
+                page = 1
+            return Response(
+                hfr.search(
+                    name=str(q.get("name") or ""),
+                    state_lgd=str(q.get("state") or ""),
+                    district_lgd=str(q.get("district") or ""),
+                    page=page,
+                )
+            )
+        except hfr.HfrError as exc:
+            raise _refused(exc) from exc
+
+
+class HfrPrefill(APIView):
+    """GET ?facility_id=IN...: the record, the Care fields it fills, the matching government organizations."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        create.require_can_create(request.user)
+        try:
+            return Response(create.prefill(str(request.query_params.get("facility_id") or "")))
+        except hfr.HfrError as exc:
+            if exc.code == "NOT_FOUND":
+                return Response({"errors": exc.message}, status=404)
+            raise _refused(exc) from exc
+
+
+class CreateFacilityBody(BaseModel):
+    care: dict
+    registry_id: str = ""
+    hip_name: str = ""
+    organization: str = ""  # optional context: the default `geo_organization` when the form sent none
+
+
+class CreateFacility(APIView):
+    """POST {care, registry_id?, hip_name?, organization?}: create the Care facility through Care's own
+    path and link the registry record."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        create.require_can_create(request.user)
+        body = _parse(CreateFacilityBody, request.data)
+        care_data = dict(body.care)
+        organization = _organization(body.organization.strip())
+        if organization is not None:
+            care_data.setdefault("geo_organization", str(organization.external_id))
+        try:
+            return Response(
+                create.create_facility(
+                    request, care_data, registry_id=body.registry_id.strip(), hip_name=body.hip_name.strip()
+                ),
+                status=201,
+            )
+        except hfr.HfrError as exc:
+            raise _refused(exc) from exc

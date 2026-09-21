@@ -1,0 +1,20 @@
+meta {
+  name: 1. Care facility form options
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{careUrl}}/api/abdm/care/facility-form-options
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: ******
+}
+
+docs {
+  Care's facility type names and feature ids (care/facility/models/facility.py), so the plug's form
+  never drifts from the host. Any authenticated user.
+}

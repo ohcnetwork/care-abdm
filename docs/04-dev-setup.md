@@ -1,4 +1,4 @@
-# 04 — Local dev setup (as of 2026-09-19, ADR-011 to ADR-014)
+# 04 — Local dev setup (as of 2026-09-19, ADR-011 to ADR-015)
 
 ## Backend
 
@@ -16,7 +16,7 @@
 - Use `ABDM_GATEWAY_URL=https://dev.abdm.gov.in`.
   Do not add an `/api/hiecm` suffix.
 - Use `ABDM_HSP_URL=https://apihspsbx.abdm.gov.in`.
-  Only the HRP service registration uses this host.
+  The HRP service registration and every M4 (NHPR) call use this host, under `/v4/int` (ADR-015). No M4 credential beyond the client id and secret is configured: the gateway session token is the bearer, and a person's HPR token comes from their own login in the UI.
   The gateway host answers HTTP 503 for that path (findings, 2026-09-14).
 - Use `ABDM_ABHA_URL=https://abhasbx.abdm.gov.in/abha/api`.
   Do not add `/v3`.
@@ -29,6 +29,10 @@
   then `.venv/bin/python manage.py migrate abdm`.
 - Apply migrations after every pull:
   `cd ~/ohc.network/care && set -a && . ./.env && set +a && .venv/bin/python manage.py migrate abdm`.
+- Migration `0004` was edited on 2026-09-19 (ADR-016 removed `AbdmHfrOnboarding`). A local database that
+  applied the earlier `0004` must roll back and re-apply once (local test data only):
+  `.venv/bin/python manage.py migrate abdm 0003 && .venv/bin/python manage.py migrate abdm`,
+  then drop the orphan table: `.venv/bin/python manage.py dbshell` → `DROP TABLE IF EXISTS abdm_abdmhfronboarding;`.
 - Run Care:
   `cd ~/ohc.network/care && set -a && . ./.env && set +a && .venv/bin/python manage.py runserver 0.0.0.0:8000`.
 - Register the bridge (callback) URL after a deploy or a tunnel URL change. It is 1 per `clientId`:
@@ -50,6 +54,7 @@
 - Callback log (superuser): `GET /api/abdm/callbacks?limit=20`; `GET /api/abdm/callbacks/<callback_id>`.
 - Encounter link state: `GET /api/abdm/encounters/<encounter_id>/care-context`.
 - M3 (HIU) state: `GET /api/abdm/patients/<patient_id>/abha/consent-requests?facility=<facility_id>`; a fetched bundle: `GET /api/abdm/patients/<patient_id>/abha/records/<record_id>`.
+- M4 probes: `GET /api/abdm/nhpr/masters/lgd-states` (any user; 1 registry call, then cached 24 h); `GET /api/abdm/users/me/abdm/hpr` (the caller's HPR state); `GET /api/abdm/facilities/<facility_id>/abdm/hfr/onboarding` (the wizard state).
 - M3 data push URL: `${ABDM_CALLBACK_BASE_URL}/api/abdm/v3/hiu/health-information/transfer`. It needs no registration: the plug names it in every health-information request. The tunnel must be up when the other facility pushes.
 - Outside production the user-initiated link OTP is fixed: `123456` (Care core uses the same rule for login OTPs).
 
@@ -69,6 +74,10 @@
   `cd ~/ohc.network/care_fe && npx vite --port 4000`.
 - Point `REACT_CARE_API_URL` at `http://localhost:8000`.
   You can also use the `care-local.localhost` URL map in `.env.local`.
+- Component override for "Add a facility" (ADR-016): add `AddFacilitySheet` to the host build variable in
+  `~/ohc.network/care_fe/.env.local`, comma-separated with any other names, then restart the host dev server:
+  `REACT_MFE_REGISTERED_COMPONENTS=AddFacilitySheet` (with care_govt_hmis_fe: `AddFacilitySheet,DispenseOrderViewFooter`).
+  Without it the host renders its own sheet; the ABDM admin dashboard (`/admin/abdm`, Facilities card) is the entry then.
 
 ## Bruno collection
 
@@ -81,7 +90,7 @@
 - It mirrors `backend/src/abdm/urls.py`.
   Change both files together.
 - Folders: `auth`, `probes`, `bridge`, `facility`, `abha-enrol`, `abha-login`,
-  `transactions`, `patient`, `encounters`, `hiu`, `callbacks`, `scan-share`.
+  `transactions`, `patient`, `encounters`, `hiu`, `nhpr`, `callbacks`, `scan-share`.
 - Select the `local` environment.
   Set the secret variables `careUsername` and `carePassword`. `careToken` and `careRefreshToken`
   are secret variables too, so a saved token never lands in the file.

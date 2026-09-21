@@ -166,6 +166,16 @@ PLUG_CODES: dict[str, _Rule] = {
         NEW_CONSENT, "The patient permission has ended.", "Ask the patient for a new permission."
     ),
     "NO_CALLBACK_URL": _Rule(CANNOT_PROCEED, "The ABDM callback URL is not set.", ADMIN_LINE),
+    # M4 (NHPR).
+    "NO_HPR_SESSION": _Rule(FIX_AUTH, "The registry needs your HPR login.", "Log in with your HPR ID, then try again."),
+    "NO_HPR_ID": _Rule(CANNOT_PROCEED, "This account has no HPR ID.", "Link or create an HPR ID first."),
+    "OTHER_HPR_ID": _Rule(CANNOT_PROCEED, "This account is linked to another HPR ID.", "Unlink it first."),
+    "NOT_FOUND": _Rule(FIX_REQUEST, "The registry holds no record with this ID.", "Check the ID, then try again."),
+    "NO_TOKEN": _Rule(ASK_SUPPORT, "The registry answered without a token.", SUPPORT_LINE),
+    "NO_TXN": _Rule(ASK_SUPPORT, "The registry answered without a transaction id.", SUPPORT_LINE),
+    "NO_TRACKING_ID": _Rule(ASK_SUPPORT, "The registry saved nothing.", SUPPORT_LINE),
+    "HFR_ERROR": _Rule(FIX_REQUEST, "The registry refused the facility details.", "Check the fields, then try again."),
+    "NHPR_ERROR": _Rule(ASK_SUPPORT, "The registry refused the request.", SUPPORT_LINE),
 }
 
 # --- per-code desk sentences -------------------------------------------------------------

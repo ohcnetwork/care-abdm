@@ -1,0 +1,19 @@
+meta {
+  name: 14. Documents: slots
+  type: http
+  seq: 14
+}
+
+get {
+  url: {{careUrl}}/api/abdm/users/me/abdm/hpr/documents
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{careToken}}
+}
+
+docs {
+  `fetch-documents-list`: the slot ids, without the bytes. POST `{"documents": [{"document_id", "document_type", "fileType", "data"}]}` uploads.
+}
