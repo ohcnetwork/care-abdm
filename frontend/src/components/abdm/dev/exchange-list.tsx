@@ -30,7 +30,7 @@ import { query } from "@/lib/request";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowDown, Loader2, RefreshCw, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 /**
  * Every exchange as 1 row (abdm-m2 design.md: "an outbound call, the wait, and the callback that
@@ -38,7 +38,8 @@ import { useEffect, useMemo, useState } from "react";
  *
  * The list polls every 5 s. New rows do not insert themselves while a person reads: a "N new
  * exchanges" button at the top merges them (the layout stays where it is). Filters live in the URL,
- * so a footer on an Encounter can open the list already narrowed.
+ * so a footer on an Encounter can open the list already narrowed. A typed filter reaches the URL
+ * 300 ms after the last key, so a keystroke is not a history entry or a request.
  */
 
 export type ExchangeFilters = {
@@ -63,10 +64,43 @@ const FILTER_KEYS: (keyof ExchangeFilters)[] = [
   "request_id",
 ];
 
+const TYPING_PAUSE_MS = 300;
+
 function clean(filters: ExchangeFilters): Record<string, string> {
   return Object.fromEntries(
     FILTER_KEYS.filter((k) => filters[k]).map((k) => [k, String(filters[k])]),
   );
+}
+
+/**
+ * A text filter as a draft: the input follows the keys at once; `commit` gets the trimmed text
+ * after a pause. An outside change of `value` (the "Clear filters" button, Back) resets the draft.
+ */
+function useDraft(
+  value: string | undefined,
+  commit: (next: string) => void,
+): [string, (next: string) => void] {
+  const [draft, setDraft] = useState(value ?? "");
+  const committed = useRef(value ?? "");
+  const commitRef = useRef(commit);
+  commitRef.current = commit;
+  useEffect(() => {
+    const outside = value ?? "";
+    if (outside !== committed.current) {
+      committed.current = outside;
+      setDraft(outside);
+    }
+  }, [value]);
+  useEffect(() => {
+    const next = draft.trim();
+    if (next === committed.current) return;
+    const timer = setTimeout(() => {
+      committed.current = next;
+      commitRef.current(next);
+    }, TYPING_PAUSE_MS);
+    return () => clearTimeout(timer);
+  }, [draft]);
+  return [draft, setDraft];
 }
 
 export function StateBadge({ state }: { state: AbdmDevExchange["state"] }) {
@@ -99,22 +133,25 @@ export default function ExchangeList({
     () => ({ ...clean(filters), limit: String(limit) }),
     [filters, limit],
   );
+  // Filters by value: `filters` is a new object on every parent render.
+  const paramsKey = new URLSearchParams(params).toString();
   const live = useQuery<AbdmDevExchangeList>({
     queryKey: devKeys.exchanges(params),
     queryFn: query(careApi.devExchanges, { queryParams: params, silent: true }),
     refetchInterval: 5000,
     retry: false,
   });
-  // What the person sees. It follows `live` only when the person asks, or when nothing is shown yet.
+  // What the person sees. It follows `live` only when the person asks, when the filters change, or
+  // when nothing is shown yet.
   const [shown, setShown] = useState<AbdmDevExchangeList | null>(null);
-  const [paramsShown, setParamsShown] = useState(params);
+  const [keyShown, setKeyShown] = useState(paramsKey);
   useEffect(() => {
     if (!live.data) return;
-    if (shown === null || paramsShown !== params) {
+    if (shown === null || keyShown !== paramsKey) {
       setShown(live.data);
-      setParamsShown(params);
+      setKeyShown(paramsKey);
     }
-  }, [live.data, shown, params, paramsShown]);
+  }, [live.data, shown, paramsKey, keyShown]);
   const fresh = live.data && shown && live.data !== shown ? live.data : null;
   const shownIds = useMemo(
     () => new Set(shown?.rows.map((r) => r.requestId) ?? []),
@@ -132,6 +169,14 @@ export default function ExchangeList({
   }, [shown, fresh]);
   const set = (key: keyof ExchangeFilters, value: string) =>
     onFilters?.({ ...filters, [key]: value || undefined });
+  const [operationDraft, setOperationDraft] = useDraft(
+    filters.operation,
+    (next) => set("operation", next),
+  );
+  const [requestIdDraft, setRequestIdDraft] = useDraft(
+    filters.request_id,
+    (next) => set("request_id", next),
+  );
   const active = FILTER_KEYS.filter((k) => filters[k]);
 
   return (
@@ -177,8 +222,8 @@ export default function ExchangeList({
             <Input
               className="h-8 w-56 font-mono text-xs md:h-8"
               placeholder="m2-generate-link-token"
-              value={filters.operation ?? ""}
-              onChange={(e) => set("operation", e.target.value.trim())}
+              value={operationDraft}
+              onChange={(e) => setOperationDraft(e.target.value)}
             />
           </label>
           <label className="grid gap-1 text-xs">
@@ -186,8 +231,8 @@ export default function ExchangeList({
             <Input
               className="h-8 w-64 font-mono text-xs md:h-8"
               placeholder="0a194641-…"
-              value={filters.request_id ?? ""}
-              onChange={(e) => set("request_id", e.target.value.trim())}
+              value={requestIdDraft}
+              onChange={(e) => setRequestIdDraft(e.target.value)}
             />
           </label>
           {active.length > 0 && (

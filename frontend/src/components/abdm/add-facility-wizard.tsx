@@ -36,6 +36,7 @@ import careApi, {
   type CareGovtOrganizationParent,
   type FacilityBridgeActionResponse,
 } from "@/lib/careApi";
+import { cleanQuery } from "@/lib/query-params";
 import { mutate, query } from "@/lib/request";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -159,10 +160,13 @@ export default function AddFacilityWizard() {
   const mode: Mode | undefined = params.mode;
   const facilityId = params.facility;
   const organizationId = params.organization;
-  // Every URL write keeps the organization context.
+  // Every URL write keeps the organization context. `cleanQuery` drops a key set to `undefined`
+  // (findings J11).
   const setWizardParams = (next: Omit<Params, "organization">) =>
     setParams(
-      organizationId ? { ...next, organization: organizationId } : next,
+      cleanQuery(
+        organizationId ? { ...next, organization: organizationId } : next,
+      ),
     );
   const steps = mode ? STEPS[mode] : STEPS.linked;
 

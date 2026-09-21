@@ -203,36 +203,6 @@ export default function TablesBrowser({
     refetchInterval: 15000,
     retry: false,
   });
-  const [pages, setPages] = useState<AbdmDevTableRows[]>([]);
-  const [before, setBefore] = useState("");
-  const rows = useQuery<AbdmDevTableRows>({
-    queryKey: devKeys.tableRows(table ?? "", { before }),
-    queryFn: query(careApi.devTableRows, {
-      pathParams: { name: table ?? "" },
-      queryParams: { limit: "50", before: before || undefined },
-      silent: true,
-    }),
-    enabled: Boolean(table),
-    retry: false,
-  });
-  // Pages append below the first (no reshuffle); a table change starts over.
-  useEffect(() => {
-    const page = rows.data;
-    if (!page || page.table !== table) return;
-    setPages((current) => {
-      if (before === "") return [page];
-      return current.includes(page) ? current : [...current, page];
-    });
-  }, [rows.data, before, table]);
-  const all = pages.filter((p) => p.table === table);
-  const first = all[0];
-  const visible = all.flatMap((p) => p.rows);
-  const last = all[all.length - 1];
-  const chooseTable = (name: string) => {
-    setPages([]);
-    setBefore("");
-    onTable(name);
-  };
   const byModule = new Map<string, AbdmDevTable[]>();
   for (const tbl of tables.data?.tables ?? []) {
     byModule.set(tbl.module, [...(byModule.get(tbl.module) ?? []), tbl]);
@@ -252,7 +222,8 @@ export default function TablesBrowser({
               <button
                 key={tbl.name}
                 type="button"
-                onClick={() => chooseTable(tbl.name)}
+                onClick={() => onTable(tbl.name)}
+                aria-current={table === tbl.name ? "true" : undefined}
                 className={cn(
                   "hover:bg-muted flex items-center gap-2 rounded-md px-2 py-1 text-left text-sm",
                   table === tbl.name && "bg-muted font-medium",
@@ -290,76 +261,113 @@ export default function TablesBrowser({
             )}
           </div>
         )}
-        {table && rows.isLoading && all.length === 0 && (
-          <Skeleton className="h-40 w-full rounded-md" />
-        )}
-        {table && rows.isError && (
-          <p className="text-destructive text-xs">
-            {t("abdm_dev_load_failed")}
-          </p>
-        )}
-        {table && first && visible.length === 0 && (
-          <p className="text-muted-foreground text-sm">
-            {t("abdm_dev_no_rows")}
-          </p>
-        )}
-        {table && first && visible.length > 0 && (
-          <div className="overflow-x-auto rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {first.columns.map((c) => (
-                    <TableHead
-                      key={c}
-                      className="font-mono text-xs whitespace-nowrap"
-                    >
-                      {c}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visible.map((r) => (
-                  <TableRow
-                    key={String(r.id)}
-                    className="cursor-pointer text-xs"
-                    onClick={() => onRow(table, String(r.id))}
-                  >
-                    {first.columns.map((c) => (
-                      <TableCell
-                        key={c}
-                        className={cn(
-                          "max-w-64",
-                          c === "id" && "font-mono text-[11px]",
-                        )}
-                      >
-                        {c === "id" ? (
-                          String(r.id).slice(0, 8) + "…"
-                        ) : (
-                          <Cell value={r[c]} />
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-        {table && last?.more && (
-          <div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setBefore(last.next)}
-              disabled={rows.isFetching}
-            >
-              {t("abdm_dev_load_more")}
-            </Button>
-          </div>
-        )}
+        {/* `key` remounts the rows on a table change, so the cursor and the loaded pages start
+            over whatever moved the URL: a click, Back, or a link. */}
+        {table && <TableRows key={table} table={table} onRow={onRow} />}
       </div>
     </div>
+  );
+}
+
+function TableRows({
+  table,
+  onRow,
+}: {
+  table: string;
+  onRow: (table: string, id: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [pages, setPages] = useState<AbdmDevTableRows[]>([]);
+  const [before, setBefore] = useState("");
+  const rows = useQuery<AbdmDevTableRows>({
+    queryKey: devKeys.tableRows(table, { before }),
+    queryFn: query(careApi.devTableRows, {
+      pathParams: { name: table },
+      queryParams: { limit: "50", before: before || undefined },
+      silent: true,
+    }),
+    retry: false,
+  });
+  // Pages append below the first (no reshuffle).
+  useEffect(() => {
+    const page = rows.data;
+    if (!page) return;
+    setPages((current) => {
+      if (before === "") return [page];
+      return current.includes(page) ? current : [...current, page];
+    });
+  }, [rows.data, before]);
+  const first = pages[0];
+  const visible = pages.flatMap((p) => p.rows);
+  const last = pages[pages.length - 1];
+
+  return (
+    <>
+      {rows.isLoading && pages.length === 0 && (
+        <Skeleton className="h-40 w-full rounded-md" />
+      )}
+      {rows.isError && (
+        <p className="text-destructive text-xs">{t("abdm_dev_load_failed")}</p>
+      )}
+      {first && visible.length === 0 && (
+        <p className="text-muted-foreground text-sm">{t("abdm_dev_no_rows")}</p>
+      )}
+      {first && visible.length > 0 && (
+        <div className="overflow-x-auto rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {first.columns.map((c) => (
+                  <TableHead
+                    key={c}
+                    className="font-mono text-xs whitespace-nowrap"
+                  >
+                    {c}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {visible.map((r) => (
+                <TableRow
+                  key={String(r.id)}
+                  className="cursor-pointer text-xs"
+                  onClick={() => onRow(table, String(r.id))}
+                >
+                  {first.columns.map((c) => (
+                    <TableCell
+                      key={c}
+                      className={cn(
+                        "max-w-64",
+                        c === "id" && "font-mono text-[11px]",
+                      )}
+                    >
+                      {c === "id" ? (
+                        String(r.id).slice(0, 8) + "…"
+                      ) : (
+                        <Cell value={r[c]} />
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+      {last?.more && (
+        <div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setBefore(last.next)}
+            disabled={rows.isFetching}
+          >
+            {t("abdm_dev_load_more")}
+          </Button>
+        </div>
+      )}
+    </>
   );
 }

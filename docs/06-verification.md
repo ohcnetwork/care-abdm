@@ -175,6 +175,14 @@ A key with a `{{placeholder}}` must be called with options (findings J10). Check
 `python3 -c 'import json,re,pathlib;d=json.load(open("public/locale/en.json"));src="\n".join(p.read_text() for p in pathlib.Path("src").rglob("*.tsx"));print([k for k,v in d.items() if "{{" in v and re.search(r"t\(\s*\""+re.escape(k)+r"\"\s*\)",src)])'`
 must print `[]`.
 
+URL query state (findings J11): every `?key=` write goes through `src/lib/query-params.ts`. Check the rule
+without a browser (the URL below is the one a tab change wrote before the fix):
+```sh
+mkdir -p .tmp-check && npx esbuild src/lib/query-params.ts --bundle --platform=node --format=esm --outfile=.tmp-check/qp.mjs --log-level=warning \
+&& node --input-type=module -e 'import {cleanQuery} from "./.tmp-check/qp.mjs"; const q=cleanQuery(Object.fromEntries(new URLSearchParams("tab=tables&exchange=undefined&row=undefined"))); console.log(JSON.stringify(q)); if ("exchange" in q || "row" in q) process.exit(1)'; rm -rf .tmp-check
+```
+must print `{"tab":"tables"}` and exit 0.
+
 Field help (ADR-016) is keyed by label: `abdm_nhpr_help_<label key without abdm_>_{title,what,how,example}`.
 A field whose 4 keys are missing renders without the icon, so the grep above does not cover them; check
 with `python3 -c 'import json;d=json.load(open("public/locale/en.json"));print(len([k for k in d if k.startswith("abdm_nhpr_help_") and k.endswith("_what")]))'`
@@ -207,6 +215,9 @@ The agent cannot see the UI; ask the user for a screenshot and record what it sh
 - The host renders `FacilityHomeActions` inside a dropdown popup. The popup is a transformed
   ancestor, so a `position: fixed` panel in that subtree anchors to the popup. Do not open a
   dialog from that slot. Link to a plug page instead (ADR-009).
+- raviger's `useQueryParams` setter writes a key set to `undefined` as the string "undefined"
+  (findings J11). Write every `?key=` through `src/lib/query-params.ts`; never call the raviger
+  setter with a spread that can hold `undefined`.
 
 ## Developer explorer (ADR-018)
 

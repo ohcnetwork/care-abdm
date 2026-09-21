@@ -17,9 +17,9 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/use-translation";
+import { useCleanQueryParams } from "@/lib/query-params";
 import { cn } from "@/lib/utils";
 import { Bug, ListTree, Radio, ShieldCheck, Table2 } from "lucide-react";
-import { useQueryParams } from "raviger";
 
 /**
  * The developer explorer (ADR-018), at /abdm/developer. An app route (not /admin): the gate is "any
@@ -29,6 +29,10 @@ import { useQueryParams } from "raviger";
  * 4 tabs, URL-addressed (`?tab=`), so a link from an Encounter footer opens the list already
  * filtered and a refresh keeps the place: Exchanges, Inbound, Tables, Readiness. A chosen exchange
  * or row opens in a sheet over the tab, so the tab keeps its place.
+ *
+ * The URL is the only state. A place (a tab, a table, an opened sheet) pushes a history entry, so
+ * Back returns to the view before it. An adjustment (a filter, a closed sheet) replaces the entry.
+ * `useCleanQueryParams` drops a key set to `undefined` (findings J11).
  */
 
 type Tab = "exchanges" | "inbound" | "tables" | "readiness";
@@ -71,8 +75,10 @@ function OffCard({ setting }: { setting: string }) {
 export default function DeveloperPage() {
   const { t } = useTranslation();
   const mode = useDeveloperMode();
-  const [params, setParams] = useQueryParams<Params>();
-  const tab: Tab = params.tab ?? "exchanges";
+  const [params, setParams] = useCleanQueryParams<Params>();
+  const tab: Tab = TABS.some((x) => x.id === params.tab)
+    ? (params.tab as Tab)
+    : "exchanges";
   const filters: ExchangeFilters = {
     module: params.module,
     operation: params.operation,
@@ -84,11 +90,12 @@ export default function DeveloperPage() {
     request_id: params.request_id,
   };
   const windowSeconds = mode.status?.callbackWindowSeconds ?? 600;
-  const set = (next: Partial<Params>) => setParams({ ...params, ...next });
+  const go = (next: Partial<Params>) => setParams(next, { push: true });
+  const adjust = (next: Partial<Params>) => setParams(next);
   const openExchange = (requestId: string) =>
-    set({ exchange: requestId, row: undefined, table: params.table });
+    go({ exchange: requestId, row: undefined });
   const openRow = (table: string, id: string) =>
-    set({ table, row: id, exchange: undefined });
+    go({ table, row: id, exchange: undefined });
 
   return (
     <PluginComponent>
@@ -124,8 +131,19 @@ export default function DeveloperPage() {
                   key={id}
                   href={`${DEV_ROUTE}?tab=${id}`}
                   onClick={(e) => {
+                    // A modifier click opens a new tab or window: leave it to the browser.
+                    if (
+                      e.button !== 0 ||
+                      e.metaKey ||
+                      e.altKey ||
+                      e.ctrlKey ||
+                      e.shiftKey
+                    ) {
+                      return;
+                    }
                     e.preventDefault();
-                    set({ tab: id, exchange: undefined, row: undefined });
+                    if (tab === id) return;
+                    go({ tab: id, exchange: undefined, row: undefined });
                   }}
                   className={cn(
                     "-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm",
@@ -144,7 +162,7 @@ export default function DeveloperPage() {
               <ExchangeList
                 filters={filters}
                 onFilters={(next) =>
-                  set({
+                  adjust({
                     ...Object.fromEntries(
                       Object.keys(filters).map((k) => [k, undefined]),
                     ),
@@ -161,7 +179,7 @@ export default function DeveloperPage() {
             {tab === "tables" && (
               <TablesBrowser
                 table={params.table ?? null}
-                onTable={(name) => set({ table: name, row: undefined })}
+                onTable={(name) => go({ table: name, row: undefined })}
                 onRow={openRow}
               />
             )}
@@ -170,14 +188,14 @@ export default function DeveloperPage() {
             <ExchangeSheet
               requestId={params.exchange ?? null}
               windowSeconds={windowSeconds}
-              onClose={() => set({ exchange: undefined })}
+              onClose={() => adjust({ exchange: undefined })}
               onTable={openRow}
               onExchange={openExchange}
             />
             <RowSheet
               table={params.row ? (params.table ?? null) : null}
               rowId={params.row ?? null}
-              onClose={() => set({ row: undefined })}
+              onClose={() => adjust({ row: undefined })}
               onExchange={openExchange}
             />
           </>
