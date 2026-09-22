@@ -180,7 +180,7 @@ export function CallbackBlock({
       count: callback.rows.length,
     });
   return (
-    <div className="grid min-w-0 gap-2 rounded-md border bg-black/20 p-3">
+    <div className="grid min-w-0 gap-3 rounded-md border bg-black/20 p-4">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs">
         <span className="text-sky-300">←</span>
         <span className="text-foreground/80">POST</span>
@@ -235,6 +235,7 @@ export function CallbackBlock({
         tabs={tabs}
         value={view}
         onChange={setView}
+        className="mt-1"
         aria-label={t("abdm_dev_callback")}
       />
       {view === "headers" && <HeaderList headers={callback.headers} />}
@@ -355,7 +356,7 @@ export default function ExchangeSheet({
             REQUEST-ID {requestId}
           </SheetDescription>
           {/* Reserved height: the line fills in when the detail lands, and the tabs below do not move. */}
-          <div className="flex min-h-5 flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-xs">
+          <div className="flex min-h-5 flex-wrap items-center gap-x-4 gap-y-1 pt-2 text-xs">
             {d && (
               <>
                 <Status
@@ -384,25 +385,33 @@ export default function ExchangeSheet({
           value={view}
           onChange={setView}
           keys
-          className="px-4 pt-1"
+          className="px-4 pt-2"
           aria-label={t("abdm_dev_exchange")}
         />
-        <SheetBody className="grid min-w-0 content-start gap-4 text-xs">
-          {detail.isLoading && <Skeleton className="h-40 w-full rounded-md" />}
-          {detail.isError && (
-            <p className="text-destructive text-sm">
-              {t("abdm_dev_load_failed")}
-            </p>
-          )}
-          {d && view === "general" && (
-            <GeneralView d={d} windowSeconds={windowSeconds} />
-          )}
-          {d && view === "request" && <RequestView d={d} />}
-          {d && view === "response" && <ResponseView d={d} />}
-          {d && view === "callbacks" && (
-            <CallbacksView d={d} onTable={onTable} onExchange={onExchange} />
-          )}
-          {d && view === "rows" && <RowRefs rows={d.rows} onTable={onTable} />}
+        <SheetBody className="text-xs">
+          {/* SheetBody's className styles its scroller and puts the children in an inner div, so the
+              gaps between the groups live on this wrapper. */}
+          <div className="grid min-w-0 content-start gap-6 pt-1 pb-2 [&>*]:min-w-0">
+            {detail.isLoading && (
+              <Skeleton className="h-40 w-full rounded-md" />
+            )}
+            {detail.isError && (
+              <p className="text-destructive text-sm">
+                {t("abdm_dev_load_failed")}
+              </p>
+            )}
+            {d && view === "general" && (
+              <GeneralView d={d} windowSeconds={windowSeconds} />
+            )}
+            {d && view === "request" && <RequestView d={d} />}
+            {d && view === "response" && <ResponseView d={d} />}
+            {d && view === "callbacks" && (
+              <CallbacksView d={d} onTable={onTable} onExchange={onExchange} />
+            )}
+            {d && view === "rows" && (
+              <RowRefs rows={d.rows} onTable={onTable} />
+            )}
+          </div>
         </SheetBody>
       </SheetContent>
     </Sheet>
@@ -419,8 +428,8 @@ function Group({
   children: React.ReactNode;
 }) {
   return (
-    <section className="grid min-w-0 gap-1.5">
-      <div className="flex items-baseline gap-2 border-b pb-1">
+    <section className="grid min-w-0 gap-3">
+      <div className="flex items-baseline gap-2 border-b pb-1.5">
         <Label>{label}</Label>
         {count !== undefined && (
           <span className="text-muted-foreground text-[11px] tabular-nums">
@@ -445,11 +454,11 @@ function GeneralView({
   const general: [string, React.ReactNode][] = [
     [
       t("abdm_dev_request_url"),
-      <span className="flex min-w-0 items-start gap-1">
+      <span className="flex min-w-0 items-start gap-1.5">
         <span className="min-w-0 [overflow-wrap:anywhere] select-all">
           {d.request.url}
         </span>
-        <CopyButton text={d.request.url} label={null} variant="ghost" />
+        <CopyButton text={d.request.url} label={null} />
       </span>,
     ],
     [t("abdm_dev_request_method"), d.method],
@@ -478,11 +487,11 @@ function GeneralView({
     ],
     [
       "REQUEST-ID",
-      <span className="flex min-w-0 items-start gap-1">
+      <span className="flex min-w-0 items-start gap-1.5">
         <span className="min-w-0 [overflow-wrap:anywhere] select-all">
           {d.requestId}
         </span>
-        <CopyButton text={d.requestId} label={null} variant="ghost" />
+        <CopyButton text={d.requestId} label={null} />
       </span>,
     ],
     [
@@ -571,7 +580,7 @@ function GeneralView({
       </Group>
       <Group label={t("abdm_dev_timing")}>
         <Pairs entries={timing} />
-        <Timeline exchange={d} windowSeconds={windowSeconds} className="pt-1" />
+        <Timeline exchange={d} windowSeconds={windowSeconds} className="pt-2" />
       </Group>
       {scope.length > 0 && (
         <Group label={t("abdm_dev_scope")}>

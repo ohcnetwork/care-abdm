@@ -45,7 +45,7 @@ export default function InboundList({
   const rows = pages.flatMap((p) => p.rows);
   const last = pages[pages.length - 1];
   return (
-    <div className="grid min-w-0 gap-3">
+    <div className="grid min-w-0 gap-5">
       <p className="text-muted-foreground flex items-start gap-2 text-xs leading-5">
         <span aria-hidden className="select-none">
           →
@@ -66,7 +66,7 @@ export default function InboundList({
         </p>
       )}
       {rows.map((c) => (
-        <div key={c.id} className="grid gap-2">
+        <div key={c.id} className="grid gap-2.5">
           <CallbackBlock callback={c} onTable={onTable} />
           <div className="flex flex-wrap items-center gap-2 pl-3 text-xs">
             {c.ack ? (

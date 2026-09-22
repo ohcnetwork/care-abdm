@@ -1,4 +1,4 @@
-import { Dot, Label, Status } from "@/components/abdm/dev/console";
+import { Dot, Label, Status, Tool } from "@/components/abdm/dev/console";
 import {
   KIND_TONE,
   MODULES,
@@ -188,9 +188,9 @@ export default function ExchangeList({
   const active = FILTER_KEYS.filter((k) => filters[k]);
 
   return (
-    <div className="grid min-w-0 gap-3">
+    <div className="grid min-w-0 gap-4">
       {!embedded && onFilters && (
-        <div className="flex flex-wrap items-end gap-2">
+        <div className="flex flex-wrap items-end gap-3">
           <label className="grid gap-1">
             <Label>{t("abdm_dev_module")}</Label>
             <select
@@ -241,15 +241,9 @@ export default function ExchangeList({
             />
           </label>
           {active.length > 0 && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 font-mono text-xs"
-              onClick={() => onFilters({})}
-            >
+            <Tool className="h-8 px-2 text-xs" onClick={() => onFilters({})}>
               <X className="size-3.5" /> {t("abdm_dev_clear_filters")}
-            </Button>
+            </Tool>
           )}
           <span className="text-muted-foreground ml-auto flex h-8 items-center gap-1.5 text-[11px]">
             <Dot tone={live.isFetching ? "primary" : "success"} pulse />
@@ -316,26 +310,26 @@ export default function ExchangeList({
           <table className="w-full border-collapse text-xs">
             <thead>
               <tr className="border-b bg-white/[0.03] text-left">
-                <th className="px-3 py-1.5 font-normal">
+                <th className="px-3 py-2 font-normal">
                   <Label>{t("abdm_dev_when")}</Label>
                 </th>
-                <th className="px-2 py-1.5 font-normal">
+                <th className="px-3 py-2 font-normal">
                   <Label>{t("abdm_dev_module")}</Label>
                 </th>
-                <th className="px-2 py-1.5 font-normal">
+                <th className="px-3 py-2 font-normal">
                   <Label>{t("abdm_dev_exchange")}</Label>
                 </th>
-                <th className="px-2 py-1.5 font-normal">
+                <th className="px-3 py-2 font-normal">
                   <Label>{t("abdm_dev_state")}</Label>
                 </th>
-                <th className="px-2 py-1.5 text-right font-normal">
+                <th className="px-3 py-2 text-right font-normal">
                   <Label>HTTP</Label>
                 </th>
-                <th className="px-2 py-1.5 text-right font-normal">
+                <th className="px-3 py-2 text-right font-normal">
                   <Label>{t("abdm_dev_callback")}</Label>
                 </th>
                 {!embedded && (
-                  <th className="px-3 py-1.5 font-normal">
+                  <th className="px-3 py-2 font-normal">
                     <Label>REQUEST-ID</Label>
                   </th>
                 )}
@@ -353,7 +347,7 @@ export default function ExchangeList({
                   )}
                   onClick={() => onOpen(r.requestId)}
                 >
-                  <td className="text-muted-foreground px-3 py-2 whitespace-nowrap tabular-nums">
+                  <td className="text-muted-foreground px-3 py-2.5 whitespace-nowrap tabular-nums">
                     <div className="grid leading-4">
                       <span className="text-foreground">
                         {formatTime(r.sentAt)}
@@ -363,7 +357,7 @@ export default function ExchangeList({
                       </span>
                     </div>
                   </td>
-                  <td className="px-2 py-2 whitespace-nowrap">
+                  <td className="px-3 py-2.5 whitespace-nowrap">
                     <div className="grid leading-4">
                       <span className="text-muted-foreground">{r.module}</span>
                       <span
@@ -376,8 +370,8 @@ export default function ExchangeList({
                       </span>
                     </div>
                   </td>
-                  <td className="min-w-0 px-2 py-2">
-                    <div className="grid gap-0.5 leading-4">
+                  <td className="min-w-0 px-3 py-2.5">
+                    <div className="grid gap-1 leading-4">
                       <span className="text-foreground [overflow-wrap:anywhere]">
                         {r.operationId}
                       </span>
@@ -393,10 +387,10 @@ export default function ExchangeList({
                       )}
                     </div>
                   </td>
-                  <td className="px-2 py-2 whitespace-nowrap">
+                  <td className="px-3 py-2.5 whitespace-nowrap">
                     <StateBadge state={r.state} />
                   </td>
-                  <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">
+                  <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
                     <div className="grid leading-4">
                       <span className={toneText(httpTone(r.httpStatus))}>
                         {r.httpStatus ?? "—"}
@@ -406,7 +400,7 @@ export default function ExchangeList({
                       </span>
                     </div>
                   </td>
-                  <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">
+                  <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
                     {r.kind === "call" ? (
                       <div className="grid leading-4">
                         <span>{r.callbacks > 0 ? `${r.callbacks}×` : "—"}</span>
@@ -419,7 +413,7 @@ export default function ExchangeList({
                     )}
                   </td>
                   {!embedded && (
-                    <td className="text-muted-foreground px-3 py-2 text-[11px] select-all">
+                    <td className="text-muted-foreground px-3 py-2.5 text-[11px] select-all">
                       {r.requestId}
                     </td>
                   )}

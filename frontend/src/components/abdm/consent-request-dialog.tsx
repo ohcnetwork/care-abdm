@@ -1,4 +1,4 @@
-import { hiTypeLabel } from "@/components/abdm/care-context-state";
+import { formatDay, hiTypeLabel } from "@/components/abdm/care-context-state";
 import { fromDateInput, toDateInput } from "@/components/abdm/hiu-state";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,22 @@ import { useEffect, useMemo, useState } from "react";
 
 const VALIDITY_DAYS = [7, 30, 90, 180] as const;
 
+/**
+ * Record range presets. Every preset ends today: a desk asking for records almost never wants an
+ * end date in the past, and the HIE-CM refuses a `dateRange.to` in the future anyway (findings L9).
+ * `custom` unlocks the two date inputs, which stay mounted for every preset so the dialog never
+ * reflows.
+ */
+const RANGE_PRESETS = [6, 12, 36, 60] as const;
+type RangePreset = (typeof RANGE_PRESETS)[number] | "custom";
+
+/** Start of the range for a preset, `months` back from today, in the browser's zone. */
+function monthsAgo(months: number): Date {
+  const d = new Date();
+  d.setMonth(d.getMonth() - months);
+  return d;
+}
+
 const selectClass =
   "border-input dark:bg-input/30 h-12 w-full rounded-md border bg-transparent px-3 py-1 text-base shadow-2xs outline-none md:h-10 md:px-2.5 md:text-sm";
 
@@ -65,6 +81,7 @@ export default function ConsentRequestDialog({
   const [types, setTypes] = useState<Set<string>>(
     new Set(state.defaults.hiTypes),
   );
+  const [range, setRange] = useState<RangePreset>(12);
   const [from, setFrom] = useState(toDateInput(state.defaults.dateFrom));
   const [to, setTo] = useState(toDateInput(state.defaults.dateTo));
   const [validity, setValidity] = useState<number>(30);
@@ -77,6 +94,7 @@ export default function ConsentRequestDialog({
     if (!open) return;
     setPurpose(state.defaults.purposeCode);
     setTypes(new Set(state.defaults.hiTypes));
+    setRange(12);
     setFrom(toDateInput(state.defaults.dateFrom));
     setTo(toDateInput(state.defaults.dateTo));
     setValidity(30);
@@ -166,6 +184,33 @@ export default function ConsentRequestDialog({
             </div>
           </div>
 
+          <div className="grid gap-1.5">
+            <Label htmlFor="abdm-cr-range">{t("abdm_fetch_range_label")}</Label>
+            <select
+              id="abdm-cr-range"
+              className={selectClass}
+              value={String(range)}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "custom") {
+                  setRange("custom");
+                  return;
+                }
+                const months = Number(value) as (typeof RANGE_PRESETS)[number];
+                setRange(months);
+                setFrom(toDateInput(monthsAgo(months)));
+                setTo(toDateInput(new Date()));
+              }}
+            >
+              {RANGE_PRESETS.map((months) => (
+                <option key={months} value={months}>
+                  {t(`abdm_fetch_range_last_${months}m`)}
+                </option>
+              ))}
+              <option value="custom">{t("abdm_fetch_range_custom")}</option>
+            </select>
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-1.5">
               <Label htmlFor="abdm-cr-from">{t("abdm_fetch_from")}</Label>
@@ -174,6 +219,7 @@ export default function ConsentRequestDialog({
                 type="date"
                 value={from}
                 max={to}
+                disabled={range !== "custom"}
                 onChange={(e) => setFrom(e.target.value)}
               />
             </div>
@@ -185,10 +231,17 @@ export default function ConsentRequestDialog({
                 value={to}
                 min={from}
                 max={toDateInput(new Date())}
+                disabled={range !== "custom"}
                 onChange={(e) => setTo(e.target.value)}
               />
             </div>
           </div>
+          <p className="text-muted-foreground -mt-2 text-xs">
+            {t("abdm_fetch_range_summary", {
+              from: formatDay(fromDateInput(from)),
+              to: formatDay(fromDateInput(to, true)),
+            })}
+          </p>
 
           <div className="grid gap-1.5">
             <Label htmlFor="abdm-cr-validity">{t("abdm_fetch_validity")}</Label>

@@ -126,58 +126,62 @@ export function RowSheet({
             {rowId}
           </SheetDescription>
         </SheetHeader>
-        <SheetBody className="grid min-w-0 gap-4 text-xs">
-          {detail.isLoading && <Skeleton className="h-40 w-full rounded-md" />}
-          {detail.isError && (
-            <p className="text-destructive text-sm">
-              {t("abdm_dev_load_failed")}
-            </p>
-          )}
-          {d && (
-            <>
-              {(d.exchanges.length > 0 || d.callbacks.length > 0) && (
-                <div className="grid gap-1">
-                  <Label>{t("abdm_dev_row_links")}</Label>
-                  <ul className="flex flex-wrap gap-1">
-                    {d.exchanges.map((e) => (
-                      <li key={`${e.field}-${e.requestId}`}>
-                        <button
-                          type="button"
-                          onClick={() => onExchange(e.requestId)}
-                        >
-                          <Badge
-                            variant="info"
-                            size="sm"
-                            className="cursor-pointer font-mono"
+        <SheetBody className="text-xs">
+          <div className="grid min-w-0 content-start gap-5 pt-1 pb-2 [&>*]:min-w-0">
+            {detail.isLoading && (
+              <Skeleton className="h-40 w-full rounded-md" />
+            )}
+            {detail.isError && (
+              <p className="text-destructive text-sm">
+                {t("abdm_dev_load_failed")}
+              </p>
+            )}
+            {d && (
+              <>
+                {(d.exchanges.length > 0 || d.callbacks.length > 0) && (
+                  <div className="grid gap-2">
+                    <Label>{t("abdm_dev_row_links")}</Label>
+                    <ul className="flex flex-wrap gap-1">
+                      {d.exchanges.map((e) => (
+                        <li key={`${e.field}-${e.requestId}`}>
+                          <button
+                            type="button"
+                            onClick={() => onExchange(e.requestId)}
                           >
-                            {e.field} → {e.operationId}
-                          </Badge>
-                        </button>
-                      </li>
-                    ))}
-                    {d.callbacks.map((c) => (
-                      <li key={`${c.field}-${c.id}`}>
-                        <button
-                          type="button"
-                          onClick={() => onCallback?.(c.id)}
-                          disabled={!onCallback}
-                        >
-                          <Badge
-                            variant="primary"
-                            size="sm"
-                            className="cursor-pointer font-mono"
+                            <Badge
+                              variant="info"
+                              size="sm"
+                              className="cursor-pointer font-mono"
+                            >
+                              {e.field} → {e.operationId}
+                            </Badge>
+                          </button>
+                        </li>
+                      ))}
+                      {d.callbacks.map((c) => (
+                        <li key={`${c.field}-${c.id}`}>
+                          <button
+                            type="button"
+                            onClick={() => onCallback?.(c.id)}
+                            disabled={!onCallback}
                           >
-                            {c.field} → {c.path}
-                          </Badge>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              <JsonTree value={d.row} title={t("abdm_dev_row")} />
-            </>
-          )}
+                            <Badge
+                              variant="primary"
+                              size="sm"
+                              className="cursor-pointer font-mono"
+                            >
+                              {c.field} → {c.path}
+                            </Badge>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <JsonTree value={d.row} title={t("abdm_dev_row")} />
+              </>
+            )}
+          </div>
         </SheetBody>
       </SheetContent>
     </Sheet>
@@ -207,7 +211,7 @@ export default function TablesBrowser({
   const current = tables.data?.tables.find((x) => x.name === table);
 
   return (
-    <div className="grid min-w-0 gap-4 md:grid-cols-[17rem_1fr]">
+    <div className="grid min-w-0 gap-6 md:grid-cols-[17rem_1fr]">
       <nav className="grid content-start gap-3 text-xs">
         {tables.isLoading && <Skeleton className="h-64 w-full rounded-md" />}
         {[...byModule.entries()].map(([module, list]) => (
@@ -220,7 +224,7 @@ export default function TablesBrowser({
                 onClick={() => onTable(tbl.name)}
                 aria-current={table === tbl.name ? "true" : undefined}
                 className={cn(
-                  "flex items-center gap-2 rounded-sm px-2 py-1 text-left hover:bg-white/[0.05]",
+                  "flex items-center gap-2 rounded-sm px-2.5 py-1.5 text-left hover:bg-white/[0.05]",
                   table === tbl.name &&
                     "bg-primary/10 text-foreground shadow-[inset_2px_0_0_0_var(--primary)]",
                 )}
@@ -235,7 +239,7 @@ export default function TablesBrowser({
           </div>
         ))}
       </nav>
-      <div className="grid min-w-0 content-start gap-3">
+      <div className="grid min-w-0 content-start gap-4">
         {!table && (
           <p className="text-muted-foreground text-xs">
             {t("abdm_dev_pick_table")}
@@ -316,7 +320,7 @@ function TableRows({
                 {first.columns.map((c) => (
                   <th
                     key={c}
-                    className="px-3 py-1.5 font-normal whitespace-nowrap"
+                    className="px-3 py-2 font-normal whitespace-nowrap"
                   >
                     <Label>{c}</Label>
                   </th>
@@ -334,7 +338,7 @@ function TableRows({
                     <td
                       key={c}
                       className={cn(
-                        "max-w-64 px-3 py-1.5 leading-5",
+                        "max-w-64 px-3 py-2 leading-5",
                         c === "id" && "text-muted-foreground text-[11px]",
                       )}
                     >

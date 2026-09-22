@@ -71,7 +71,7 @@ export default function Timeline({
   const pending = statePulse(exchange.state);
   return (
     <div className={cn("grid gap-2", className)}>
-      <ol className="flex flex-wrap items-start gap-y-3 text-xs">
+      <ol className="flex flex-wrap items-start gap-y-4 text-xs">
         {stops.map((stop, i) => (
           <li key={stop.key} className="flex min-w-0 items-start">
             {i > 0 && (

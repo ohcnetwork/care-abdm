@@ -1,10 +1,9 @@
-import { Label, NextStep, Status } from "@/components/abdm/dev/console";
+import { Label, NextStep, Status, Tool } from "@/components/abdm/dev/console";
 import {
   CHECK_TONE,
   devKeys,
   formatWhen,
 } from "@/components/abdm/dev/dev-state";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/use-translation";
 import careApi, {
@@ -112,7 +111,7 @@ export default function ReadinessCard() {
   });
   const d = readiness.data;
   return (
-    <div className="grid min-w-0 gap-3 text-xs">
+    <div className="grid min-w-0 gap-4 text-xs">
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-sm">{t("abdm_dev_readiness_title")}</span>
         {d && (
@@ -120,11 +119,8 @@ export default function ReadinessCard() {
             {t(`abdm_dev_check_${d.status}`)}
           </Status>
         )}
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="ml-auto h-7 px-2 font-mono text-xs"
+        <Tool
+          className="ml-auto h-7 px-2 text-xs"
           onClick={() => readiness.refetch()}
           disabled={readiness.isFetching}
           aria-label={t("abdm_dev_refresh")}
@@ -135,7 +131,7 @@ export default function ReadinessCard() {
             <RefreshCw className="size-3.5" />
           )}
           {t("abdm_dev_refresh")}
-        </Button>
+        </Tool>
       </div>
       <p className="text-muted-foreground flex items-start gap-2 leading-5">
         <span aria-hidden className="select-none">
@@ -157,7 +153,7 @@ export default function ReadinessCard() {
               return (
                 <li
                   key={check.id}
-                  className="grid gap-2 border-b bg-black/10 p-3 last:border-b-0"
+                  className="grid gap-2 border-b bg-black/10 p-4 last:border-b-0"
                 >
                   <div className="flex items-start gap-3">
                     <span
@@ -174,7 +170,7 @@ export default function ReadinessCard() {
                       </span>
                       <Icon className="size-3.5 sm:hidden" />
                     </span>
-                    <div className="grid min-w-0 flex-1 gap-1">
+                    <div className="grid min-w-0 flex-1 gap-1.5">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-foreground">
                           {t(`abdm_dev_check_id_${check.id}`)}

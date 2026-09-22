@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/hooks/use-translation";
 import { cn } from "@/lib/utils";
 import { Check, Copy } from "lucide-react";
-import type { HTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, HTMLAttributes } from "react";
 
 /**
  * The console skin of developer mode (ADR-018, visual identity 2026-09-22).
@@ -132,6 +132,34 @@ export function Status({
   );
 }
 
+/**
+ * A quiet console action: a small text or icon button with no border and no underline (Care UI's
+ * `ghost` is underlined, a link's look). Secondary until hovered; `pressed` keeps it lit.
+ */
+export function Tool({
+  className,
+  pressed = false,
+  children,
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & { pressed?: boolean }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed || undefined}
+      {...props}
+      className={cn(
+        "inline-flex h-6 shrink-0 items-center gap-1 rounded px-1.5 text-[11px] leading-none whitespace-nowrap transition-colors",
+        "text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:outline-none",
+        "disabled:pointer-events-none disabled:opacity-50",
+        pressed && "text-foreground bg-white/[0.08]",
+        className,
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 /** A key cap, for a shortcut hint. */
 export function Kbd({ children }: { children: React.ReactNode }) {
   return (
@@ -143,7 +171,7 @@ export function Kbd({ children }: { children: React.ReactNode }) {
 
 /**
  * A copy button whose label never changes: only the icon swaps to a check mark, so the row it sits
- * in does not move. `label={null}` gives the icon alone (the aria-label says "Copy").
+ * in does not move. `label={null}` gives the icon alone as a `Tool` (the aria-label says "Copy").
  */
 export function CopyButton({
   text,
@@ -159,30 +187,36 @@ export function CopyButton({
   const { t } = useTranslation();
   const { copied, copy } = useCopy();
   const done = copied === text;
-  const iconOnly = label === null;
+  const icon = done ? (
+    <Check className="size-3.5 text-emerald-300" />
+  ) : (
+    <Copy className="size-3.5" />
+  );
+  if (label === null) {
+    return (
+      <Tool
+        className={cn("size-5 px-0", className)}
+        onClick={() => copy(text, text)}
+        aria-live="polite"
+        aria-label={done ? t("abdm_dev_copied") : t("abdm_dev_copy")}
+        title={t("abdm_dev_copy")}
+      >
+        {icon}
+      </Tool>
+    );
+  }
   return (
     <Button
       type="button"
       variant={variant}
       size="sm"
-      className={cn(
-        "h-7 gap-1.5 font-mono text-xs",
-        iconOnly ? "size-6 p-0" : "px-2",
-        className,
-      )}
+      className={cn("h-7 gap-1.5 px-2 font-mono text-xs", className)}
       onClick={() => copy(text, text)}
       aria-live="polite"
-      aria-label={
-        done ? t("abdm_dev_copied") : iconOnly ? t("abdm_dev_copy") : undefined
-      }
-      title={iconOnly ? t("abdm_dev_copy") : undefined}
+      aria-label={done ? t("abdm_dev_copied") : undefined}
     >
-      {done ? (
-        <Check className="size-3.5 text-emerald-300" />
-      ) : (
-        <Copy className="size-3.5" />
-      )}
-      {!iconOnly && (label ?? t("abdm_dev_copy"))}
+      {icon}
+      {label ?? t("abdm_dev_copy")}
     </Button>
   );
 }
@@ -230,7 +264,7 @@ export function TabStrip<T extends string>({
             onClick={() => onChange(tab.id)}
             className={cn(
               "-mb-px flex items-center gap-1.5 rounded-t border-b-2",
-              size === "sm" ? "px-2 py-1" : "px-3 py-2",
+              size === "sm" ? "px-2.5 py-1.5" : "px-3.5 py-2.5",
               active
                 ? "border-primary text-foreground bg-white/[0.03]"
                 : "text-muted-foreground hover:text-foreground border-transparent hover:bg-white/[0.02]",
@@ -269,7 +303,7 @@ export function Command({
   return (
     <div
       className={cn(
-        "grid min-w-0 gap-2 rounded-md border bg-black/25 p-3 text-xs",
+        "grid min-w-0 gap-2.5 rounded-md border bg-black/25 p-3.5 text-xs",
         className,
       )}
     >
@@ -339,7 +373,7 @@ export function Pairs({
   return (
     <dl
       className={cn(
-        "grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-xs",
+        "grid grid-cols-[max-content_1fr] gap-x-5 gap-y-1.5 text-xs leading-5",
         className,
       )}
     >

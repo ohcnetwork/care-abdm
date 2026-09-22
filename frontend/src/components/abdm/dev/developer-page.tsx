@@ -71,7 +71,7 @@ function inField(target: EventTarget | null): boolean {
 function StatusLine({ on, right }: { on: boolean; right?: React.ReactNode }) {
   const { t } = useTranslation();
   return (
-    <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2 text-xs">
+    <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-5 py-3 text-xs">
       <span className="flex items-center gap-2">
         <Dot tone={on ? "success" : "neutral"} pulse={on} />
         <span className="font-semibold">abdm</span>
@@ -95,7 +95,7 @@ function OffPanel({ setting }: { setting: string }) {
   return (
     <Console>
       <StatusLine on={false} right={<span>{t("abdm_dev_card_off")}</span>} />
-      <div className="grid gap-3 p-4">
+      <div className="grid gap-4 p-5">
         <p className="text-sm font-medium">{t("abdm_dev_off_title")}</p>
         <p className="text-muted-foreground text-xs [overflow-wrap:anywhere]">
           {t("abdm_dev_off_intro")}
@@ -191,7 +191,7 @@ export default function DeveloperPage() {
                 </>
               }
             />
-            <p className="text-muted-foreground flex items-start gap-2 border-b px-4 py-2 text-xs leading-5">
+            <p className="text-muted-foreground flex items-start gap-2 border-b px-5 py-3 text-xs leading-5">
               <span aria-hidden className="select-none">
                 →
               </span>
@@ -201,7 +201,7 @@ export default function DeveloperPage() {
             </p>
 
             <nav
-              className="flex flex-wrap items-stretch gap-1 border-b px-2 pt-1"
+              className="flex flex-wrap items-stretch gap-1 border-b px-3 pt-2"
               aria-label={t("abdm_dev_title")}
             >
               {TABS.map(({ id, icon: Icon, key }, index) => (
@@ -229,7 +229,7 @@ export default function DeveloperPage() {
                     });
                   }}
                   className={cn(
-                    "-mb-px flex items-center gap-2 rounded-t border-b-2 px-3 py-2 text-xs",
+                    "-mb-px flex items-center gap-2 rounded-t border-b-2 px-3.5 py-2.5 text-xs",
                     tab === id
                       ? "border-primary text-foreground bg-white/[0.03]"
                       : "text-muted-foreground hover:text-foreground border-transparent hover:bg-white/[0.02]",
@@ -246,7 +246,7 @@ export default function DeveloperPage() {
               </span>
             </nav>
 
-            <div className="grid min-w-0 gap-4 p-4 [&>*]:min-w-0">
+            <div className="grid min-w-0 gap-5 p-5 [&>*]:min-w-0">
               {tab === "exchanges" && (
                 <ExchangeList
                   filters={filters}

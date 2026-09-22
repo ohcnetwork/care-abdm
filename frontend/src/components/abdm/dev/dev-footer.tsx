@@ -32,7 +32,7 @@ export default function DevFooter({
   const href = devPath(filters as Record<string, string | undefined>);
   return (
     <Console className={cn("text-xs", className)}>
-      <div className="flex items-center gap-2 px-3 py-1.5">
+      <div className="flex items-center gap-2 px-3.5 py-2">
         <button
           type="button"
           className="flex items-center gap-2"
@@ -58,7 +58,7 @@ export default function DevFooter({
         </a>
       </div>
       {open && (
-        <div className="border-t px-3 py-3">
+        <div className="border-t px-3.5 py-4">
           <ExchangeList
             filters={filters}
             onOpen={setExchange}

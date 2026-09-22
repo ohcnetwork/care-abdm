@@ -184,6 +184,15 @@
     color-scheme: dark;
     --radius: 0.375rem;
 
+    /* The class is complete in itself. `color` is inherited as a COMPUTED value: an element inside
+       the console that sets no colour of its own (a ghost button, a <dd>, a native <select>) would
+       otherwise inherit the light theme's near-black from `.care-abdm-fe-container`, and vanish on
+       navy (observed 2026-09-22). So the surface, the text colour and the face are set here, on the
+       element that carries the class, and every descendant inherits the right computed values. */
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-mono);
+
     /* Accent: cyan, not careui's emerald — emerald is the "answered" state
        inside the console, and an accent must not read as a state. */
     --primary-50:  var(--color-cyan-50);
