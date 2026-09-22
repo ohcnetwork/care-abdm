@@ -15,12 +15,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
 import { Label } from "@/components/ui/label";
+import { OtpField, ResendTimer } from "@/components/abdm/otp-field";
 import { useTranslation } from "@/hooks/use-translation";
 import careApi, {
   type AbdmRelayError,
@@ -160,69 +156,6 @@ export function formatAbhaNumber(n?: string | null) {
   return d.length === 14
     ? `${d.slice(0, 2)}-${d.slice(2, 6)}-${d.slice(6, 10)}-${d.slice(10)}`
     : n;
-}
-
-function OtpField({
-  value,
-  onChange,
-  onEnter,
-  autoFocus,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  onEnter?: () => void;
-  autoFocus?: boolean;
-}) {
-  return (
-    <InputOTP
-      maxLength={6}
-      value={value}
-      onChange={(v) => onChange(v.replace(/\D/g, ""))}
-      autoFocus={autoFocus}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" && value.length === 6) onEnter?.();
-      }}
-      containerClassName="justify-center"
-    >
-      <InputOTPGroup>
-        {[0, 1, 2, 3, 4, 5].map((i) => (
-          <InputOTPSlot key={i} index={i} className="size-11 text-lg" />
-        ))}
-      </InputOTPGroup>
-    </InputOTP>
-  );
-}
-
-function ResendTimer({
-  seconds = 60,
-  onResend,
-  disabled,
-  resetKey,
-}: {
-  seconds?: number;
-  onResend: () => void;
-  disabled?: boolean;
-  resetKey: string;
-}) {
-  const { t } = useTranslation();
-  const [left, setLeft] = useState(seconds);
-  useEffect(() => {
-    setLeft(seconds);
-    const id = setInterval(() => setLeft((s) => (s > 0 ? s - 1 : 0)), 1000);
-    return () => clearInterval(id);
-  }, [seconds, resetKey]);
-  return (
-    <Button
-      type="button"
-      variant="link"
-      size="xs"
-      disabled={disabled || left > 0}
-      onClick={onResend}
-      className="text-muted-foreground"
-    >
-      {left > 0 ? t("abdm_resend_in", { seconds: left }) : t("abdm_resend_otp")}
-    </Button>
-  );
 }
 
 function ModeCard({

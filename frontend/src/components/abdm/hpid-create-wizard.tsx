@@ -16,6 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import NhprField from "@/components/abdm/nhpr-field";
+import { OtpField } from "@/components/abdm/otp-field";
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/hooks/use-translation";
 import careApi, { type AbdmHprState } from "@/lib/careApi";
@@ -276,12 +277,13 @@ export default function HpidCreateWizard({
             </div>
             {txn.otpSentAt && (
               <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                <Input
-                  inputMode="numeric"
-                  maxLength={6}
-                  placeholder={t("abdm_otp")}
+                <OtpField
                   value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                  onChange={setOtp}
+                  containerClassName="justify-start"
+                  onEnter={() =>
+                    act.mutate({ action: "mobile-verify", body: { otp } })
+                  }
                 />
                 <Button
                   type="button"

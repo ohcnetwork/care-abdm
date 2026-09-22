@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import NhprField from "@/components/abdm/nhpr-field";
+import { OtpField } from "@/components/abdm/otp-field";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { errorMessage, hprQueryKey } from "@/components/abdm/nhpr-shared";
@@ -130,12 +131,11 @@ export default function HprLoginDialog({
               })}
             </p>
             <NhprField labelKey="abdm_otp" htmlFor="abdm-hpr-otp">
-              <Input
-                id="abdm-hpr-otp"
-                inputMode="numeric"
-                maxLength={6}
+              <OtpField
                 value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                onChange={setOtp}
+                autoFocus
+                containerClassName="justify-start"
               />
             </NhprField>
           </div>

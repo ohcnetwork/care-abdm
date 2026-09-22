@@ -1,5 +1,6 @@
 import FieldHelp, { type FieldHelpContent } from "@/components/abdm/field-help";
 import MasterSelect from "@/components/abdm/master-select";
+import { OtpField } from "@/components/abdm/otp-field";
 import FailureNotice from "@/components/abdm/failure-notice";
 import {
   type FailureNoticeProps,
@@ -651,13 +652,11 @@ export default function RegistryCard({
                 </div>
                 {otpTxn && (
                   <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                    <Input
-                      inputMode="numeric"
-                      placeholder={t("abdm_otp")}
+                    <OtpField
                       value={otp}
-                      onChange={(e) =>
-                        setOtp(e.target.value.replace(/\D/g, ""))
-                      }
+                      onChange={setOtp}
+                      containerClassName="justify-start"
+                      onEnter={() => otpAction.mutate("validate")}
                     />
                     <Button
                       type="button"
