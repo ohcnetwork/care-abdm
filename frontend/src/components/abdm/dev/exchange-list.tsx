@@ -1,26 +1,23 @@
+import { Dot, Label, Status } from "@/components/abdm/dev/console";
 import {
   KIND_TONE,
   MODULES,
   STATES,
   STATE_TONE,
   devKeys,
+  formatDay,
   formatMs,
   formatSeconds,
-  formatWhen,
+  formatTime,
+  httpTone,
+  statePulse,
+  toneText,
 } from "@/components/abdm/dev/dev-state";
 import { selectClass } from "@/components/abdm/nhpr-shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useTranslation } from "@/hooks/use-translation";
 import careApi, {
   type AbdmDevExchange,
@@ -29,7 +26,7 @@ import careApi, {
 import { query } from "@/lib/request";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDown, Loader2, RefreshCw, X } from "lucide-react";
+import { ArrowDown, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 /**
@@ -103,12 +100,23 @@ function useDraft(
   return [draft, setDraft];
 }
 
-export function StateBadge({ state }: { state: AbdmDevExchange["state"] }) {
+export function StateBadge({
+  state,
+  className,
+}: {
+  state: AbdmDevExchange["state"];
+  className?: string;
+}) {
   const { t } = useTranslation();
   return (
-    <Badge variant={STATE_TONE[state]} size="sm">
+    <Status
+      tone={STATE_TONE[state]}
+      pulse={statePulse(state)}
+      hollow={state === "no_answer"}
+      className={className}
+    >
       {t(`abdm_dev_state_${state}`)}
-    </Badge>
+    </Status>
   );
 }
 
@@ -183,27 +191,25 @@ export default function ExchangeList({
     <div className="grid min-w-0 gap-3">
       {!embedded && onFilters && (
         <div className="flex flex-wrap items-end gap-2">
-          <label className="grid gap-1 text-xs">
-            <span className="text-muted-foreground">
-              {t("abdm_dev_module")}
-            </span>
+          <label className="grid gap-1">
+            <Label>{t("abdm_dev_module")}</Label>
             <select
-              className={cn(selectClass, "h-8 w-32 md:h-8")}
+              className={cn(selectClass, "h-8 w-28 font-mono text-xs md:h-8")}
               value={filters.module ?? ""}
               onChange={(e) => set("module", e.target.value)}
             >
               <option value="">{t("abdm_dev_any")}</option>
               {MODULES.map((m) => (
                 <option key={m} value={m}>
-                  {m.toUpperCase()}
+                  {m}
                 </option>
               ))}
             </select>
           </label>
-          <label className="grid gap-1 text-xs">
-            <span className="text-muted-foreground">{t("abdm_dev_state")}</span>
+          <label className="grid gap-1">
+            <Label>{t("abdm_dev_state")}</Label>
             <select
-              className={cn(selectClass, "h-8 w-44 md:h-8")}
+              className={cn(selectClass, "h-8 w-44 font-mono text-xs md:h-8")}
               value={filters.state ?? ""}
               onChange={(e) => set("state", e.target.value)}
             >
@@ -215,19 +221,18 @@ export default function ExchangeList({
               ))}
             </select>
           </label>
-          <label className="grid gap-1 text-xs">
-            <span className="text-muted-foreground">
-              {t("abdm_dev_operation")}
-            </span>
+          <label className="grid gap-1">
+            <Label>{t("abdm_dev_operation")}</Label>
             <Input
+              data-console-search
               className="h-8 w-56 font-mono text-xs md:h-8"
               placeholder="m2-generate-link-token"
               value={operationDraft}
               onChange={(e) => setOperationDraft(e.target.value)}
             />
           </label>
-          <label className="grid gap-1 text-xs">
-            <span className="text-muted-foreground">REQUEST-ID</span>
+          <label className="grid gap-1">
+            <Label>REQUEST-ID</Label>
             <Input
               className="h-8 w-64 font-mono text-xs md:h-8"
               placeholder="0a194641-…"
@@ -240,18 +245,14 @@ export default function ExchangeList({
               type="button"
               variant="ghost"
               size="sm"
-              className="h-8"
+              className="h-8 font-mono text-xs"
               onClick={() => onFilters({})}
             >
               <X className="size-3.5" /> {t("abdm_dev_clear_filters")}
             </Button>
           )}
-          <span className="text-muted-foreground ml-auto flex items-center gap-1 text-xs">
-            {live.isFetching ? (
-              <Loader2 className="size-3 animate-spin" />
-            ) : (
-              <RefreshCw className="size-3" />
-            )}
+          <span className="text-muted-foreground ml-auto flex h-8 items-center gap-1.5 text-[11px]">
+            <Dot tone={live.isFetching ? "primary" : "success"} pulse />
             {t("abdm_dev_polling")}
           </span>
         </div>
@@ -290,7 +291,7 @@ export default function ExchangeList({
             type="button"
             variant="outline"
             size="sm"
-            className="h-8"
+            className="h-8 font-mono text-xs"
             onClick={() => setShown(fresh)}
           >
             <ArrowDown className="size-3.5" />{" "}
@@ -306,109 +307,126 @@ export default function ExchangeList({
         <p className="text-destructive text-xs">{t("abdm_dev_load_failed")}</p>
       )}
       {shown && rows.length === 0 && (
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-xs">
           {t("abdm_dev_no_exchanges")}
         </p>
       )}
       {rows.length > 0 && (
         <div className="overflow-x-auto rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-28">{t("abdm_dev_when")}</TableHead>
-                <TableHead>{t("abdm_dev_exchange")}</TableHead>
-                <TableHead className="w-36">{t("abdm_dev_state")}</TableHead>
-                <TableHead className="w-24 text-right">HTTP</TableHead>
-                <TableHead className="w-28 text-right">
-                  {t("abdm_dev_callback")}
-                </TableHead>
+          <table className="w-full border-collapse text-xs">
+            <thead>
+              <tr className="border-b bg-white/[0.03] text-left">
+                <th className="px-3 py-1.5 font-normal">
+                  <Label>{t("abdm_dev_when")}</Label>
+                </th>
+                <th className="px-2 py-1.5 font-normal">
+                  <Label>{t("abdm_dev_module")}</Label>
+                </th>
+                <th className="px-2 py-1.5 font-normal">
+                  <Label>{t("abdm_dev_exchange")}</Label>
+                </th>
+                <th className="px-2 py-1.5 font-normal">
+                  <Label>{t("abdm_dev_state")}</Label>
+                </th>
+                <th className="px-2 py-1.5 text-right font-normal">
+                  <Label>HTTP</Label>
+                </th>
+                <th className="px-2 py-1.5 text-right font-normal">
+                  <Label>{t("abdm_dev_callback")}</Label>
+                </th>
                 {!embedded && (
-                  <TableHead className="w-72">REQUEST-ID</TableHead>
+                  <th className="px-3 py-1.5 font-normal">
+                    <Label>REQUEST-ID</Label>
+                  </th>
                 )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+              </tr>
+            </thead>
+            <tbody>
               {rows.map((r) => (
-                <TableRow
+                <tr
                   key={r.requestId}
-                  data-state={selected === r.requestId ? "selected" : undefined}
+                  aria-selected={selected === r.requestId || undefined}
                   className={cn(
-                    "cursor-pointer",
-                    selected === r.requestId && "bg-muted/60",
+                    "cursor-pointer border-b border-white/[0.06] align-top last:border-b-0 hover:bg-white/[0.04]",
+                    selected === r.requestId &&
+                      "bg-primary/10 shadow-[inset_2px_0_0_0_var(--primary)]",
                   )}
                   onClick={() => onOpen(r.requestId)}
                 >
-                  <TableCell className="text-muted-foreground font-mono text-xs whitespace-nowrap tabular-nums">
-                    {formatWhen(r.sentAt)}
-                  </TableCell>
-                  <TableCell className="min-w-0">
-                    <div className="grid gap-0.5">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <Badge
-                          variant="neutral"
-                          size="sm"
-                          className="font-mono uppercase"
-                        >
-                          {r.module}
-                        </Badge>
-                        <Badge variant={KIND_TONE[r.kind]} size="sm">
-                          {t(`abdm_dev_kind_${r.kind}`)}
-                        </Badge>
-                        <span className="font-mono text-xs">
-                          {r.operationId}
-                        </span>
-                      </div>
-                      <span className="text-muted-foreground font-mono text-[11px] [overflow-wrap:anywhere]">
-                        {r.method} {r.path}
+                  <td className="text-muted-foreground px-3 py-2 whitespace-nowrap tabular-nums">
+                    <div className="grid leading-4">
+                      <span className="text-foreground">
+                        {formatTime(r.sentAt)}
+                      </span>
+                      <span className="text-[10.5px]">
+                        {formatDay(r.sentAt)}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-2 py-2 whitespace-nowrap">
+                    <div className="grid leading-4">
+                      <span className="text-muted-foreground">{r.module}</span>
+                      <span
+                        className={cn(
+                          "text-[10.5px]",
+                          toneText(KIND_TONE[r.kind]),
+                        )}
+                      >
+                        {t(`abdm_dev_kind_${r.kind}`)}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="min-w-0 px-2 py-2">
+                    <div className="grid gap-0.5 leading-4">
+                      <span className="text-foreground [overflow-wrap:anywhere]">
+                        {r.operationId}
+                      </span>
+                      <span className="text-muted-foreground text-[10.5px] [overflow-wrap:anywhere]">
+                        <span className="text-foreground/80">{r.method}</span>{" "}
+                        {r.path}
                         {r.facility ? ` · ${r.facility.label}` : ""}
                       </span>
                       {r.errorSummary && (
-                        <span className="text-destructive text-xs [overflow-wrap:anywhere]">
+                        <span className="[overflow-wrap:anywhere] text-red-300">
                           {r.errorSummary}
                         </span>
                       )}
                     </div>
-                  </TableCell>
-                  <TableCell>
+                  </td>
+                  <td className="px-2 py-2 whitespace-nowrap">
                     <StateBadge state={r.state} />
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-xs tabular-nums">
-                    <div className="grid">
-                      <span
-                        className={cn(
-                          r.httpStatus &&
-                            r.httpStatus >= 400 &&
-                            "text-destructive",
-                        )}
-                      >
+                  </td>
+                  <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">
+                    <div className="grid leading-4">
+                      <span className={toneText(httpTone(r.httpStatus))}>
                         {r.httpStatus ?? "—"}
                       </span>
-                      <span className="text-muted-foreground">
+                      <span className="text-muted-foreground text-[10.5px]">
                         {formatMs(r.httpMs)}
                       </span>
                     </div>
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-xs tabular-nums">
+                  </td>
+                  <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">
                     {r.kind === "call" ? (
-                      <div className="grid">
+                      <div className="grid leading-4">
                         <span>{r.callbacks > 0 ? `${r.callbacks}×` : "—"}</span>
-                        <span className="text-muted-foreground">
+                        <span className="text-muted-foreground text-[10.5px]">
                           {formatSeconds(r.callbackSeconds)}
                         </span>
                       </div>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
-                  </TableCell>
+                  </td>
                   {!embedded && (
-                    <TableCell className="font-mono text-[11px] select-all">
+                    <td className="text-muted-foreground px-3 py-2 text-[11px] select-all">
                       {r.requestId}
-                    </TableCell>
+                    </td>
                   )}
-                </TableRow>
+                </tr>
               ))}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </div>
       )}
       {shown?.more && !embedded && (

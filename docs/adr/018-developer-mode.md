@@ -79,6 +79,77 @@ is the explorer. `dev-footer.tsx` is the contextual entry: a collapsed "Develope
 last on the encounter ABDM tab, the patient ABHA panel, the facility setup page and the HPR section,
 rendered only when `dev/status` says on. The admin dashboard gains a "Developer explorer" card.
 
+## Amendment 2026-09-22 — the console skin (Rithvik: "something that looks more like developers thing")
+
+A developer surface looks like a terminal; a clinical surface never does. The reference is the
+terminal block of the ABDM docs site (screenshot 2026-09-22: a deep navy block, `$` and the command,
+a grey `→` annotation line, an outline "Copy command" button). The site was unreachable from this
+machine at that moment, so the palette values are chosen by eye, not read from its CSS.
+
+Decisions:
+
+1. **Tokens, not components.** `style/index.css` gains 1 block, `.dark.abdm-console`, with the same
+   token names careui uses and a navy palette. The wrapper (`Console` in `dev/console.tsx`, and
+   `SheetContent` for a portalled sheet) carries `dark abdm-console`: `.dark` makes every `dark:`
+   utility fire and sets `color-scheme: dark`; `.abdm-console` swaps the palette. Every Card, Badge,
+   Button, Sheet, Input and Table keeps working; nothing is re-implemented. Surfaces are plain
+   `oklch` (no colour-blind remap touches navy); every semantic colour stays on the Tailwind palette
+   variables, so the `[data-theme]` remaps still apply inside. The accent is cyan, not careui's
+   emerald: emerald is the "answered" state inside the console, and an accent must not read as a
+   state. Radii are tighter (`--radius: 0.375rem`).
+2. **Dark in both host themes.** A code block is dark in a light document too. (The host mounts no
+   theme provider today; see `02-care-host-contract.md`.)
+3. **Geist Mono, from careui.** The plug restores careui's `@import "@fontsource-variable/geist-mono"`
+   and its `--font-mono`; the host loads no monospace face, so `font-mono` fell back to the system
+   stack. The `@font-face` registers a family the host does not have, so it collides with nothing.
+   Vite writes asset URLs inside CSS relative to the stylesheet (`experimental.renderBuiltUrl`,
+   `hostType === "css"`), because the federation runtime appends the stylesheet as a `<link>` from
+   the remote origin and an absolute `/assets/…` path would resolve against the host and 404 (the
+   modulepreload case, J8). The woff2 is 1 more asset the remote must serve with
+   `Access-Control-Allow-Origin: *` (fonts are CORS-restricted).
+4. **Terminal furniture in 1 file.** `dev/console.tsx`: `Console`, `Label` (small caps caption),
+   `Prompt` (`$`), `Dot` and `Status` (a state as a dot and a word; pulses while
+   something is still expected, hollow when nothing arrived), `Kbd`, `CopyButton` (the label never
+   changes, only the icon: no layout shift), `Command` (the docs' block: `$`, the command, `→` note,
+   "Copy command"), `NextStep` (a backend sentence with commands in backticks → 1 `Command` per
+   span), `Pairs` (`name: value` rows, the shape of an HTTP header block). The non-component parts
+   (`CONSOLE_CLASS`, the tones, `useCopy`) live in `dev-state.ts`.
+5. **Keys.** In the explorer, when no field has the focus and no sheet is open: `1`–`4` switch the
+   tab, `/` focuses the operation filter. A modifier click on a tab is left to the browser.
+6. **What each surface became.** The page is 1 console panel: a status line (`● abdm / developer`,
+   gateway host, X-CM-ID, the redaction caption), a `→` intro line, the 4 tabs with key caps.
+   Exchanges are log lines (time and day, module and kind, operation and `METHOD path`, the state
+   as a dot and a word, HTTP status coloured by class, callbacks, REQUEST-ID). The sheet
+   (superseded the same day by amendment 2 below: the inspector views) shows the headers as
+   `name: <1448 chars>` rows, a request line `→ POST url` and a callback line `← POST path`. The JSON tree has
+   an editor's 4 value hues (`--console-key/string/number/keyword`), a guide line per depth, a
+   dashed lock chip for a redaction marker. The timeline is a rail (`●──340 ms──●──1.2 s──●`, a
+   dashed line to a stop not reached). Tables are a file tree (`m2/` then `abdm_outbound_requests
+   1204`). Readiness rows carry `[ ok ]`, `[ !! ]`, `[FAIL]` marks, and a next step with a command
+   renders as a command block with its copy button. The off page and the admin card show
+   `$ ABDM_DEVELOPER_MODE=true` with "Copy command". The footer on a clinical page is a thin console
+   strip (`● abdm / developer … Open in the explorer`): a dark strip says "developer mode is on
+   here" at a glance.
+
+## Amendment 2026-09-22 (2) — the exchange sheet as a network inspector (Rithvik: "like browser's inspector tab")
+
+The exchange sheet stacked everything on 1 scroll (timeline, request, answer, callbacks, rows). It
+is now laid out like a browser's Network panel, 5 views under a tab strip (`TabStrip` in
+`console.tsx`), the chosen view in the URL as `?view=` so a link can point at the response of an
+exchange, and 1–5 switch the view while the sheet is open (the page's 1–4 stand down then):
+
+| View | Content |
+|---|---|
+| General | the ADR-012 failure notice when refused; `Request URL` (copy), method, status code with its RFC 9110 reason phrase and ms, operation (module, kind), REQUEST-ID (copy), state, reason; **Timing** — sent, HTTP answer (+ms), first callback (+s, count) or the honest words for the wait, and the rail; **Scope** — facility, patient (link), encounter; **Request headers** and **Answer headers** as `name: <N chars>` rows |
+| Request | `→ METHOD url`, the query string parameters as rows when the URL has any, the body tree |
+| Response | `← 202 Accepted · 340 ms`; for a `call`, the reminder that the HTTP answer is the gateway's acceptance and the answer arrives as a callback; the body tree |
+| Callbacks (n) | the inbound this exchange answers first, then every callback. Each `CallbackBlock` keeps its header line (`← POST path`, time, +s) and its status line (signature, handler, X-HIP-ID, "answers …"), and gets its own small strip: Headers (n), Body, Traceback (only when the handler raised; red dot on the tab), Rows (n). The block opens on Traceback when the handler raised, on Body otherwise. The Callbacks tab carries a red dot when any callback has a traceback |
+| Rows (n) | the plug rows that name this exchange |
+
+The sheet header always shows the summary line (state, status and reason phrase, ms, `METHOD path`)
+in a reserved height, so the tab strip does not move when the detail lands. The view survives a move
+to another exchange, as an inspector's tab does; closing the sheet clears `?view=`.
+
 ## Consequences
 
 - 3 new columns, 9 routes, 0 writes. Every answer passes `redact()`; header values never leave the

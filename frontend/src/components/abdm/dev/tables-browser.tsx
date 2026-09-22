@@ -1,4 +1,6 @@
+import { Label } from "@/components/abdm/dev/console";
 import {
+  CONSOLE_CLASS,
   devKeys,
   formatWhen,
   redactionMarker,
@@ -15,14 +17,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useTranslation } from "@/hooks/use-translation";
 import careApi, {
   type AbdmDevTable,
@@ -46,16 +40,20 @@ function Cell({ value }: { value: unknown }) {
   const marker = redactionMarker(value);
   if (marker) {
     return (
-      <Badge variant="neutral" size="sm" className="font-mono">
+      <span className="border-strong-border text-muted-foreground inline-flex items-center gap-1 rounded border border-dashed px-1.5 text-[11px] leading-4 whitespace-nowrap">
         <Lock className="size-3" /> {marker.chars}
-      </Badge>
+      </span>
     );
   }
   if (value === null || value === undefined || value === "") {
     return <span className="text-muted-foreground">—</span>;
   }
   if (typeof value === "boolean")
-    return <span>{value ? "true" : "false"}</span>;
+    return (
+      <span className="text-[color:var(--console-keyword)]">
+        {value ? "true" : "false"}
+      </span>
+    );
   if (typeof value === "object") {
     const ref = value as {
       label?: string;
@@ -118,16 +116,17 @@ export function RowSheet({
       open={Boolean(table && rowId)}
       onOpenChange={(open) => !open && onClose()}
     >
-      <SheetContent size="lg">
-        <SheetHeader>
-          <SheetTitle className="font-mono text-base">
-            {d?.title ?? table}
+      <SheetContent size="lg" className={`${CONSOLE_CLASS} font-mono`}>
+        <SheetHeader className="border-b">
+          <SheetTitle className="font-mono text-sm">
+            <span className="text-muted-foreground">{table} </span>
+            {d?.title ?? ""}
           </SheetTitle>
-          <SheetDescription className="font-mono text-xs select-all">
+          <SheetDescription className="text-muted-foreground font-mono text-xs select-all">
             {rowId}
           </SheetDescription>
         </SheetHeader>
-        <SheetBody className="grid min-w-0 gap-4">
+        <SheetBody className="grid min-w-0 gap-4 text-xs">
           {detail.isLoading && <Skeleton className="h-40 w-full rounded-md" />}
           {detail.isError && (
             <p className="text-destructive text-sm">
@@ -138,9 +137,7 @@ export function RowSheet({
             <>
               {(d.exchanges.length > 0 || d.callbacks.length > 0) && (
                 <div className="grid gap-1">
-                  <span className="text-muted-foreground text-xs">
-                    {t("abdm_dev_row_links")}
-                  </span>
+                  <Label>{t("abdm_dev_row_links")}</Label>
                   <ul className="flex flex-wrap gap-1">
                     {d.exchanges.map((e) => (
                       <li key={`${e.field}-${e.requestId}`}>
@@ -210,14 +207,12 @@ export default function TablesBrowser({
   const current = tables.data?.tables.find((x) => x.name === table);
 
   return (
-    <div className="grid min-w-0 gap-4 md:grid-cols-[16rem_1fr]">
-      <nav className="grid content-start gap-3">
+    <div className="grid min-w-0 gap-4 md:grid-cols-[17rem_1fr]">
+      <nav className="grid content-start gap-3 text-xs">
         {tables.isLoading && <Skeleton className="h-64 w-full rounded-md" />}
         {[...byModule.entries()].map(([module, list]) => (
-          <div key={module} className="grid gap-0.5">
-            <span className="text-muted-foreground px-2 font-mono text-[11px] uppercase">
-              {module}
-            </span>
+          <div key={module} className="grid gap-px">
+            <Label className="px-2 pb-1">{module}/</Label>
             {list.map((tbl) => (
               <button
                 key={tbl.name}
@@ -225,15 +220,16 @@ export default function TablesBrowser({
                 onClick={() => onTable(tbl.name)}
                 aria-current={table === tbl.name ? "true" : undefined}
                 className={cn(
-                  "hover:bg-muted flex items-center gap-2 rounded-md px-2 py-1 text-left text-sm",
-                  table === tbl.name && "bg-muted font-medium",
+                  "flex items-center gap-2 rounded-sm px-2 py-1 text-left hover:bg-white/[0.05]",
+                  table === tbl.name &&
+                    "bg-primary/10 text-foreground shadow-[inset_2px_0_0_0_var(--primary)]",
                 )}
               >
-                <span className="min-w-0 flex-1 truncate">{tbl.title}</span>
-                <span className="text-muted-foreground font-mono text-xs tabular-nums">
+                <span className="min-w-0 flex-1 truncate">{tbl.name}</span>
+                <span className="text-muted-foreground tabular-nums">
                   {tbl.count}
                 </span>
-                <ChevronRight className="text-muted-foreground size-3.5 shrink-0" />
+                <ChevronRight className="text-muted-foreground size-3 shrink-0" />
               </button>
             ))}
           </div>
@@ -241,18 +237,18 @@ export default function TablesBrowser({
       </nav>
       <div className="grid min-w-0 content-start gap-3">
         {!table && (
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-xs">
             {t("abdm_dev_pick_table")}
           </p>
         )}
         {table && current && (
-          <div className="flex flex-wrap items-baseline gap-2">
-            <h3 className="text-sm font-semibold">{current.title}</h3>
-            <span className="text-muted-foreground font-mono text-xs">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs">
+            <span className="text-sm">{current.title}</span>
+            <span className="text-muted-foreground tabular-nums">
               {current.model} · {current.count} {t("abdm_dev_rows_word")}
             </span>
             {current.secretFields.length > 0 && (
-              <span className="text-muted-foreground flex items-center gap-1 text-xs">
+              <span className="text-muted-foreground flex items-center gap-1">
                 <Lock className="size-3" />
                 {t("abdm_dev_secret_columns", {
                   columns: current.secretFields.join(", "),
@@ -314,32 +310,32 @@ function TableRows({
       )}
       {first && visible.length > 0 && (
         <div className="overflow-x-auto rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
+          <table className="w-full border-collapse text-xs">
+            <thead>
+              <tr className="border-b bg-white/[0.03] text-left">
                 {first.columns.map((c) => (
-                  <TableHead
+                  <th
                     key={c}
-                    className="font-mono text-xs whitespace-nowrap"
+                    className="px-3 py-1.5 font-normal whitespace-nowrap"
                   >
-                    {c}
-                  </TableHead>
+                    <Label>{c}</Label>
+                  </th>
                 ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+              </tr>
+            </thead>
+            <tbody>
               {visible.map((r) => (
-                <TableRow
+                <tr
                   key={String(r.id)}
-                  className="cursor-pointer text-xs"
+                  className="cursor-pointer border-b border-white/[0.06] align-top last:border-b-0 hover:bg-white/[0.04]"
                   onClick={() => onRow(table, String(r.id))}
                 >
                   {first.columns.map((c) => (
-                    <TableCell
+                    <td
                       key={c}
                       className={cn(
-                        "max-w-64",
-                        c === "id" && "font-mono text-[11px]",
+                        "max-w-64 px-3 py-1.5 leading-5",
+                        c === "id" && "text-muted-foreground text-[11px]",
                       )}
                     >
                       {c === "id" ? (
@@ -347,12 +343,12 @@ function TableRows({
                       ) : (
                         <Cell value={r[c]} />
                       )}
-                    </TableCell>
+                    </td>
                   ))}
-                </TableRow>
+                </tr>
               ))}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </div>
       )}
       {last?.more && (
@@ -361,6 +357,7 @@ function TableRows({
             type="button"
             variant="outline"
             size="sm"
+            className="font-mono text-xs"
             onClick={() => setBefore(last.next)}
             disabled={rows.isFetching}
           >

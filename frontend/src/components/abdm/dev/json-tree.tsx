@@ -1,5 +1,5 @@
-import { redactionMarker } from "@/components/abdm/dev/dev-state";
-import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/abdm/dev/console";
+import { redactionMarker, useCopy } from "@/components/abdm/dev/dev-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/hooks/use-translation";
@@ -12,13 +12,14 @@ import {
   Lock,
   Search,
 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 /**
- * A collapsible JSON tree for the developer explorer (ADR-018). Written in the plug: Care UI
- * tokens, monospace, light and dark. A redaction marker (`<redacted, N chars>`,
- * `<encrypted, N chars>`, `<N chars, base64>`) renders as a lock badge with the length, so a reader
- * sees that a value was there and how long it was, never the value (abdm-m2 design.md).
+ * A collapsible JSON tree for the developer explorer (ADR-018). Written in the plug, on the console
+ * skin: an editor's 4 value hues (`--console-key/string/number/keyword` in `style/index.css`), a
+ * guide line per depth, and a hover row. A redaction marker (`<redacted, N chars>`,
+ * `<encrypted, N chars>`, `<N chars, base64>`) renders as a dashed lock chip with the length, so a
+ * reader sees that a value was there and how long it was, never the value (abdm-m2 design.md).
  *
  * Search filters keys and values (case-insensitive); a match keeps its ancestors open. Hover a row
  * to copy the JSON path or the value. "Raw" shows the pretty-printed text.
@@ -50,39 +51,32 @@ function matches(value: Json, key: string | number, needle: string): boolean {
     .includes(needle);
 }
 
-function useCopy() {
-  const [copied, setCopied] = useState<string | null>(null);
-  const copy = useCallback((id: string, text: string) => {
-    void navigator.clipboard?.writeText(text).then(() => {
-      setCopied(id);
-      window.setTimeout(() => setCopied((c) => (c === id ? null : c)), 1200);
-    });
-  }, []);
-  return { copied, copy };
-}
-
 function Primitive({ value }: { value: Json }) {
   const marker = redactionMarker(value);
   if (marker) {
     return (
-      <Badge variant="neutral" size="sm" className="font-mono">
+      <span className="border-strong-border text-muted-foreground inline-flex items-center gap-1 rounded border border-dashed px-1.5 text-[11px] leading-4">
         <Lock className="size-3" />
         {marker.kind} · {marker.chars} chars
-      </Badge>
+      </span>
     );
   }
   if (value === null)
-    return <span className="text-muted-foreground">null</span>;
+    return <span className="text-muted-foreground italic">null</span>;
   if (typeof value === "boolean")
     return (
-      <span className="text-indigo-700 dark:text-indigo-300">
+      <span className="text-[color:var(--console-keyword)]">
         {String(value)}
       </span>
     );
   if (typeof value === "number")
-    return <span className="text-amber-700 dark:text-amber-300">{value}</span>;
+    return (
+      <span className="text-[color:var(--console-number)] tabular-nums">
+        {value}
+      </span>
+    );
   return (
-    <span className="[overflow-wrap:anywhere] text-emerald-800 dark:text-emerald-300">
+    <span className="[overflow-wrap:anywhere] text-[color:var(--console-string)]">
       &quot;{String(value)}&quot;
     </span>
   );
@@ -97,6 +91,7 @@ function Node({
   openAll,
   copy,
   copied,
+  inset = 0,
 }: {
   name: string | number | null;
   value: Json;
@@ -106,6 +101,8 @@ function Node({
   openAll: boolean;
   copy: (id: string, text: string) => void;
   copied: string | null;
+  /** Pixels the parent's guide line already took, so the row's indent is relative to it. */
+  inset?: number;
 }) {
   const { t } = useTranslation();
   const container = isObject(value) || Array.isArray(value);
@@ -123,8 +120,8 @@ function Node({
     : String(value ?? "null");
   const row = (
     <div
-      className="group/row hover:bg-muted/60 flex min-w-0 items-start gap-1 rounded px-1 py-0.5"
-      style={{ paddingLeft: `${depth * 14 + 4}px` }}
+      className="group/row flex min-w-0 items-start gap-1 rounded-sm px-1 py-px hover:bg-white/[0.05]"
+      style={{ paddingLeft: `${depth * 14 + 4 - inset}px` }}
     >
       {container ? (
         <button
@@ -146,7 +143,7 @@ function Node({
         {name !== null && (
           <span
             className={cn(
-              "text-foreground",
+              "text-[color:var(--console-key)]",
               typeof name === "number" && "text-muted-foreground",
             )}
           >
@@ -169,7 +166,7 @@ function Node({
           <Primitive value={value} />
         )}
       </span>
-      <span className="invisible flex shrink-0 gap-0.5 group-hover/row:visible">
+      <span className="invisible flex shrink-0 gap-0.5 group-focus-within/row:visible group-hover/row:visible">
         {path && (
           <Button
             type="button"
@@ -212,7 +209,10 @@ function Node({
     <div>
       {row}
       {open && (
-        <div>
+        <div
+          className="border-l border-white/[0.08]"
+          style={{ marginLeft: `${depth * 14 + 10 - inset}px` }}
+        >
           {entries
             .filter(([k, v]) => matches(v, k, needle))
             .map(([k, v]) => (
@@ -226,11 +226,12 @@ function Node({
                 openAll={openAll}
                 copy={copy}
                 copied={copied}
+                inset={depth * 14 + 10}
               />
             ))}
           <div
             className="text-muted-foreground"
-            style={{ paddingLeft: `${depth * 14 + 22}px` }}
+            style={{ paddingLeft: "12px" }}
           >
             {Array.isArray(value) ? "]" : "}"}
           </div>
@@ -266,11 +267,11 @@ export default function JsonTree({
     (isObject(json) && Object.keys(json).length === 0) ||
     (Array.isArray(json) && json.length === 0);
   return (
-    <div className={cn("min-w-0 rounded-md border", className)}>
+    <div className={cn("min-w-0 rounded-md border bg-black/20", className)}>
       {!compact && (
-        <div className="bg-soft-background flex flex-wrap items-center gap-2 border-b px-2 py-1.5">
-          {title && <span className="text-xs font-medium">{title}</span>}
-          <span className="text-muted-foreground text-xs">
+        <div className="flex flex-wrap items-center gap-2 border-b bg-white/[0.03] px-2 py-1.5">
+          {title && <Label>{title}</Label>}
+          <span className="text-muted-foreground text-[11px] tabular-nums">
             {text.length} chars
           </span>
           <div className="ml-auto flex items-center gap-1">
@@ -281,7 +282,7 @@ export default function JsonTree({
                   value={needle}
                   onChange={(e) => setNeedle(e.target.value.toLowerCase())}
                   placeholder={t("abdm_dev_search_json")}
-                  className="h-7 w-44 pl-6 text-xs md:h-7"
+                  className="h-7 w-44 pl-6 font-mono text-xs md:h-7"
                 />
               </div>
             )}

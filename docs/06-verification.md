@@ -196,6 +196,15 @@ ADR-016: every smoke links the facility through the registry mock; `m4_smoke.py`
 
 Definition of done for the MFE is `remoteEntry.js` fetchable over HTTP with
 `Access-Control-Allow-Origin: *` from the preview the user runs — a build alone is not proof.
+Since 2026-09-22 the stylesheet and the Geist Mono woff2 are 2 more assets that must answer the same
+way (the console skin, ADR-018 amendment). With the preview on `<port>`:
+```sh
+cd ~/ohc.network/care-abdm-sbx/frontend
+css=$(ls dist/assets/*.css | xargs -n1 basename); font=$(ls dist/assets | grep geist-mono-latin-wght-normal)
+for a in assets/remoteEntry.js assets/$css assets/$font; do curl -s -o /dev/null -H "Origin: https://care.localhost" -w "$a %{http_code} %{content_type} ACAO=%header{access-control-allow-origin}\n" http://localhost:<port>/$a; done
+```
+must print 3 lines with `200` and `ACAO=*`; the CSS must reference the font as `url(./geist-mono-…woff2)`
+(relative), never `/assets/…`: `grep -o 'url([^)]*woff2)' dist/assets/*.css`.
 The agent cannot see the UI; ask the user for a screenshot and record what it showed in
 `03-roadmap.md`.
 

@@ -468,8 +468,8 @@ export default function HfrOnboardingWizard({
           </>
         )}
 
-        <Card>
-          <CardContent className="flex flex-wrap items-center gap-3 pt-6 text-sm">
+        <Card size="sm">
+          <CardContent className="flex flex-wrap items-center gap-3 text-sm">
             <LogIn className="text-muted-foreground size-4" />
             {sessionActive ? (
               <span>

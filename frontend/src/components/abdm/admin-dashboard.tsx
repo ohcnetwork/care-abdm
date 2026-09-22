@@ -1,3 +1,4 @@
+import { Command, Console, Dot } from "@/components/abdm/dev/console";
 import { DEV_ROUTE, useDeveloperMode } from "@/components/abdm/dev/dev-state";
 import { addFacilityPath, statusTone } from "@/components/abdm/nhpr-shared";
 import PluginComponent from "@/components/common/plugin-component";
@@ -255,6 +256,7 @@ function DeveloperCard() {
   const { t } = useTranslation();
   const mode = useDeveloperMode();
   if (mode.isLoading) return null;
+  const setting = mode.status?.setting ?? "ABDM_DEVELOPER_MODE";
   return (
     <Card>
       <CardHeader>
@@ -271,20 +273,42 @@ function DeveloperCard() {
         </CardTitle>
         <CardDescription>{t("abdm_dev_intro")}</CardDescription>
       </CardHeader>
-      <CardFooter className="flex flex-wrap items-center gap-3 border-t">
-        {mode.enabled ? (
-          // A full page load: /admin/* and the app routes are 2 layouts (findings J7).
-          <Button asChild size="sm">
-            <a href={DEV_ROUTE}>
-              <Bug className="size-4" /> {t("abdm_dev_card_open")}
-            </a>
-          </Button>
-        ) : (
-          <code className="bg-muted rounded px-2 py-1 font-mono text-xs">
-            {mode.status?.setting ?? "ABDM_DEVELOPER_MODE"}=true
-          </code>
-        )}
-      </CardFooter>
+      <CardContent>
+        {/* The console skin, so the card previews the explorer it opens. */}
+        <Console className="text-xs">
+          <div className="flex flex-wrap items-center gap-2 border-b px-3 py-1.5">
+            <Dot
+              tone={mode.enabled ? "success" : "neutral"}
+              pulse={mode.enabled}
+            />
+            <span className="font-semibold">abdm</span>
+            <span className="text-muted-foreground">/</span>
+            <span>developer</span>
+            <span className="text-muted-foreground ml-auto">
+              {mode.enabled ? t("abdm_dev_card_on") : t("abdm_dev_card_off")}
+            </span>
+          </div>
+          {mode.enabled ? (
+            <div className="flex flex-wrap items-center gap-3 p-3">
+              <span className="text-muted-foreground min-w-0 flex-1 [overflow-wrap:anywhere]">
+                {t("abdm_dev_redaction_badge")} · {DEV_ROUTE}
+              </span>
+              {/* A full page load: /admin/* and the app routes are 2 layouts (findings J7). */}
+              <Button asChild size="sm" className="font-mono text-xs">
+                <a href={DEV_ROUTE}>
+                  <Bug className="size-3.5" /> {t("abdm_dev_card_open")}
+                </a>
+              </Button>
+            </div>
+          ) : (
+            <Command
+              command={`${setting}=true`}
+              note={t("abdm_dev_off_how")}
+              className="rounded-none border-0"
+            />
+          )}
+        </Console>
+      </CardContent>
     </Card>
   );
 }

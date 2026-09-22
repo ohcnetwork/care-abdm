@@ -44,6 +44,15 @@ export default defineConfig({
       },
     },
   },
+  experimental: {
+    // The federation runtime appends the stylesheet as a <link> from the remote origin. A URL
+    // inside that CSS (the Geist Mono woff2) must be relative to the CSS file, or the browser
+    // resolves `/assets/...` against the host origin and 404s (the modulepreload case above).
+    // JS references keep Vite's default.
+    renderBuiltUrl(_filename, { hostType }) {
+      return hostType === "css" ? { relative: true } : undefined;
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

@@ -46,8 +46,13 @@ export default function InboundList({
   const last = pages[pages.length - 1];
   return (
     <div className="grid min-w-0 gap-3">
-      <p className="text-muted-foreground text-sm">
-        {t("abdm_dev_inbound_intro")}
+      <p className="text-muted-foreground flex items-start gap-2 text-xs leading-5">
+        <span aria-hidden className="select-none">
+          →
+        </span>
+        <span className="min-w-0 [overflow-wrap:anywhere]">
+          {t("abdm_dev_inbound_intro")}
+        </span>
       </p>
       {live.isLoading && rows.length === 0 && (
         <Skeleton className="h-40 w-full rounded-md" />
@@ -56,7 +61,7 @@ export default function InboundList({
         <p className="text-destructive text-xs">{t("abdm_dev_load_failed")}</p>
       )}
       {pages.length > 0 && rows.length === 0 && (
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-xs">
           {t("abdm_dev_no_inbound")}
         </p>
       )}
@@ -67,20 +72,24 @@ export default function InboundList({
             {c.ack ? (
               <button
                 type="button"
-                className="text-left"
+                className="text-left hover:underline"
                 onClick={() => onExchange(c.ack!.requestId)}
               >
+                <span className="text-sky-300">→ </span>
                 <span className="text-muted-foreground">
                   {t("abdm_dev_ack_sent")}{" "}
                 </span>
-                <span className="font-mono">{c.ack.operationId}</span>
+                <span>{c.ack.operationId}</span>
                 <span className="text-muted-foreground">
                   {" "}
                   · HTTP {c.ack.httpStatus ?? "—"} · +{c.ack.seconds ?? "—"} s
                 </span>
               </button>
             ) : (
-              <span className="text-destructive">{t("abdm_dev_no_ack")}</span>
+              <span className="text-red-300">
+                <span aria-hidden>→ </span>
+                {t("abdm_dev_no_ack")}
+              </span>
             )}
           </div>
         </div>
@@ -91,6 +100,7 @@ export default function InboundList({
             type="button"
             variant="outline"
             size="sm"
+            className="font-mono text-xs"
             onClick={() => setBefore(last.next)}
             disabled={live.isFetching}
           >
