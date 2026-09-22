@@ -75,6 +75,28 @@ the providers proxy; 403 without `can_view_clinical_data`. It snapshots every pl
 deletes only what it created. Expected last lines: `M3 SMOKE OK — outbound calls: 16 callbacks: 11` and
 `cleanup done`.
 
+The consent-notify routing (`CallbackNotReady` retry ladder, the give-up ack, and the notify
+dedupe identity) has its own script, `notify_defer_smoke.py` (session `f18b6f36…`, 2026-09-22):
+
+```sh
+.venv/bin/python manage.py shell < ~/.copilot/session-state/f18b6f36-94a4-4be3-968f-8a0ed28422c9/files/notify_defer_smoke.py
+```
+
+It patches only `gateway.outbound.requests.request` and `gateway.outbound.get_access_token`; the DB,
+the callback rows and `dispatch_callback` are real. Drive the task through Celery's own request
+stack (`dispatch_callback.push_request(retries=N)` / `.run(id)` / `.pop_request()`) — do **not** call
+`__wrapped__` with a stub `self`, which is already bound and raises `takes 2 positional arguments but
+3 were given`. It creates and deletes its own rows. Expected last lines:
+`NOTIFY DEFER SMOKE OK — 22 passed, 0 failed` and `cleanup done`.
+
+The HIP push has the same race and its own script, `transfer_defer_smoke.py` (same session,
+2026-09-22). The push is the only callback carrying patient ciphertext, so the script asserts the
+privacy behaviour of deferring it: `entries[].content` survives while a retry could still decrypt
+it (the key is `fetch.private_key`, which an unknown transaction does not give us anyway) and is
+dropped by `hiu.service.abandon_transfer` when the window is spent, leaving
+`careContextReference` for the audit trail. Expected last lines:
+`TRANSFER DEFER SMOKE OK — 17 passed, 0 failed` and `cleanup done`.
+
 M4 uses `m4_smoke.py` (session `3c44300c…`, 2026-09-21; the 2026-09-19 copy in session `f18b6f36…` is
 older). Run it after `manage.py migrate abdm`; it needs a superuser without an HPR profile and 2 more
 active users:

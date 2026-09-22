@@ -26,6 +26,7 @@ from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
 from django.utils import timezone
 
 from abdm import errors
+from abdm.callbacks.exceptions import CallbackNotReady
 from abdm.facility.service import get_config, hip_id_for
 from abdm.gateway import outbound
 from abdm.gateway.session import utc_timestamp
@@ -241,6 +242,35 @@ def _settle_artefact(artefact: AbdmConsentArtefact, status: str) -> None:
         erase_records(artefact)
 
 
+def _ack_notify(data: dict, callback: AbdmCallback, artefacts: list, row, *, ok: bool):
+    """`consent/v3/request/hiu/on-notify`. The ack names the artefact ids when there are any; a
+    denial or an expiry has none, so the request id goes in that field, as the page example does
+    (docs/findings.md L4). An unroutable notify is acknowledged with ERROR, never left unanswered:
+    silence makes ABDM redeliver for ever."""
+    ack_ids = [a.artefact_id for a in artefacts] or ([data["consent_request_id"]] if data["consent_request_id"] else [])
+    return outbound.send(
+        "m3-consent-notify-ack",
+        NOTIFY_ACK_URL,
+        rules.consent_notify_ack_body(ack_ids, callback.request_id_header, ok=ok),
+        facility=row.facility if row else None,
+        patient=row.patient if row else None,
+        role="hiu",
+    )
+
+
+def abandon_consent_notify(callback: AbdmCallback) -> dict:
+    """`dispatch_callback` gave up waiting for the consent request this notify names (the retry
+    window of `CallbackNotReady` is spent). Acknowledge with ERROR so the gateway stops
+    redelivering, and leave the callback row as the evidence of what arrived."""
+    data = rules.parse_consent_notify(callback.parsed_json or {})
+    ack = _ack_notify(data, callback, [], None, ok=False)
+    logger.warning(
+        "abdm: consent notify %r names no consent request we raised; acknowledged with ERROR",
+        data["consent_request_id"],
+    )
+    return {"consent_request": None, "status": data["status"], "unroutable": True, "ack": ack.status}
+
+
 def handle_consent_notify(callback: AbdmCallback) -> dict:
     """`/v3/hiu/consent/request/notify`: GRANTED (with artefact ids), DENIED, EXPIRED or REVOKED.
     Acknowledge with `consent/v3/request/hiu/on-notify`, then fetch every new artefact."""
@@ -270,7 +300,10 @@ def handle_consent_notify(callback: AbdmCallback) -> dict:
             if not live:
                 _apply_decision(row, "REVOKED", data["reason"])
     elif row is None:
-        raise ValueError(f"notify names no consent request we raised ({data['consent_request_id']!r})")
+        # ABDM publishes no ordering guarantee between `on-init` (which writes
+        # `consent_request_id`) and this notify, so the row may simply not be here yet. Ask to be
+        # run again; `dispatch_callback` acknowledges with ERROR when the window is spent.
+        raise CallbackNotReady(f"notify names no consent request we raised ({data['consent_request_id']!r})")
     elif status == "GRANTED":
         for artefact_id in data["artefact_ids"]:
             artefact, _ = AbdmConsentArtefact.objects.get_or_create(
@@ -296,17 +329,7 @@ def handle_consent_notify(callback: AbdmCallback) -> dict:
         logger.warning("abdm: consent notify %s carried status %r", data["consent_request_id"], status)
     if row is not None:
         row.save()
-    # The ack names the artefact ids when there are any; a denial or an expiry has none, so the
-    # request id goes in that field, as the page example does (docs/findings.md L4).
-    ack_ids = [a.artefact_id for a in artefacts] or ([data["consent_request_id"]] if data["consent_request_id"] else [])
-    ack = outbound.send(
-        "m3-consent-notify-ack",
-        NOTIFY_ACK_URL,
-        rules.consent_notify_ack_body(ack_ids, callback.request_id_header, ok=status in rules.REQUEST_STATES),
-        facility=row.facility if row else None,
-        patient=row.patient if row else None,
-        role="hiu",
-    )
+    ack = _ack_notify(data, callback, artefacts, row, ok=status in rules.REQUEST_STATES)
     fetched = 0
     if status == "GRANTED":
         for artefact in artefacts:
@@ -486,7 +509,15 @@ def handle_transfer(callback: AbdmCallback) -> dict:
         else None
     )
     if fetch is None:
-        raise ValueError(f"push names no transaction we requested ({data['transaction_id']!r})")
+        # The gateway issues the transaction id to us (on `on-request`) and to the HIP
+        # independently, so a fast HIP can push before our own callback has stored it. Wait for the
+        # row rather than failing.
+        #
+        # The ciphertext is deliberately NOT scrubbed here: decrypting on a later attempt needs it,
+        # and `entries[].content` is unreadable without `fetch.private_key`, which by definition we
+        # do not hold for an unknown transaction. The retry window bounds how long it is kept, and
+        # `abandon_transfer` scrubs it when we give up.
+        raise CallbackNotReady(f"push names no transaction we requested ({data['transaction_id']!r})")
     _scrub_callback(callback, data)
     if not fetch.private_key:
         return {"fetch": str(fetch.external_id), "skipped": "key already used or expired", "status": fetch.status}
@@ -545,6 +576,20 @@ def handle_transfer(callback: AbdmCallback) -> dict:
         "entries": len(results),
         "stored": sum(1 for e in results if e.get("hiStatus") == "OK"),
     }
+
+
+def abandon_transfer(callback: AbdmCallback) -> dict:
+    """`dispatch_callback` gave up waiting for the transaction this push names. There is nobody to
+    acknowledge — the push is a bare HTTP POST from the HIP, answered 202 by the view long ago, and
+    the gateway notify needs a fetch row we do not have. So the only duty here is the privacy one:
+    drop the ciphertext we held across the retry window (models.py:600 — no ciphertext is kept)."""
+    data = rules.parse_transfer(callback.parsed_json or {})
+    _scrub_callback(callback, data)
+    logger.warning(
+        "abdm: health-information push names transaction %r we never requested; ciphertext dropped",
+        data["transaction_id"],
+    )
+    return {"fetch": None, "transaction_id": data["transaction_id"], "unroutable": True, "scrubbed": True}
 
 
 def _errored(reference: str, description: str) -> dict:

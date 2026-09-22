@@ -142,8 +142,25 @@ Folders: `auth`, `probes`, `bridge`, `facility`, `abha-enrol`, `abha-login`, `tr
 1. Desk `POST patients/<id>/abha/consent-requests` → `AbdmConsentRequest` → `m3-consent-request-init` (202, `X-HIU-ID`).
 2. `/v3/hiu/consent/request/on-init` → `consent_request_id`. The desk may `refresh` → `m3-consent-request-status` → `/v3/hiu/consent/request/on-status`.
 3. `/v3/hiu/consent/request/notify` GRANTED → `AbdmConsentArtefact` rows → `m3-consent-notify-ack` → `m3-consent-fetch` per artefact → `/v3/hiu/consent/on-fetch` → detail stored.
+
+   The notify is gateway-initiated: it carries no `response.requestId`, so `consent_request_id`
+   (written by step 2) is the only way to route it, and ABDM promises no ordering between the two.
+   A notify naming a request we do not hold raises `callbacks.exceptions.CallbackNotReady`; the task
+   retries it on `tasks.NOT_READY_COUNTDOWNS` (15/30/60/120 s) leaving the callback `queued`, then
+   hands it to `tasks.CALLBACK_GIVE_UP` → `hiu.service.abandon_consent_notify`, which acknowledges
+   with `status: ERROR` and marks the callback `unhandled` (not `failed` — nothing on our side broke).
+   Because each redelivery carries a fresh REQUEST-ID and `timestamp`, the notify is deduplicated on
+   its payload identity (`callbacks/identity.py::IDENTITY_FIELDS`), not on the raw body.
 4. A live artefact → `AbdmFetchRequest` (new X25519 key pair, our nonce, `dataPushUrl`, 20-minute deadline) → `m3-health-information-request` → `/v3/hiu/health-information/on-request` → `transaction_id`.
 5. The HIP posts to `/api/abdm/v3/hiu/health-information/transfer` (signed catch-all) → `handle_transfer`: decrypt, MD5, `AbdmFetchedRecord` per entry → after the last page `m3-health-information-notify` RECEIVED / FAILED; key blanked; ciphertext scrubbed.
+
+   The push names only the `transaction_id` the gateway issued to us and to the HIP independently,
+   so a fast HIP can push before our own `on-request` stored it. Same `CallbackNotReady` ladder as
+   step 3, with a different give-up duty: `hiu.service.abandon_transfer` sends **nothing** (the push
+   is a bare POST already answered 202; the gateway notify needs a fetch row we lack) and only drops
+   the ciphertext. Note the ordering — the scrub must stay *after* the lookup, because a later retry
+   has to decrypt, but it must run on the give-up path or the ciphertext outlives the window
+   (`models.py:600`).
 6. DENIED / EXPIRED / REVOKED (notify or on-status) → artefacts settled, records erased. `hiu_housekeeping` erases bundles at `erase_at` and fails a request with no push inside its window.
 
 ## Observed against the real sandbox (not just docs)

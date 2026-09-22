@@ -1,10 +1,10 @@
-import hashlib
 import json
 from dataclasses import dataclass
 
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from abdm.callbacks.identity import body_value, idempotency_key, identity
 from abdm.callbacks.paths import operation_for_path
 from abdm.models import AbdmCallback, AbdmOutboundRequest
 
@@ -33,21 +33,7 @@ def parse_json(raw_body: bytes) -> dict:
 
 
 def _body_value(parsed: dict, path: tuple[str, ...]) -> str:
-    current = parsed
-    for part in path:
-        if not isinstance(current, dict):
-            return ""
-        current = current.get(part)
-    return str(current or "")
-
-
-def _idempotency_key(path: str, request_id: str, response_request_id: str, transaction_id: str, raw_body: bytes) -> str:
-    h = hashlib.sha256()
-    for value in (path, request_id, response_request_id, transaction_id):
-        h.update(value.encode("utf-8"))
-        h.update(b"\0")
-    h.update(raw_body)
-    return h.hexdigest()
+    return body_value(parsed, path)
 
 
 def create_callback(request, path: str) -> CallbackReceipt:
@@ -57,8 +43,10 @@ def create_callback(request, path: str) -> CallbackReceipt:
     request_id = _header_value(headers, "REQUEST-ID")
     response_request_id = _body_value(parsed, ("response", "requestId"))
     transaction_id = _body_value(parsed, ("transactionId",))
-    key = _idempotency_key(path, request_id, response_request_id, transaction_id, raw_body)
     operation_id = operation_for_path(path)
+    key = idempotency_key(
+        path, request_id, response_request_id, transaction_id, raw_body, identity(operation_id, parsed)
+    )
     outbound = None
     if response_request_id:
         outbound = AbdmOutboundRequest.objects.filter(request_id=response_request_id).first()

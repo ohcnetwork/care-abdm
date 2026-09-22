@@ -13,6 +13,7 @@ from celery import current_app, shared_task
 from django.core.cache import cache
 from django.utils import timezone
 
+from abdm.callbacks.exceptions import CallbackNotReady
 from abdm.models import AbdmCallback
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,20 @@ def _lazy(module: str, name: str):
     return handler
 
 
+# A callback whose handler raises `CallbackNotReady` is run again on this ladder: the row it names
+# may still be on its way (the `on-init` / notify race). `on-init` is an immediate gateway answer,
+# so ~3.5 minutes is generous; past that the request is not late, it is absent (deleted with the
+# database, or raised by another deployment sharing the bridge URL).
+NOT_READY_COUNTDOWNS = (15, 30, 60, 120)
+
+# operation_id -> handler(callback) -> dict, run once the retry window is spent. The duty differs
+# per operation: the consent notify must be acknowledged or the gateway redelivers for ever; the
+# health-information push has nobody to answer, so its hook only drops the ciphertext it held.
+CALLBACK_GIVE_UP = {
+    "m3-hiu-consent-notify": _lazy("abdm.hiu.service", "abandon_consent_notify"),
+    "m3-health-information-transfer": _lazy("abdm.hiu.service", "abandon_transfer"),
+}
+
 # operation_id -> handler(callback) -> dict
 CALLBACK_HANDLERS = {
     "m1-receive-patient-share": _handle_profile_share,
@@ -69,8 +84,8 @@ CALLBACK_HANDLERS = {
 }
 
 
-@shared_task(name="abdm.tasks.dispatch_callback")
-def dispatch_callback(callback_id: int):
+@shared_task(name="abdm.tasks.dispatch_callback", bind=True, max_retries=len(NOT_READY_COUNTDOWNS))
+def dispatch_callback(self, callback_id: int):
     callback = AbdmCallback.objects.get(id=callback_id)
     handler = CALLBACK_HANDLERS.get(callback.operation_id)
     result = {"callback_id": callback_id, "operation_id": callback.operation_id}
@@ -82,6 +97,8 @@ def dispatch_callback(callback_id: int):
         return result
     try:
         result.update(handler(callback))
+    except CallbackNotReady as exc:
+        return _wait_for_row(self, callback, result, exc)
     except Exception:
         logger.exception("abdm callback %s (%s) failed", callback_id, callback.operation_id)
         callback.processed_status = AbdmCallback.ProcessedStatus.FAILED
@@ -93,6 +110,41 @@ def dispatch_callback(callback_id: int):
     callback.processing_error = ""
     callback.processed_at = timezone.now()
     callback.save(update_fields=["processed_status", "processing_error", "processed_at", "modified_date"])
+    return result
+
+
+def _wait_for_row(task, callback: AbdmCallback, result: dict, exc: "CallbackNotReady") -> dict:
+    """The handler asked to be run again once the row it names exists (see
+    `callbacks/exceptions.CallbackNotReady`). Retries left: sleep and repeat, leaving the callback
+    `queued` — this is not a failure and must not read as one on the developer page. Retries spent:
+    hand the callback to the operation's give-up hook (which acknowledges it to ABDM) and mark it
+    `unhandled`, because nothing on our side broke."""
+    attempt = task.request.retries
+    if attempt < len(NOT_READY_COUNTDOWNS):
+        countdown = NOT_READY_COUNTDOWNS[attempt]
+        logger.info(
+            "abdm callback %s (%s) is not ready (%s); retrying in %s s",
+            callback.id,
+            callback.operation_id,
+            exc,
+            countdown,
+        )
+        callback.processed_status = AbdmCallback.ProcessedStatus.QUEUED
+        callback.processing_error = f"Waiting for the row it names: {exc}"[:TRACEBACK_CHARS]
+        callback.save(update_fields=["processed_status", "processing_error", "modified_date"])
+        raise task.retry(countdown=countdown, exc=exc)
+    logger.warning("abdm callback %s (%s) gave up waiting: %s", callback.id, callback.operation_id, exc)
+    give_up = CALLBACK_GIVE_UP.get(callback.operation_id)
+    if give_up is not None:
+        try:
+            result.update(give_up(callback))
+        except Exception:
+            logger.exception("abdm callback %s: the give-up hook failed", callback.id)
+    callback.processed_status = AbdmCallback.ProcessedStatus.UNHANDLED
+    callback.processing_error = str(exc)[:TRACEBACK_CHARS]
+    callback.processed_at = timezone.now()
+    callback.save(update_fields=["processed_status", "processing_error", "processed_at", "modified_date"])
+    result["not_ready"] = str(exc)
     return result
 
 
