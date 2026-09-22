@@ -465,6 +465,31 @@ class OnboardingTests(unittest.TestCase):
             rules.submit_body({"sourceOfInformation": "HRP_SUB_1"}, "80266")["sourceOfInformation"], "HRP_SUB_1"
         )
 
+    def test_speciality_codes_are_sent_without_the_system_of_medicine_prefix(self):
+        # get-specialities answers "UN-S68"; the detailed body takes "S68" (findings N30).
+        body = rules.detailed_information_body(
+            {
+                "specialities": [
+                    {
+                        "systemOfMedicineCode": "UN",
+                        "isSpecializationAvalaible": "Y",
+                        "specialities": ["UN-S68", "S100", " UN-S168 "],
+                    },
+                    {"systemOfMedicineCode": "D", "isSpecializationAvalaible": "Y", "specialities": ["D-S44"]},
+                ]
+            },
+            "80266",
+        )
+        self.assertEqual(body["specialities"][0]["specialities"], ["S68", "S100", "S168"])
+        self.assertEqual(body["specialities"][1]["specialities"], ["S44"])
+        # A row with no specialities keeps its shape; unknown fields are refused.
+        self.assertEqual(
+            rules.specialities([{"systemOfMedicineCode": "M"}]),
+            [{"systemOfMedicineCode": "M", "isSpecializationAvalaible": "N", "specialities": []}],
+        )
+        with self.assertRaisesRegex(ValueError, "Unknown speciality field"):
+            rules.specialities([{"systemOfMedicineCode": "M", "codes": []}])
+
     def test_bed_total_is_derived_from_the_6_counts_the_registry_sums(self):
         # The page example sends totalNumberOfBeds 4 with categories that sum to 33 (findings N27).
         example = {

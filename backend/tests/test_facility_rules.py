@@ -40,6 +40,33 @@ class FacilityRulesTests(unittest.TestCase):
                 validate_hip_name(bad)
 
 
+class AlreadyAssociatedTests(unittest.TestCase):
+    # Real sandbox refusal (findings B20), HTTP 200 with the error envelope.
+    LINE = (
+        "2500 Bridge-Id=SBXID_035123 is already associated with Hfr-Id=IN3210000772 for "
+        "Service-Id=IN3210000772, Service-Name=SECONDARY FACIL"
+    )
+
+    def test_service_id_is_read_when_the_refusal_names_our_facility(self):
+        from abdm.facility.rules import already_associated_service
+
+        self.assertEqual(already_associated_service([self.LINE], "IN3210000772"), "IN3210000772")
+
+    def test_suffixed_service_form_is_read(self):
+        from abdm.facility.rules import already_associated_service
+
+        line = "2500 Bridge-Id=SBXID_1 is already associated with Hfr-Id=IN1410000232_1 for Service-Id=IN1410000232_1"
+        self.assertEqual(already_associated_service([line], "IN1410000232"), "IN1410000232_1")
+
+    def test_another_facility_or_another_refusal_is_still_a_failure(self):
+        from abdm.facility.rules import already_associated_service
+
+        self.assertEqual(already_associated_service([self.LINE], "IN1410000232"), "")
+        self.assertEqual(already_associated_service([self.LINE], ""), "")
+        self.assertEqual(already_associated_service(["2500 Provided facility name is not matched"], "IN3210000772"), "")
+        self.assertEqual(already_associated_service([], "IN3210000772"), "")
+
+
 class HipServiceLookupTests(unittest.TestCase):
     # Real sandbox row (findings B18): the registry suffixes the HFR id and tags both roles.
     SANDBOX = [{"id": "IN1410000232_1", "name": "FACILITY WITH P", "types": ["HIP", "HIU"], "active": True}]

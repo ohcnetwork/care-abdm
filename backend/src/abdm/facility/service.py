@@ -169,7 +169,15 @@ def _save_operational_fields(facility, **fields) -> dict:
 
 def sync_hip_id(facility, services: list | None = None) -> str:
     """Store the service id the gateway holds for this facility's HFR id. Reads the bridge live
-    when `services` is not given. Returns the HIP ID in use afterwards (never raises)."""
+    when `services` is not given. Returns the HIP ID in use afterwards (never raises).
+
+    The gateway is the source of truth for the bridge (ADR-011), so this is also the resync:
+    a facility whose HRP service was created outside this plug — the M4 onboarding flow registers
+    the HRP itself when a facility is created through it — has a live service and no
+    `hrp_registered_at`. Finding the service is the evidence the registration happened, so the
+    field is filled here and `last_error` cleared. A registration date already stored is kept:
+    it is the moment we observed, and the gateway does not report one.
+    """
     from abdm.gateway import bridge
 
     config = get_config(facility)
@@ -181,8 +189,16 @@ def sync_hip_id(facility, services: list | None = None) -> str:
         except bridge.BridgeError:
             return config["hip_id"]
     found = find_hip_service(config["facility_id"], services)
-    if found and found != str(config.get("hip_id") or ""):
-        config = _save_operational_fields(facility, hip_id=found)
+    if not found:
+        return config["hip_id"]
+    fields = {}
+    if found != str(config.get("hip_id") or ""):
+        fields["hip_id"] = found
+    if not config.get("hrp_registered_at"):
+        fields["hrp_registered_at"] = timezone.now().isoformat()
+        fields["last_error"] = ""
+    if fields:
+        config = _save_operational_fields(facility, **fields)
     return config["hip_id"]
 
 
@@ -202,5 +218,10 @@ def register_hrp_service(facility) -> dict:
         _save_operational_fields(facility, last_error=_with_name_mismatch_hint(str(exc)))
         raise
     _save_operational_fields(facility, hrp_registered_at=timezone.now().isoformat(), last_error="")
-    sync_hip_id(facility)
+    hip_id = sync_hip_id(facility)
+    if not hip_id and result.get("service_id"):
+        # The registry said the facility is already a service and named it, but the bridge listing
+        # has not caught up. Its own words are the source (the id is checked against our HFR id in
+        # `rules.already_associated_service`), so the facility is usable now rather than next read.
+        _save_operational_fields(facility, hip_id=str(result["service_id"]))
     return {"config": get_config(facility), "gateway": result}

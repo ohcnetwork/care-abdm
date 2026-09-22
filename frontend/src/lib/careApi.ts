@@ -796,6 +796,11 @@ export type FacilityBridgeActionResponse = {
     status_code: number;
     request_id: string;
     response: Record<string, unknown>;
+    /** True when the registry refused the repeat with "already associated" (2500). Not a failure:
+     *  HRP registration is once per (bridge, facility). */
+    already_registered?: boolean;
+    /** The service id the registry named in that refusal, when it did. */
+    service_id?: string;
   };
 };
 

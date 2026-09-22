@@ -903,11 +903,51 @@ def medical_infrastructure(payload) -> dict:
     return counts
 
 
+def specialities(payload) -> list[dict]:
+    """The speciality rows of the detailed step, with every code **unprefixed**.
+
+    2 code spaces, as with the facility type (findings N21): `get-specialities`
+    (m4-utilities/07) answers the code prefixed with the system of medicine — `"D-S44"`,
+    `"UN-S68"` — while the detailed-information body takes the bare code, `"S44"`, `"S68"`
+    (m4-onboarding-apis/04 example). Sending the master code as answered is refused with
+    `HIS-1070 "Invalid SpecialityCode provided for SystemOfMedicineCode -UN"` (observed
+    2026-09-21, findings N30). The prefix is stripped here, so no caller can send a refused
+    code and a bare code passes through unchanged.
+    """
+    rows = payload if isinstance(payload, list) else []
+    out = []
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ValueError("Each speciality row must be an object.")
+        unknown = sorted(set(row) - {"systemOfMedicineCode", "isSpecializationAvalaible", "specialities"})
+        if unknown:
+            raise ValueError(f"Unknown speciality field: {', '.join(unknown)}.")
+        som = str(row.get("systemOfMedicineCode") or "").strip()
+        codes = row.get("specialities")
+        codes = codes if isinstance(codes, list) else []
+        prefix = f"{som}-"
+        out.append(
+            {
+                "systemOfMedicineCode": som,
+                "isSpecializationAvalaible": str(row.get("isSpecializationAvalaible") or "N").strip(),
+                "specialities": [
+                    code[len(prefix) :] if som and code.startswith(prefix) else code
+                    for code in (str(c).strip() for c in codes)
+                    if code
+                ],
+            }
+        )
+    return out
+
+
 def detailed_information_body(payload: dict, tracking_id: str) -> dict:
-    """`m4-onboarding-apis/04`. The bed total is derived (`medical_infrastructure`)."""
+    """`m4-onboarding-apis/04`. The bed total is derived (`medical_infrastructure`) and the
+    speciality codes are unprefixed (`specialities`)."""
     if not tracking_id:
         raise ValueError("Save the basic information first: no tracking id.")
     body = _only(payload, DETAILED_KEYS, "detailed information")
+    if "specialities" in body:
+        body["specialities"] = specialities(body["specialities"])
     if "medicalInfrastructure" in body:
         body["medicalInfrastructure"] = medical_infrastructure(body["medicalInfrastructure"])
     body["trackingId"] = tracking_id

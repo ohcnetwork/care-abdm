@@ -21,7 +21,7 @@ import logging
 
 from django.core.cache import cache
 
-from abdm.gateway.outbound import failure_detail, send
+from abdm.gateway.outbound import error_lines, failure_detail, send
 from abdm.settings import plugin_settings
 
 logger = logging.getLogger(__name__)
@@ -133,6 +133,13 @@ def hrp_registration_body(config: dict, bridge: str) -> dict:
         raise HrpRegistrationError(str(exc)) from exc
 
 
+def find_already_associated(row, facility_id: str) -> str:
+    """The service id of an "already associated" refusal of this facility, else an empty string."""
+    from abdm.facility.rules import already_associated_service
+
+    return already_associated_service(error_lines(row.response_json), facility_id)
+
+
 def register_hrp_service(facility, config: dict) -> dict:
     try:
         bridge = bridge_id()
@@ -140,5 +147,25 @@ def register_hrp_service(facility, config: dict) -> dict:
         raise HrpRegistrationError(f"Register the bridge URL first. {exc}") from exc
     body = hrp_registration_body(config, bridge)
     url = f"{plugin_settings.HSP_URL.rstrip('/')}{REGISTER_BRIDGE_SERVICES_PATH}"
-    row = _ok(send("gateway-register-bridge-services", url, body, facility=facility), HrpRegistrationError)
-    return {"status_code": row.http_status, "request_id": row.request_id, "response": row.response_json}
+    row = send("gateway-register-bridge-services", url, body, facility=facility)
+    if row.status != row.Status.SUCCEEDED:
+        # A repeat registration is refused, not re-applied: the HSP Registry answers HTTP 200 with
+        # `2500 "... is already associated with Hfr-Id=... for Service-Id=..."` (findings B20). That
+        # names the service this facility already has, so it is the success we wanted, once.
+        existing = find_already_associated(row, config.get("facility_id") or "")
+        if not existing:
+            raise HrpRegistrationError(failure_detail(row))
+        return {
+            "status_code": row.http_status,
+            "request_id": row.request_id,
+            "response": row.response_json,
+            "already_registered": True,
+            "service_id": existing,
+        }
+    return {
+        "status_code": row.http_status,
+        "request_id": row.request_id,
+        "response": row.response_json,
+        "already_registered": False,
+        "service_id": "",
+    }
