@@ -7,6 +7,7 @@ import {
 import HprLoginDialog from "@/components/abdm/hpr-login-dialog";
 import MasterSelect from "@/components/abdm/master-select";
 import { selectClass, shortenCoordinate } from "@/components/abdm/nhpr-shared";
+import PageHeadTitle from "@/components/common/page-head-title";
 import PluginComponent from "@/components/common/plugin-component";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -436,6 +437,8 @@ export default function HfrOnboardingWizard({
 
   return (
     <Frame>
+      {/* Embedded, the host page owns the title; only the route sets it. */}
+      {!embedded && <PageHeadTitle title={t("abdm_hfr_wizard_title")} />}
       <div
         className={cn(
           "min-w-0 [&>*]:min-w-0",

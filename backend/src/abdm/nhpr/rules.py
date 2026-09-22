@@ -503,6 +503,18 @@ def txn_body(txn_id: str) -> dict:
     return {"txnId": txn_id}
 
 
+def next_txn_id(payload) -> str:
+    """The transaction id a step's answer carries, when it differs from nothing.
+
+    The HPID journey rotates the id: `verifyOTP` (03), `generateMobileOTP` (07) and the sibling
+    steps each publish a `txnId` in their 200 shape, and the sandbox returns a **new** uuid rather
+    than echoing the one sent (observed 2026-09-22, docs/findings.md N32). Every later step must
+    carry the newest id or the registry answers `HIS-1026 "Transaction is not found for UUID"`.
+    """
+    data = payload if isinstance(payload, dict) else {}
+    return str(data.get("txnId") or data.get("transactionId") or "")
+
+
 def parse_boolean(payload) -> bool:
     """`isAuthenticated` answers a bare boolean; a `{verified}` or `{status}` object is tolerated."""
     if isinstance(payload, bool):

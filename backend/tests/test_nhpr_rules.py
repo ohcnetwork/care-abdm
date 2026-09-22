@@ -194,6 +194,14 @@ class HpidCreationTests(unittest.TestCase):
         self.assertEqual(parsed, {"txn_id": "de4ff682", "url": "", "mobile_masked": "******1234"})
         self.assertEqual(rules.parse_aadhaar_link({"txnId": "t", "url": "https://x/y"})["url"], "https://x/y")
 
+    def test_next_txn_id_reads_the_rotated_id(self):
+        # Observed 2026-09-22 (findings N30): verifyOTP answered a different txnId than was sent.
+        self.assertEqual(rules.next_txn_id({"txnId": "cb6c6ad4", "name": "Nikhila C"}), "cb6c6ad4")
+        self.assertEqual(rules.next_txn_id({"transactionId": "t2"}), "t2")
+        self.assertEqual(rules.next_txn_id({"name": "no id here"}), "")
+        self.assertEqual(rules.next_txn_id(True), "")
+        self.assertEqual(rules.next_txn_id(None), "")
+
     def test_boolean_parser(self):
         self.assertTrue(rules.parse_boolean(True))
         self.assertTrue(rules.parse_boolean("true"))

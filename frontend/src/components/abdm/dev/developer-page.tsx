@@ -13,6 +13,7 @@ import ExchangeSheet from "@/components/abdm/dev/exchange-sheet";
 import InboundList from "@/components/abdm/dev/inbound-list";
 import ReadinessCard from "@/components/abdm/dev/readiness-card";
 import TablesBrowser, { RowSheet } from "@/components/abdm/dev/tables-browser";
+import PageHeadTitle from "@/components/common/page-head-title";
 import PluginComponent from "@/components/common/plugin-component";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/use-translation";
@@ -167,7 +168,8 @@ export default function DeveloperPage() {
 
   return (
     <PluginComponent>
-      <div className="mx-auto grid max-w-7xl min-w-0 gap-4 p-4 md:p-6 [&>*]:min-w-0">
+      <PageHeadTitle title={t("abdm_dev_title")} />
+      <div className="grid w-full min-w-0 gap-4 [&>*]:min-w-0">
         {mode.isLoading && <Skeleton className="h-64 w-full rounded-xl" />}
         {!mode.isLoading && !mode.enabled && (
           <OffPanel setting={mode.status?.setting ?? "ABDM_DEVELOPER_MODE"} />

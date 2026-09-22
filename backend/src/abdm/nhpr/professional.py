@@ -298,6 +298,20 @@ def current_transaction(user) -> AbdmHpidTransaction | None:
     )
 
 
+def _advance(txn: AbdmHpidTransaction, row: AbdmOutboundRequest) -> None:
+    """Carry the transaction id forward when a step's answer rotates it (findings N30).
+
+    Every HPID step is keyed by `txnId`, and the sandbox hands back a **new** uuid instead of the
+    one sent. Keeping the old one makes the next step fail with `HIS-1026 "Transaction is not found
+    for UUID"`. The field is only overwritten when the answer actually names one; the caller saves.
+    Recorded as findings N32.
+    """
+    txn_id = rules.next_txn_id(row.response_json)
+    if txn_id and txn_id != txn.txn_id:
+        logger.info("abdm: HPID transaction rotated %s -> %s (%s)", txn.txn_id, txn_id, row.operation_id)
+        txn.txn_id = txn_id[:128]
+
+
 def _txn_fail(txn: AbdmHpidTransaction, exc: client.NhprError) -> HprError:
     error = _raise_from(exc)
     txn.error_code = error.code[:64]
@@ -341,15 +355,18 @@ def hpid_poll(user, txn: AbdmHpidTransaction) -> AbdmHpidTransaction:
             txn.last_request = row
             txn.save(update_fields=["last_request", "modified_date"])
             return txn
+        _advance(txn, row)
         details_row = client.ok(client.aadhaar_verify_otp(txn.txn_id))
         parsed = rules.parse_aadhaar_details(details_row.response_json)
         txn.details = parsed["details"]
         txn.photo = parsed["photo"]
         txn.mobile_masked = str(parsed["details"].get("mobileNumber") or txn.mobile_masked)[:32]
+        _advance(txn, details_row)
         exists_row = client.ok(client.check_account_exists(txn.txn_id))
     except client.NhprError as exc:
         raise _txn_fail(txn, exc) from exc
     existing = rules.parse_account_exists(exists_row.response_json)
+    _advance(txn, exists_row)
     txn.last_request = exists_row
     if existing["exists"]:
         # The person already holds an HPID: link it, do not create a second (skill: "let the answer pick the path").
@@ -394,6 +411,7 @@ def hpid_mobile(txn: AbdmHpidTransaction, mobile: str) -> AbdmHpidTransaction:
         row = client.ok(client.mobile_auth(txn.txn_id, digits))
         matched = rules.parse_mobile_auth(row.response_json)
         txn.mobile_masked = f"******{digits[-4:]}"
+        _advance(txn, row)
         if matched["verified"]:
             txn.mobile_verified = True
             txn.status = txn.Status.MOBILE_VERIFIED
@@ -403,6 +421,7 @@ def hpid_mobile(txn: AbdmHpidTransaction, mobile: str) -> AbdmHpidTransaction:
         otp_row = client.ok(client.mobile_otp_generate(txn.txn_id, digits))
     except client.NhprError as exc:
         raise _txn_fail(txn, exc) from exc
+    _advance(txn, otp_row)
     txn.otp_sent_at = timezone.now()
     txn.last_request = otp_row
     txn.save()
@@ -418,6 +437,7 @@ def hpid_mobile_verify(txn: AbdmHpidTransaction, otp: str) -> AbdmHpidTransactio
         row = client.ok(client.mobile_otp_verify(txn.txn_id, otp))
     except client.NhprError as exc:
         raise _txn_fail(txn, exc) from exc
+    _advance(txn, row)
     txn.mobile_verified = True
     txn.status = txn.Status.MOBILE_VERIFIED
     txn.last_request = row
@@ -432,6 +452,7 @@ def hpid_suggestions(txn: AbdmHpidTransaction) -> list[str]:
         row = client.ok(client.hpid_suggestions(txn.txn_id))
     except client.NhprError as exc:
         raise _txn_fail(txn, exc) from exc
+    _advance(txn, row)
     txn.suggestions = rules.parse_suggestions(row.response_json)[:20]
     txn.last_request = row
     txn.save()

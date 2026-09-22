@@ -121,6 +121,19 @@ deletes it at the end: the real superuser holds a real HPR profile now, and the 
 stays, and facility 9 keeps the smoke's extension. Read `Facility.extensions["abdm"]` before a run and
 restore it by hand after a crash (done once on 2026-09-21).
 
+The HPID `txnId` rotation (findings N32) has its own script, `hpid_rotation_smoke.py`
+(`~/ohc.network/.abdm-smokes/`, 2026-09-22):
+
+```sh
+.venv/bin/python manage.py shell < ~/ohc.network/.abdm-smokes/hpid_rotation_smoke.py
+```
+
+It patches only `gateway.outbound.requests.request`, `gateway.outbound.get_access_token` and
+`nhpr.client.encrypt`; the service layer, the rules and the DB are real. The fake registry replays the
+sandbox answers captured on 2026-09-22 and **refuses any step sent a stale `txnId`** with the verbatim
+`HIS-1026` body, so a regression fails the run rather than passing silently. It needs 1 superuser and
+deletes every row it creates. Expected last line: `HPID TXN ROTATION SMOKE OK — 10 passed, 0 failed`.
+
 Read-only probes against the real registry (the way the 2026-09-21 facts were found) need no fixture:
 `abdm.nhpr.client.search_facilities(facility_id="IN1410000232")`, `client.masters("lgd-states")`,
 `client.call("m4-probe", "/v1.5/facility/get-master-data?type=OWNER", None, method="GET")` from

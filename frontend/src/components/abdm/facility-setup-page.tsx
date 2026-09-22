@@ -1,6 +1,7 @@
 import { type FieldHelpContent } from "@/components/abdm/field-help";
 import RegistryCard from "@/components/abdm/registry-card";
 import DevFooter from "@/components/abdm/dev/dev-footer";
+import PageHeadTitle from "@/components/common/page-head-title";
 import PluginComponent from "@/components/common/plugin-component";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -214,6 +215,7 @@ export default function AbdmFacilitySetupPage({
 
   return (
     <PluginComponent>
+      <PageHeadTitle title={t("abdm_facility_settings")} />
       <div className="mx-auto w-full max-w-4xl p-4 md:p-6">
         <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
           <div className="grid gap-1">

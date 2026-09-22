@@ -1,6 +1,7 @@
 import { Command, Console, Dot } from "@/components/abdm/dev/console";
 import { DEV_ROUTE, useDeveloperMode } from "@/components/abdm/dev/dev-state";
 import { addFacilityPath, statusTone } from "@/components/abdm/nhpr-shared";
+import PageHeadTitle from "@/components/common/page-head-title";
 import PluginComponent from "@/components/common/plugin-component";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -498,6 +499,7 @@ export default function AbdmAdminDashboard() {
 
   return (
     <PluginComponent>
+      <PageHeadTitle title={t("abdm_admin_title")} />
       <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
         <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
           <div className="grid gap-1">

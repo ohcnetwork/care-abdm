@@ -12,6 +12,7 @@ import {
   RegistryFinder,
   RegistryRecord,
 } from "@/components/abdm/registry-card";
+import PageHeadTitle from "@/components/common/page-head-title";
 import PluginComponent from "@/components/common/plugin-component";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -341,6 +342,7 @@ export default function AddFacilityWizard() {
 
   return (
     <PluginComponent>
+      <PageHeadTitle title={t("abdm_add_facility")} />
       <div className="mx-auto grid max-w-4xl gap-4 p-4 md:p-6">
         <div className="flex flex-wrap items-center gap-3">
           <Hospital className="text-muted-foreground size-5" />
