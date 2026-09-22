@@ -227,6 +227,12 @@ The agent cannot see the UI; ask the user for a screenshot and record what it sh
 - raviger's `useQueryParams` setter writes a key set to `undefined` as the string "undefined"
   (findings J11). Write every `?key=` through `src/lib/query-params.ts`; never call the raviger
   setter with a spread that can hold `undefined`.
+- A token-scope class (`.dark`, `.dark.abdm-console`) redefines variables, but `color` is inherited
+  as a computed value: a descendant with no `text-*` class inherits the colour computed on
+  `.care-abdm-fe-container` (the light theme's black), not the redefined variable. A scope class
+  must set `color` (and `background-color`) on the element that carries it (ADR-018 corrections).
+- `SheetBody` puts `className` on its scroller and the children in an inner `div`: a `grid gap-*`
+  on it has 1 child. Put the grid on your own wrapper inside.
 
 ## Developer explorer (ADR-018)
 

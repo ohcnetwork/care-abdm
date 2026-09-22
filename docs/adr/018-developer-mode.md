@@ -131,6 +131,27 @@ Decisions:
    strip (`● abdm / developer … Open in the explorer`): a dark strip says "developer mode is on
    here" at a glance.
 
+### Corrections the same day (Rithvik's screenshots: black text on navy, gaps)
+
+- **Inherited colour.** `color` is inherited as a computed value, not as a variable reference. An
+  element inside the console that set no colour of its own (a `<dd>`, a ghost button, the timeline's
+  reached stops, the sheet's close button) inherited the light theme's near-black from
+  `.care-abdm-fe-container` and vanished on navy; only elements with an explicit `text-*` class
+  read the redefined variable. The fix is in the token block, once: `.dark.abdm-console` sets
+  `background-color`, `color` and `font-family` on the element that carries the class, so the class
+  is complete in itself wherever it is put (the page wrapper, a portalled `SheetContent`, the footer).
+- **`SheetBody`'s `className` styles its scroller** and the children land in an inner `div`, so a
+  `grid gap-*` on it had 1 child and produced no gaps (the groups of the General view touched). The
+  sheets now own an inner grid wrapper (`gap-6`).
+- **Care UI's `ghost` button is underlined** (a link's look) and has no base colour. The console has
+  its own quiet action, `Tool` (no border, no underline, secondary until hovered, `pressed`), used
+  for the tree's copy path / copy value / Expand all / Raw / Copy JSON, the icon-only `CopyButton`,
+  "Clear filters" and "Refresh".
+- **Density.** The tree is the one tight place (18 px rows, 12 px per level, the chevron in a 14 px
+  gutter, `px-1.5 py-1` body); everything around it got more room (page padding 20 px, group gap
+  24 px, `Pairs` rows 6 px apart on a 20 px line, callback block `p-4 gap-3`, list rows `py-2.5`,
+  readiness rows `p-4`).
+
 ## Amendment 2026-09-22 (2) — the exchange sheet as a network inspector (Rithvik: "like browser's inspector tab")
 
 The exchange sheet stacked everything on 1 scroll (timeline, request, answer, callbacks, rows). It

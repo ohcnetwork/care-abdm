@@ -55,7 +55,7 @@ DEFAULTS = {
     # Scan and Share counter QR code. The docs say only that the QR code holds a URL with the
     # HIP ID and a context (docs/findings.md). Placeholders: {hip_id} and {context}.
     # Empty = the setup page shows no QR code and asks for the observed format.
-    "SHARE_QR_URL_TEMPLATE": "",
+    "SHARE_QR_URL_TEMPLATE": "https://phrsbx.abdm.gov.in/share-profile?hip-id={hip_id}&counter-id={context}",
     # ADR-018. `true` opens the developer explorer (`/api/abdm/dev/*`, `/abdm/developer`) to every
     # authenticated user of this deployment: every exchange, callback and plug table, redacted by
     # name and length. A production deployment leaves it unset.
