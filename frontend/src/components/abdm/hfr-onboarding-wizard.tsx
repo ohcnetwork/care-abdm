@@ -4,7 +4,7 @@ import {
   noticeFromError,
   noticeFromFailure,
 } from "@/components/abdm/failure-notice-shared";
-import HprLoginDialog from "@/components/abdm/hpr-login-dialog";
+import HprGate from "@/components/abdm/hpr-gate";
 import MasterSelect from "@/components/abdm/master-select";
 import { selectClass, shortenCoordinate } from "@/components/abdm/nhpr-shared";
 import PageHeadTitle from "@/components/common/page-head-title";
@@ -28,13 +28,7 @@ import careApi, { type AbdmHfrState, type AbdmHfrStep } from "@/lib/careApi";
 import { mutate, query } from "@/lib/request";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Building2,
-  CheckCircle2,
-  CircleDashed,
-  Loader2,
-  LogIn,
-} from "lucide-react";
+import { Building2, CheckCircle2, CircleDashed, Loader2 } from "lucide-react";
 import { navigate } from "raviger";
 import { Fragment, useEffect, useMemo, useState } from "react";
 
@@ -218,12 +212,6 @@ export default function HfrOnboardingWizard({
     }),
     retry: false,
   });
-  const hpr = useQuery({
-    queryKey: ["abdm", "me", "hpr"],
-    queryFn: query(careApi.hprState, { silent: true }),
-    retry: false,
-  });
-  const [loginOpen, setLoginOpen] = useState(false);
   const [step, setStep] = useState<AbdmHfrStep>("dedup");
   // A refusal the state does not hold (a plug rule before any call). A registry refusal is stored
   // on the onboarding state and rendered from there, so 1 notice, never 2.
@@ -388,7 +376,6 @@ export default function HfrOnboardingWizard({
   const setDetailedField = (k: string, v: unknown) =>
     setDetailed((d) => ({ ...d, [k]: v }));
 
-  const sessionActive = Boolean(state.data?.hprSession.active);
   const busy = run.isPending;
   const submitted = onboarding?.status === "submitted";
 
@@ -471,765 +458,794 @@ export default function HfrOnboardingWizard({
           </>
         )}
 
-        <Card size="sm">
-          <CardContent className="flex flex-wrap items-center gap-3 text-sm">
-            <LogIn className="text-muted-foreground size-4" />
-            {sessionActive ? (
-              <span>
-                {t("abdm_hfr_session_active", {
-                  id: [
-                    state.data?.hprSession.name,
-                    state.data?.hprSession.hprId,
-                  ]
-                    .filter(Boolean)
-                    .join(" · "),
-                })}
-                {state.data?.hprSession.role &&
-                  state.data.hprSession.role < 2 && (
-                    <span className="text-destructive">
-                      {" "}
-                      · {t("abdm_hfr_session_role_warning")}
+        {/* ADR-016 revision: no "logged in" card. The registry refuses every step below without a
+            facility manager's HPR token (nhpr/facility.py:159-165), so the reason is shown instead
+            of the form. */}
+        <HprGate
+          session={state.data?.hprSession}
+          loading={state.isLoading}
+          onSession={() => qc.invalidateQueries({ queryKey: key })}
+        >
+          <ol className="grid gap-1 text-sm sm:grid-cols-5">
+            {STEPS.map((s, i) => {
+              const done = onboarding
+                ? STEPS.indexOf(s) < STEPS.indexOf(step) ||
+                  (submitted && s === "submit")
+                : false;
+              return (
+                <li key={s}>
+                  <button
+                    type="button"
+                    className={`flex w-full items-center gap-2 rounded-md border px-2 py-1.5 text-left ${step === s ? "border-primary" : ""}`}
+                    onClick={() => setStep(s)}
+                  >
+                    {done ? (
+                      <CheckCircle2 className="size-4 text-green-600" />
+                    ) : (
+                      <CircleDashed className="text-muted-foreground size-4" />
+                    )}
+                    <span>
+                      {i + 1}. {stepTitle(s)}
                     </span>
-                  )}
-              </span>
-            ) : (
-              <span>{t("abdm_hfr_session_needed")}</span>
-            )}
-            <Button
-              type="button"
-              size="sm"
-              variant={sessionActive ? "outline" : "default"}
-              className="ml-auto"
-              onClick={() => setLoginOpen(true)}
-            >
-              {sessionActive ? t("abdm_hpr_login_again") : t("abdm_hpr_login")}
-            </Button>
-          </CardContent>
-        </Card>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
 
-        <ol className="grid gap-1 text-sm sm:grid-cols-5">
-          {STEPS.map((s, i) => {
-            const done = onboarding
-              ? STEPS.indexOf(s) < STEPS.indexOf(step) ||
-                (submitted && s === "submit")
-              : false;
-            return (
-              <li key={s}>
-                <button
+          {state.isLoading && <Skeleton className="h-64 w-full rounded-xl" />}
+          {state.isError && (
+            <Alert variant="destructive">
+              <AlertDescription>{t("abdm_hfr_load_failed")}</AlertDescription>
+            </Alert>
+          )}
+          {(() => {
+            const notice = error ?? noticeFromFailure(onboarding?.failure);
+            return notice ? <FailureNotice {...notice} /> : null;
+          })()}
+
+          {state.data && step === "dedup" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{stepTitle("dedup")}</CardTitle>
+                <CardDescription>{t("abdm_hfr_dedup_help")}</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 sm:grid-cols-2">
+                <Field labelKey="abdm_facility_name" htmlFor="dd-name">
+                  <Text
+                    id="dd-name"
+                    value={dedup.name}
+                    onChange={(v) => setDedup({ ...dedup, name: v })}
+                  />
+                </Field>
+                <Field labelKey="abdm_hfr_address" htmlFor="dd-address">
+                  <Text
+                    id="dd-address"
+                    value={dedup.address}
+                    onChange={(v) => setDedup({ ...dedup, address: v })}
+                  />
+                </Field>
+                <Field labelKey="abdm_hfr_state" htmlFor="dd-state">
+                  <MasterSelect
+                    id="dd-state"
+                    kind="lgd-states"
+                    value={dedup.state}
+                    onChange={(v) =>
+                      setDedup({
+                        ...dedup,
+                        state: v,
+                        district: "",
+                        subDistrict: "",
+                      })
+                    }
+                  />
+                </Field>
+                <Field labelKey="abdm_hfr_district" htmlFor="dd-district">
+                  <MasterSelect
+                    id="dd-district"
+                    kind="lgd-districts"
+                    params={{ state: dedup.state }}
+                    enabled={Boolean(dedup.state)}
+                    value={dedup.district}
+                    onChange={(v) =>
+                      setDedup({ ...dedup, district: v, subDistrict: "" })
+                    }
+                  />
+                </Field>
+                <Field labelKey="abdm_hfr_subdistrict" htmlFor="dd-sub">
+                  <MasterSelect
+                    id="dd-sub"
+                    kind="lgd-subdistricts"
+                    params={{ district: dedup.district }}
+                    enabled={Boolean(dedup.district)}
+                    value={dedup.subDistrict}
+                    onChange={(v) => setDedup({ ...dedup, subDistrict: v })}
+                  />
+                </Field>
+                {onboarding && onboarding.dedupResults.length > 0 && (
+                  <div className="sm:col-span-2">
+                    <Alert variant="warning">
+                      <AlertDescription className="grid gap-1">
+                        <span>
+                          {t("abdm_hfr_dedup_matches", {
+                            count: String(onboarding.dedupResults.length),
+                          })}
+                        </span>
+                        <ul className="list-disc pl-4 text-xs">
+                          {onboarding.dedupResults.map((r, i) => (
+                            <li key={i}>
+                              {[r.name, r.address, r.facilityId]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </li>
+                          ))}
+                        </ul>
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                )}
+                {onboarding &&
+                  onboarding.dedupResults.length === 0 &&
+                  onboarding.lastMessage === "" &&
+                  onboarding.status === "draft" && (
+                    <p className="text-muted-foreground text-xs sm:col-span-2">
+                      {t("abdm_hfr_dedup_none")}
+                    </p>
+                  )}
+              </CardContent>
+              <CardFooter className="flex gap-2 border-t">
+                <Button
                   type="button"
-                  className={`flex w-full items-center gap-2 rounded-md border px-2 py-1.5 text-left ${step === s ? "border-primary" : ""}`}
-                  onClick={() => setStep(s)}
-                >
-                  {done ? (
-                    <CheckCircle2 className="size-4 text-green-600" />
-                  ) : (
-                    <CircleDashed className="text-muted-foreground size-4" />
-                  )}
-                  <span>
-                    {i + 1}. {stepTitle(s)}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ol>
-
-        {state.isLoading && <Skeleton className="h-64 w-full rounded-xl" />}
-        {state.isError && (
-          <Alert variant="destructive">
-            <AlertDescription>{t("abdm_hfr_load_failed")}</AlertDescription>
-          </Alert>
-        )}
-        {(() => {
-          const notice = error ?? noticeFromFailure(onboarding?.failure);
-          return notice ? <FailureNotice {...notice} /> : null;
-        })()}
-
-        {state.data && step === "dedup" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{stepTitle("dedup")}</CardTitle>
-              <CardDescription>{t("abdm_hfr_dedup_help")}</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2">
-              <Field labelKey="abdm_facility_name" htmlFor="dd-name">
-                <Text
-                  id="dd-name"
-                  value={dedup.name}
-                  onChange={(v) => setDedup({ ...dedup, name: v })}
-                />
-              </Field>
-              <Field labelKey="abdm_hfr_address" htmlFor="dd-address">
-                <Text
-                  id="dd-address"
-                  value={dedup.address}
-                  onChange={(v) => setDedup({ ...dedup, address: v })}
-                />
-              </Field>
-              <Field labelKey="abdm_hfr_state" htmlFor="dd-state">
-                <MasterSelect
-                  id="dd-state"
-                  kind="lgd-states"
-                  value={dedup.state}
-                  onChange={(v) =>
-                    setDedup({
-                      ...dedup,
-                      state: v,
-                      district: "",
-                      subDistrict: "",
+                  variant="outline"
+                  size="sm"
+                  disabled={busy || dedup.name.length < 3}
+                  onClick={() =>
+                    run.mutate({
+                      step: "dedup",
+                      payload: {
+                        name: dedup.name,
+                        address: dedup.address,
+                        district: dedup.district,
+                        subDistrict: dedup.subDistrict,
+                      },
                     })
                   }
-                />
-              </Field>
-              <Field labelKey="abdm_hfr_district" htmlFor="dd-district">
-                <MasterSelect
-                  id="dd-district"
-                  kind="lgd-districts"
-                  params={{ state: dedup.state }}
-                  enabled={Boolean(dedup.state)}
-                  value={dedup.district}
-                  onChange={(v) =>
-                    setDedup({ ...dedup, district: v, subDistrict: "" })
-                  }
-                />
-              </Field>
-              <Field labelKey="abdm_hfr_subdistrict" htmlFor="dd-sub">
-                <MasterSelect
-                  id="dd-sub"
-                  kind="lgd-subdistricts"
-                  params={{ district: dedup.district }}
-                  enabled={Boolean(dedup.district)}
-                  value={dedup.subDistrict}
-                  onChange={(v) => setDedup({ ...dedup, subDistrict: v })}
-                />
-              </Field>
-              {onboarding && onboarding.dedupResults.length > 0 && (
-                <div className="sm:col-span-2">
-                  <Alert variant="warning">
-                    <AlertDescription className="grid gap-1">
-                      <span>
-                        {t("abdm_hfr_dedup_matches", {
-                          count: String(onboarding.dedupResults.length),
-                        })}
-                      </span>
-                      <ul className="list-disc pl-4 text-xs">
-                        {onboarding.dedupResults.map((r, i) => (
-                          <li key={i}>
-                            {[r.name, r.address, r.facilityId]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </li>
-                        ))}
-                      </ul>
-                    </AlertDescription>
-                  </Alert>
-                </div>
-              )}
-              {onboarding &&
-                onboarding.dedupResults.length === 0 &&
-                onboarding.lastMessage === "" &&
-                onboarding.status === "draft" && (
-                  <p className="text-muted-foreground text-xs sm:col-span-2">
-                    {t("abdm_hfr_dedup_none")}
-                  </p>
-                )}
-            </CardContent>
-            <CardFooter className="flex gap-2 border-t">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={busy || dedup.name.length < 3}
-                onClick={() =>
-                  run.mutate({
-                    step: "dedup",
-                    payload: {
-                      name: dedup.name,
-                      address: dedup.address,
-                      district: dedup.district,
-                      subDistrict: dedup.subDistrict,
-                    },
-                  })
-                }
-              >
-                {busy && <Loader2 className="size-4 animate-spin" />}{" "}
-                {t("abdm_hfr_dedup_run")}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                className="ml-auto"
-                onClick={() => {
-                  setAddress(
-                    "stateLGDCode",
-                    dedup.state || address.stateLGDCode,
-                  );
-                  setAddress(
-                    "districtLGDCode",
-                    dedup.district || address.districtLGDCode,
-                  );
-                  setStep("basic");
-                }}
-              >
-                {t("abdm_next")}
-              </Button>
-            </CardFooter>
-          </Card>
-        )}
-
-        {state.data && step === "basic" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{stepTitle("basic")}</CardTitle>
-              <CardDescription>{t("abdm_hfr_basic_help")}</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field labelKey="abdm_facility_name" htmlFor="b-name">
-                  <Text
-                    id="b-name"
-                    value={String(basic.facilityName ?? "")}
-                    onChange={(v) => setBasicField("facilityName", v)}
-                  />
-                </Field>
-                <Field labelKey="abdm_hfr_ownership" htmlFor="b-own">
-                  <MasterSelect
-                    id="b-own"
-                    kind="facility-master"
-                    params={{ type: "OWNER" }}
-                    value={String(basic.ownershipCode ?? "")}
-                    onChange={(v) => {
-                      setBasicField("ownershipCode", v);
-                      setBasicField("ownershipSubTypeCode", "");
-                      setBasicField("ownershipSubTypeCode2", "");
-                    }}
-                  />
-                </Field>
-                <Field labelKey="abdm_hfr_ownership_subtype" htmlFor="b-own2">
-                  {/* No master lists these: the registry accepts C (government), P or NP (private, PPP). */}
-                  <MasterSelect
-                    id="b-own2"
-                    kind="owner-subtype-codes"
-                    params={{ ownership: String(basic.ownershipCode ?? "") }}
-                    enabled={Boolean(basic.ownershipCode)}
-                    value={String(basic.ownershipSubTypeCode ?? "")}
-                    onChange={(v) => {
-                      setBasicField("ownershipSubTypeCode", v);
-                      setBasicField("ownershipSubTypeCode2", "");
-                    }}
-                  />
-                </Field>
-                <Field labelKey="abdm_hfr_ownership_subtype2" htmlFor="b-own3">
-                  <MasterSelect
-                    id="b-own3"
-                    kind="owner-subtypes"
-                    params={{
-                      ownership: String(basic.ownershipCode ?? ""),
-                      subtype: String(basic.ownershipSubTypeCode ?? ""),
-                    }}
-                    enabled={Boolean(
-                      basic.ownershipCode && basic.ownershipSubTypeCode,
-                    )}
-                    value={String(basic.ownershipSubTypeCode2 ?? "")}
-                    onChange={(v) => setBasicField("ownershipSubTypeCode2", v)}
-                  />
-                </Field>
-                <Field
-                  labelKey="abdm_hfr_system_of_medicine"
-                  htmlFor="b-som"
-                  hint={t("abdm_hfr_multi_hint")}
                 >
-                  <MasterSelect
-                    id="b-som"
-                    kind="facility-master"
-                    params={{ type: "MEDICINE" }}
-                    multiple
-                    value={somCodes}
-                    onChange={(v) => setBasicField("systemOfMedicineCode", v)}
-                  />
-                </Field>
-                <Field
-                  labelKey="abdm_hfr_type_of_service"
-                  htmlFor="b-tos"
-                  hint={t("abdm_hfr_multi_hint")}
+                  {busy && <Loader2 className="size-4 animate-spin" />}{" "}
+                  {t("abdm_hfr_dedup_run")}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="ml-auto"
+                  onClick={() => {
+                    setAddress(
+                      "stateLGDCode",
+                      dedup.state || address.stateLGDCode,
+                    );
+                    setAddress(
+                      "districtLGDCode",
+                      dedup.district || address.districtLGDCode,
+                    );
+                    setStep("basic");
+                  }}
                 >
-                  <MasterSelect
-                    id="b-tos"
-                    kind="facility-master"
-                    params={{ type: "TYPE-SERVICE" }}
-                    multiple
-                    value={String(basic.typeOfServiceCode ?? "")
-                      .split(",")
-                      .filter(Boolean)}
-                    onChange={(v) => setBasicField("typeOfServiceCode", v)}
-                  />
-                </Field>
-                <Field labelKey="abdm_hfr_facility_type" htmlFor="b-type">
-                  <MasterSelect
-                    id="b-type"
-                    kind="facility-types"
-                    params={{
-                      ownership: String(basic.ownershipCode ?? ""),
-                      som: somCodes[0] ?? "",
-                    }}
-                    enabled={Boolean(basic.ownershipCode && somCodes.length)}
-                    value={String(basic.facilityTypeCode ?? "")}
-                    onChange={(v) => {
-                      setBasicField("facilityTypeCode", v);
-                      setBasicField("facilitySubType", "");
-                    }}
-                  />
-                </Field>
-                <Field labelKey="abdm_hfr_facility_subtype" htmlFor="b-sub">
-                  <MasterSelect
-                    id="b-sub"
-                    kind="facility-subtypes"
-                    params={{ type: String(basic.facilityTypeCode ?? "") }}
-                    enabled={Boolean(basic.facilityTypeCode)}
-                    value={String(basic.facilitySubType ?? "")}
-                    onChange={(v) => setBasicField("facilitySubType", v)}
-                  />
-                </Field>
-                <Field labelKey="abdm_hfr_speciality_type" htmlFor="b-spec">
-                  <MasterSelect
-                    id="b-spec"
-                    kind="facility-master"
-                    params={{ type: "SPECIALITY-TYPE" }}
-                    value={String(basic.specialityTypeCode ?? "")}
-                    onChange={(v) => setBasicField("specialityTypeCode", v)}
-                  />
-                </Field>
-                <Field labelKey="abdm_hfr_operational_status" htmlFor="b-ops">
-                  <MasterSelect
-                    id="b-ops"
-                    kind="facility-master"
-                    params={{ type: "FAC-STATUS" }}
-                    value={String(basic.facilityOperationalStatus ?? "")}
-                    onChange={(v) =>
-                      setBasicField("facilityOperationalStatus", v)
-                    }
-                  />
-                </Field>
-              </div>
+                  {t("abdm_next")}
+                </Button>
+              </CardFooter>
+            </Card>
+          )}
 
-              <h3 className="text-sm font-semibold">{t("abdm_hfr_address")}</h3>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field labelKey="abdm_hfr_state" htmlFor="b-state">
-                  <MasterSelect
-                    id="b-state"
-                    kind="lgd-states"
-                    value={String(address.stateLGDCode ?? "")}
-                    onChange={(v) =>
-                      setBasicField("facilityAddressDetails", {
-                        ...address,
-                        stateLGDCode: v,
-                        districtLGDCode: "",
-                        subDistrictLGDCode: "",
-                      })
-                    }
-                  />
-                </Field>
-                <Field labelKey="abdm_hfr_district" htmlFor="b-district">
-                  <MasterSelect
-                    id="b-district"
-                    kind="lgd-districts"
-                    params={{ state: String(address.stateLGDCode ?? "") }}
-                    enabled={Boolean(address.stateLGDCode)}
-                    value={String(address.districtLGDCode ?? "")}
-                    onChange={(v) =>
-                      setBasicField("facilityAddressDetails", {
-                        ...address,
-                        districtLGDCode: v,
-                        subDistrictLGDCode: "",
-                      })
-                    }
-                  />
-                </Field>
-                <Field labelKey="abdm_hfr_subdistrict" htmlFor="b-subd">
-                  <MasterSelect
-                    id="b-subd"
-                    kind="lgd-subdistricts"
-                    params={{ district: String(address.districtLGDCode ?? "") }}
-                    enabled={Boolean(address.districtLGDCode)}
-                    value={String(address.subDistrictLGDCode ?? "")}
-                    onChange={(v) => setAddress("subDistrictLGDCode", v)}
-                  />
-                </Field>
-                <Field labelKey="abdm_hfr_region" htmlFor="b-region">
-                  <MasterSelect
-                    id="b-region"
-                    kind="facility-master"
-                    params={{ type: "FACILITY-REGION" }}
-                    value={String(address.facilityRegion ?? "")}
-                    onChange={(v) => setAddress("facilityRegion", v)}
-                  />
-                </Field>
-                <Field
-                  labelKey="abdm_hfr_village_code"
-                  htmlFor="b-village"
-                  hint={t("abdm_hfr_village_hint")}
-                >
-                  <Text
-                    id="b-village"
-                    value={String(address.villageCityTownLGDCode ?? "")}
-                    onChange={(v) => setAddress("villageCityTownLGDCode", v)}
-                  />
-                </Field>
-                <Field labelKey="abdm_hfr_pincode" htmlFor="b-pin">
-                  <Text
-                    id="b-pin"
-                    inputMode="numeric"
-                    value={String(address.pincode ?? "")}
-                    onChange={(v) => setAddress("pincode", v)}
-                  />
-                </Field>
-                <Field labelKey="abdm_hfr_address_line1" htmlFor="b-a1">
-                  <Text
-                    id="b-a1"
-                    value={String(address.addressLine1 ?? "")}
-                    onChange={(v) => setAddress("addressLine1", v)}
-                  />
-                </Field>
-                <Field labelKey="abdm_hfr_address_line2" htmlFor="b-a2">
-                  <Text
-                    id="b-a2"
-                    value={String(address.addressLine2 ?? "")}
-                    onChange={(v) => setAddress("addressLine2", v)}
-                  />
-                </Field>
-                <Field labelKey="abdm_hfr_latitude" htmlFor="b-lat">
-                  <Text
-                    id="b-lat"
-                    inputMode="decimal"
-                    value={String(address.latitude ?? "")}
-                    onChange={(v) => setAddress("latitude", v)}
-                    onBlur={(v) =>
-                      setAddress("latitude", shortenCoordinate(v, "latitude"))
-                    }
-                  />
-                </Field>
-                <Field labelKey="abdm_hfr_longitude" htmlFor="b-lon">
-                  <Text
-                    id="b-lon"
-                    inputMode="decimal"
-                    value={String(address.longitude ?? "")}
-                    onChange={(v) => setAddress("longitude", v)}
-                    onBlur={(v) =>
-                      setAddress("longitude", shortenCoordinate(v, "longitude"))
-                    }
-                  />
-                </Field>
-              </div>
-
-              <h3 className="text-sm font-semibold">{t("abdm_hfr_contact")}</h3>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field labelKey="abdm_hfr_email" htmlFor="b-email">
-                  <Text
-                    id="b-email"
-                    type="email"
-                    value={String(contact.facilityEmailId ?? "")}
-                    onChange={(v) => setContact("facilityEmailId", v)}
-                  />
-                </Field>
-                <Field labelKey="abdm_hfr_mobile" htmlFor="b-mobile">
-                  <Text
-                    id="b-mobile"
-                    inputMode="tel"
-                    value={String(contact.facilityContactNumber ?? "")}
-                    onChange={(v) => setContact("facilityContactNumber", v)}
-                  />
-                </Field>
-                <Field labelKey="abdm_hfr_website" htmlFor="b-web">
-                  <Text
-                    id="b-web"
-                    inputMode="url"
-                    value={String(contact.websiteLink ?? "")}
-                    onChange={(v) => setContact("websiteLink", v)}
-                  />
-                </Field>
-                <Field labelKey="abdm_hfr_landline" htmlFor="b-land">
-                  <div className="flex gap-2">
-                    <Input
-                      id="b-std"
-                      className="w-24"
-                      placeholder="STD"
-                      value={String(contact.facilityStdCode ?? "")}
-                      onChange={(e) =>
-                        setContact("facilityStdCode", e.target.value)
-                      }
-                    />
-                    <Input
-                      id="b-land"
-                      value={String(contact.facilityLandlineNumber ?? "")}
-                      onChange={(e) =>
-                        setContact("facilityLandlineNumber", e.target.value)
-                      }
-                    />
-                  </div>
-                </Field>
-              </div>
-
-              <h3 className="text-sm font-semibold">{t("abdm_hfr_photos")}</h3>
-              <p className="text-muted-foreground text-xs">
-                {t("abdm_hfr_photos_required")}
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Photo
-                  id="b-board"
-                  labelKey="abdm_hfr_board_photo"
-                  value={photos.board}
-                  onChange={(v) => setPhotos((p) => ({ ...p, board: v }))}
-                  t={t}
-                />
-                <Photo
-                  id="b-building"
-                  labelKey="abdm_hfr_building_photo"
-                  value={photos.building}
-                  onChange={(v) => setPhotos((p) => ({ ...p, building: v }))}
-                  t={t}
-                />
-              </div>
-
-              <h3 className="text-sm font-semibold">{t("abdm_hfr_timings")}</h3>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {DAYS.map((day) => (
-                  <div key={day} className="flex items-center gap-2">
-                    <span className="w-12 text-xs font-medium">{day}</span>
-                    <Input
-                      value={String(
-                        timings.find((x) => x.workingDays === day)
-                          ?.openingHours ?? "",
-                      )}
-                      placeholder={t("abdm_hfr_closed")}
-                      onChange={(e) => setTiming(day, e.target.value)}
-                    />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-            <CardFooter className="flex gap-2 border-t">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setStep("dedup")}
-              >
-                {t("abdm_back")}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                className="ml-auto"
-                disabled={
-                  busy ||
-                  !sessionActive ||
-                  !basic.facilityName ||
-                  !address.stateLGDCode ||
-                  (photosMissing && !onboarding?.trackingId)
-                }
-                onClick={() =>
-                  run.mutate({ step: "basic", payload: basicPayload() })
-                }
-              >
-                {busy && <Loader2 className="size-4 animate-spin" />}{" "}
-                {onboarding?.trackingId
-                  ? t("abdm_hfr_save_and_next")
-                  : t("abdm_hfr_create_and_next")}
-              </Button>
-            </CardFooter>
-          </Card>
-        )}
-
-        {state.data && step === "additional" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{stepTitle("additional")}</CardTitle>
-              <CardDescription>{t("abdm_hfr_additional_help")}</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <h3 className="text-sm font-semibold">
-                {t("abdm_hfr_services")}
-              </h3>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {[
-                  "hasDialysisCenter",
-                  "hasPharmacy",
-                  "hasBloodBank",
-                  "hasCathLab",
-                  "hasDiagnosticLab",
-                  "hasImagingCenter",
-                ].map((k) => (
-                  <Field key={k} labelKey={`abdm_hfr_${k}`} htmlFor={`a-${k}`}>
-                    <Select
-                      id={`a-${k}`}
-                      value={String(general[k] ?? "")}
-                      onChange={(v) =>
-                        setAdditional((a) => ({
-                          ...a,
-                          generalInformation: { ...general, [k]: v },
-                        }))
-                      }
-                      options={[
-                        { code: "Y", name: t("abdm_yes") },
-                        { code: "N", name: t("abdm_no") },
-                        { code: "YALL", name: t("abdm_hfr_yes_all") },
-                      ]}
-                    />
-                  </Field>
-                ))}
-              </div>
-              <h3 className="text-sm font-semibold">
-                {t("abdm_hfr_programs")}
-              </h3>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {[
-                  "nhrrId",
-                  "nin",
-                  "abpmjayId",
-                  "rohiniId",
-                  "echsId",
-                  "cghsId",
-                  "ceaRegistration",
-                  "stateInsuranceSchemeId",
-                ].map((k) => (
-                  <Field key={k} labelKey={`abdm_hfr_${k}`} htmlFor={`a-${k}`}>
+          {state.data && step === "basic" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{stepTitle("basic")}</CardTitle>
+                <CardDescription>{t("abdm_hfr_basic_help")}</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field labelKey="abdm_facility_name" htmlFor="b-name">
                     <Text
-                      id={`a-${k}`}
-                      value={String(programs[k] ?? "")}
+                      id="b-name"
+                      value={String(basic.facilityName ?? "")}
+                      onChange={(v) => setBasicField("facilityName", v)}
+                    />
+                  </Field>
+                  <Field labelKey="abdm_hfr_ownership" htmlFor="b-own">
+                    <MasterSelect
+                      id="b-own"
+                      kind="facility-master"
+                      params={{ type: "OWNER" }}
+                      value={String(basic.ownershipCode ?? "")}
+                      onChange={(v) => {
+                        setBasicField("ownershipCode", v);
+                        setBasicField("ownershipSubTypeCode", "");
+                        setBasicField("ownershipSubTypeCode2", "");
+                      }}
+                    />
+                  </Field>
+                  <Field labelKey="abdm_hfr_ownership_subtype" htmlFor="b-own2">
+                    {/* No master lists these: the registry accepts C (government), P or NP (private, PPP). */}
+                    <MasterSelect
+                      id="b-own2"
+                      kind="owner-subtype-codes"
+                      params={{ ownership: String(basic.ownershipCode ?? "") }}
+                      enabled={Boolean(basic.ownershipCode)}
+                      value={String(basic.ownershipSubTypeCode ?? "")}
+                      onChange={(v) => {
+                        setBasicField("ownershipSubTypeCode", v);
+                        setBasicField("ownershipSubTypeCode2", "");
+                      }}
+                    />
+                  </Field>
+                  <Field
+                    labelKey="abdm_hfr_ownership_subtype2"
+                    htmlFor="b-own3"
+                  >
+                    <MasterSelect
+                      id="b-own3"
+                      kind="owner-subtypes"
+                      params={{
+                        ownership: String(basic.ownershipCode ?? ""),
+                        subtype: String(basic.ownershipSubTypeCode ?? ""),
+                      }}
+                      enabled={Boolean(
+                        basic.ownershipCode && basic.ownershipSubTypeCode,
+                      )}
+                      value={String(basic.ownershipSubTypeCode2 ?? "")}
                       onChange={(v) =>
-                        setAdditional((a) => ({
-                          ...a,
-                          linkedProgramIds: { ...programs, [k]: v },
-                        }))
+                        setBasicField("ownershipSubTypeCode2", v)
                       }
                     />
                   </Field>
-                ))}
-              </div>
-            </CardContent>
-            <CardFooter className="flex gap-2 border-t">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setStep("basic")}
-              >
-                {t("abdm_back")}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                className="ml-auto"
-                disabled={busy || !sessionActive || !onboarding?.trackingId}
-                onClick={() =>
-                  run.mutate({
-                    step: "additional",
-                    payload: {
-                      linkedProgramIds: Object.fromEntries(
-                        Object.entries(programs).filter(([, v]) => v),
-                      ),
-                      generalInformation: Object.fromEntries(
-                        Object.entries(general).filter(([, v]) => v),
-                      ),
-                    },
-                  })
-                }
-              >
-                {busy && <Loader2 className="size-4 animate-spin" />}{" "}
-                {t("abdm_hfr_save_and_next")}
-              </Button>
-            </CardFooter>
-          </Card>
-        )}
-
-        {state.data && step === "detailed" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{stepTitle("detailed")}</CardTitle>
-              <CardDescription>{t("abdm_hfr_detailed_help")}</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <h3 className="text-sm font-semibold">
-                {t("abdm_hfr_specialities")}
-              </h3>
-              {somCodes.length === 0 && (
-                <p className="text-muted-foreground text-xs">
-                  {t("abdm_hfr_specialities_need_som")}
-                </p>
-              )}
-              <p className="text-muted-foreground text-xs">
-                {t("abdm_hfr_specialities_rule")}
-              </p>
-              {somCodes.map((som) => {
-                const row = specialities.find(
-                  (s) => s.systemOfMedicineCode === som,
-                ) ?? {
-                  systemOfMedicineCode: som,
-                  isSpecializationAvalaible: "Y",
-                  specialities: [],
-                };
-                const update = (patch: Json) =>
-                  setDetailedField("specialities", [
-                    ...specialities.filter(
-                      (s) => s.systemOfMedicineCode !== som,
-                    ),
-                    { ...row, ...patch },
-                  ]);
-                return (
-                  <div
-                    key={som}
-                    className="grid gap-2 rounded-md border p-3 sm:grid-cols-[8rem_1fr]"
+                  <Field
+                    labelKey="abdm_hfr_system_of_medicine"
+                    htmlFor="b-som"
+                    hint={t("abdm_hfr_multi_hint")}
                   >
-                    <div className="grid gap-1">
-                      <span className="text-sm font-medium">{som}</span>
-                      <Select
-                        id={`d-avail-${som}`}
-                        value={String(row.isSpecializationAvalaible ?? "N")}
-                        onChange={(v) =>
-                          update({ isSpecializationAvalaible: v })
+                    <MasterSelect
+                      id="b-som"
+                      kind="facility-master"
+                      params={{ type: "MEDICINE" }}
+                      multiple
+                      value={somCodes}
+                      onChange={(v) => setBasicField("systemOfMedicineCode", v)}
+                    />
+                  </Field>
+                  <Field
+                    labelKey="abdm_hfr_type_of_service"
+                    htmlFor="b-tos"
+                    hint={t("abdm_hfr_multi_hint")}
+                  >
+                    <MasterSelect
+                      id="b-tos"
+                      kind="facility-master"
+                      params={{ type: "TYPE-SERVICE" }}
+                      multiple
+                      value={String(basic.typeOfServiceCode ?? "")
+                        .split(",")
+                        .filter(Boolean)}
+                      onChange={(v) => setBasicField("typeOfServiceCode", v)}
+                    />
+                  </Field>
+                  <Field labelKey="abdm_hfr_facility_type" htmlFor="b-type">
+                    <MasterSelect
+                      id="b-type"
+                      kind="facility-types"
+                      params={{
+                        ownership: String(basic.ownershipCode ?? ""),
+                        som: somCodes[0] ?? "",
+                      }}
+                      enabled={Boolean(basic.ownershipCode && somCodes.length)}
+                      value={String(basic.facilityTypeCode ?? "")}
+                      onChange={(v) => {
+                        setBasicField("facilityTypeCode", v);
+                        setBasicField("facilitySubType", "");
+                      }}
+                    />
+                  </Field>
+                  <Field labelKey="abdm_hfr_facility_subtype" htmlFor="b-sub">
+                    <MasterSelect
+                      id="b-sub"
+                      kind="facility-subtypes"
+                      params={{ type: String(basic.facilityTypeCode ?? "") }}
+                      enabled={Boolean(basic.facilityTypeCode)}
+                      value={String(basic.facilitySubType ?? "")}
+                      onChange={(v) => setBasicField("facilitySubType", v)}
+                    />
+                  </Field>
+                  <Field labelKey="abdm_hfr_speciality_type" htmlFor="b-spec">
+                    <MasterSelect
+                      id="b-spec"
+                      kind="facility-master"
+                      params={{ type: "SPECIALITY-TYPE" }}
+                      value={String(basic.specialityTypeCode ?? "")}
+                      onChange={(v) => setBasicField("specialityTypeCode", v)}
+                    />
+                  </Field>
+                  <Field labelKey="abdm_hfr_operational_status" htmlFor="b-ops">
+                    <MasterSelect
+                      id="b-ops"
+                      kind="facility-master"
+                      params={{ type: "FAC-STATUS" }}
+                      value={String(basic.facilityOperationalStatus ?? "")}
+                      onChange={(v) =>
+                        setBasicField("facilityOperationalStatus", v)
+                      }
+                    />
+                  </Field>
+                </div>
+
+                <h3 className="text-sm font-semibold">
+                  {t("abdm_hfr_address")}
+                </h3>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field labelKey="abdm_hfr_state" htmlFor="b-state">
+                    <MasterSelect
+                      id="b-state"
+                      kind="lgd-states"
+                      value={String(address.stateLGDCode ?? "")}
+                      onChange={(v) =>
+                        setBasicField("facilityAddressDetails", {
+                          ...address,
+                          stateLGDCode: v,
+                          districtLGDCode: "",
+                          subDistrictLGDCode: "",
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field labelKey="abdm_hfr_district" htmlFor="b-district">
+                    <MasterSelect
+                      id="b-district"
+                      kind="lgd-districts"
+                      params={{ state: String(address.stateLGDCode ?? "") }}
+                      enabled={Boolean(address.stateLGDCode)}
+                      value={String(address.districtLGDCode ?? "")}
+                      onChange={(v) =>
+                        setBasicField("facilityAddressDetails", {
+                          ...address,
+                          districtLGDCode: v,
+                          subDistrictLGDCode: "",
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field labelKey="abdm_hfr_subdistrict" htmlFor="b-subd">
+                    <MasterSelect
+                      id="b-subd"
+                      kind="lgd-subdistricts"
+                      params={{
+                        district: String(address.districtLGDCode ?? ""),
+                      }}
+                      enabled={Boolean(address.districtLGDCode)}
+                      value={String(address.subDistrictLGDCode ?? "")}
+                      onChange={(v) => setAddress("subDistrictLGDCode", v)}
+                    />
+                  </Field>
+                  <Field labelKey="abdm_hfr_region" htmlFor="b-region">
+                    <MasterSelect
+                      id="b-region"
+                      kind="facility-master"
+                      params={{ type: "FACILITY-REGION" }}
+                      value={String(address.facilityRegion ?? "")}
+                      onChange={(v) => setAddress("facilityRegion", v)}
+                    />
+                  </Field>
+                  <Field
+                    labelKey="abdm_hfr_village_code"
+                    htmlFor="b-village"
+                    hint={t("abdm_hfr_village_hint")}
+                  >
+                    <Text
+                      id="b-village"
+                      value={String(address.villageCityTownLGDCode ?? "")}
+                      onChange={(v) => setAddress("villageCityTownLGDCode", v)}
+                    />
+                  </Field>
+                  <Field labelKey="abdm_hfr_pincode" htmlFor="b-pin">
+                    <Text
+                      id="b-pin"
+                      inputMode="numeric"
+                      value={String(address.pincode ?? "")}
+                      onChange={(v) => setAddress("pincode", v)}
+                    />
+                  </Field>
+                  <Field labelKey="abdm_hfr_address_line1" htmlFor="b-a1">
+                    <Text
+                      id="b-a1"
+                      value={String(address.addressLine1 ?? "")}
+                      onChange={(v) => setAddress("addressLine1", v)}
+                    />
+                  </Field>
+                  <Field labelKey="abdm_hfr_address_line2" htmlFor="b-a2">
+                    <Text
+                      id="b-a2"
+                      value={String(address.addressLine2 ?? "")}
+                      onChange={(v) => setAddress("addressLine2", v)}
+                    />
+                  </Field>
+                  <Field labelKey="abdm_hfr_latitude" htmlFor="b-lat">
+                    <Text
+                      id="b-lat"
+                      inputMode="decimal"
+                      value={String(address.latitude ?? "")}
+                      onChange={(v) => setAddress("latitude", v)}
+                      onBlur={(v) =>
+                        setAddress("latitude", shortenCoordinate(v, "latitude"))
+                      }
+                    />
+                  </Field>
+                  <Field labelKey="abdm_hfr_longitude" htmlFor="b-lon">
+                    <Text
+                      id="b-lon"
+                      inputMode="decimal"
+                      value={String(address.longitude ?? "")}
+                      onChange={(v) => setAddress("longitude", v)}
+                      onBlur={(v) =>
+                        setAddress(
+                          "longitude",
+                          shortenCoordinate(v, "longitude"),
+                        )
+                      }
+                    />
+                  </Field>
+                </div>
+
+                <h3 className="text-sm font-semibold">
+                  {t("abdm_hfr_contact")}
+                </h3>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field labelKey="abdm_hfr_email" htmlFor="b-email">
+                    <Text
+                      id="b-email"
+                      type="email"
+                      value={String(contact.facilityEmailId ?? "")}
+                      onChange={(v) => setContact("facilityEmailId", v)}
+                    />
+                  </Field>
+                  <Field labelKey="abdm_hfr_mobile" htmlFor="b-mobile">
+                    <Text
+                      id="b-mobile"
+                      inputMode="tel"
+                      value={String(contact.facilityContactNumber ?? "")}
+                      onChange={(v) => setContact("facilityContactNumber", v)}
+                    />
+                  </Field>
+                  <Field labelKey="abdm_hfr_website" htmlFor="b-web">
+                    <Text
+                      id="b-web"
+                      inputMode="url"
+                      value={String(contact.websiteLink ?? "")}
+                      onChange={(v) => setContact("websiteLink", v)}
+                    />
+                  </Field>
+                  <Field labelKey="abdm_hfr_landline" htmlFor="b-land">
+                    <div className="flex gap-2">
+                      <Input
+                        id="b-std"
+                        className="w-24"
+                        placeholder="STD"
+                        value={String(contact.facilityStdCode ?? "")}
+                        onChange={(e) =>
+                          setContact("facilityStdCode", e.target.value)
                         }
-                        options={YES_NO.map((c) => ({
-                          code: c,
-                          name: c === "Y" ? t("abdm_yes") : t("abdm_no"),
-                        }))}
+                      />
+                      <Input
+                        id="b-land"
+                        value={String(contact.facilityLandlineNumber ?? "")}
+                        onChange={(e) =>
+                          setContact("facilityLandlineNumber", e.target.value)
+                        }
                       />
                     </div>
-                    <MasterSelect
-                      kind="specialities"
-                      params={{ som }}
-                      multiple
-                      enabled={row.isSpecializationAvalaible === "Y"}
-                      value={(row.specialities as string[]) ?? []}
-                      onChange={(v) =>
-                        update({ specialities: v.split(",").filter(Boolean) })
-                      }
-                    />
-                  </div>
-                );
-              })}
-
-              <h3 className="text-sm font-semibold">
-                {t("abdm_hfr_infrastructure")}
-              </h3>
-              <p className="text-muted-foreground text-xs">
-                {t("abdm_hfr_infrastructure_help")}
-              </p>
-              {/* The total is derived: the sum of the 6 counts below, the rule the registry applies.
-                  Every count starts at 0, so the sum is always right and never typed. */}
-              <div className="grid gap-3 rounded-md border p-3">
-                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <span className="text-sm font-medium">
-                    {t("abdm_hfr_totalNumberOfBeds")}
-                  </span>
-                  <span className="text-2xl font-semibold tabular-nums">
-                    {bedSum}
-                  </span>
-                  <span className="text-muted-foreground text-xs">
-                    {t("abdm_hfr_beds_total_derived")}
-                  </span>
+                  </Field>
                 </div>
+
+                <h3 className="text-sm font-semibold">
+                  {t("abdm_hfr_photos")}
+                </h3>
+                <p className="text-muted-foreground text-xs">
+                  {t("abdm_hfr_photos_required")}
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Photo
+                    id="b-board"
+                    labelKey="abdm_hfr_board_photo"
+                    value={photos.board}
+                    onChange={(v) => setPhotos((p) => ({ ...p, board: v }))}
+                    t={t}
+                  />
+                  <Photo
+                    id="b-building"
+                    labelKey="abdm_hfr_building_photo"
+                    value={photos.building}
+                    onChange={(v) => setPhotos((p) => ({ ...p, building: v }))}
+                    t={t}
+                  />
+                </div>
+
+                <h3 className="text-sm font-semibold">
+                  {t("abdm_hfr_timings")}
+                </h3>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {DAYS.map((day) => (
+                    <div key={day} className="flex items-center gap-2">
+                      <span className="w-12 text-xs font-medium">{day}</span>
+                      <Input
+                        value={String(
+                          timings.find((x) => x.workingDays === day)
+                            ?.openingHours ?? "",
+                        )}
+                        placeholder={t("abdm_hfr_closed")}
+                        onChange={(e) => setTiming(day, e.target.value)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+              <CardFooter className="flex gap-2 border-t">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setStep("dedup")}
+                >
+                  {t("abdm_back")}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="ml-auto"
+                  disabled={
+                    busy ||
+                    !basic.facilityName ||
+                    !address.stateLGDCode ||
+                    (photosMissing && !onboarding?.trackingId)
+                  }
+                  onClick={() =>
+                    run.mutate({ step: "basic", payload: basicPayload() })
+                  }
+                >
+                  {busy && <Loader2 className="size-4 animate-spin" />}{" "}
+                  {onboarding?.trackingId
+                    ? t("abdm_hfr_save_and_next")
+                    : t("abdm_hfr_create_and_next")}
+                </Button>
+              </CardFooter>
+            </Card>
+          )}
+
+          {state.data && step === "additional" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{stepTitle("additional")}</CardTitle>
+                <CardDescription>
+                  {t("abdm_hfr_additional_help")}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <h3 className="text-sm font-semibold">
+                  {t("abdm_hfr_services")}
+                </h3>
                 <div className="grid gap-3 sm:grid-cols-3">
-                  {BED_SUM_FIELDS.map((k) => (
+                  {[
+                    "hasDialysisCenter",
+                    "hasPharmacy",
+                    "hasBloodBank",
+                    "hasCathLab",
+                    "hasDiagnosticLab",
+                    "hasImagingCenter",
+                  ].map((k) => (
+                    <Field
+                      key={k}
+                      labelKey={`abdm_hfr_${k}`}
+                      htmlFor={`a-${k}`}
+                    >
+                      <Select
+                        id={`a-${k}`}
+                        value={String(general[k] ?? "")}
+                        onChange={(v) =>
+                          setAdditional((a) => ({
+                            ...a,
+                            generalInformation: { ...general, [k]: v },
+                          }))
+                        }
+                        options={[
+                          { code: "Y", name: t("abdm_yes") },
+                          { code: "N", name: t("abdm_no") },
+                          { code: "YALL", name: t("abdm_hfr_yes_all") },
+                        ]}
+                      />
+                    </Field>
+                  ))}
+                </div>
+                <h3 className="text-sm font-semibold">
+                  {t("abdm_hfr_programs")}
+                </h3>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {[
+                    "nhrrId",
+                    "nin",
+                    "abpmjayId",
+                    "rohiniId",
+                    "echsId",
+                    "cghsId",
+                    "ceaRegistration",
+                    "stateInsuranceSchemeId",
+                  ].map((k) => (
+                    <Field
+                      key={k}
+                      labelKey={`abdm_hfr_${k}`}
+                      htmlFor={`a-${k}`}
+                    >
+                      <Text
+                        id={`a-${k}`}
+                        value={String(programs[k] ?? "")}
+                        onChange={(v) =>
+                          setAdditional((a) => ({
+                            ...a,
+                            linkedProgramIds: { ...programs, [k]: v },
+                          }))
+                        }
+                      />
+                    </Field>
+                  ))}
+                </div>
+              </CardContent>
+              <CardFooter className="flex gap-2 border-t">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setStep("basic")}
+                >
+                  {t("abdm_back")}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="ml-auto"
+                  disabled={busy || !onboarding?.trackingId}
+                  onClick={() =>
+                    run.mutate({
+                      step: "additional",
+                      payload: {
+                        linkedProgramIds: Object.fromEntries(
+                          Object.entries(programs).filter(([, v]) => v),
+                        ),
+                        generalInformation: Object.fromEntries(
+                          Object.entries(general).filter(([, v]) => v),
+                        ),
+                      },
+                    })
+                  }
+                >
+                  {busy && <Loader2 className="size-4 animate-spin" />}{" "}
+                  {t("abdm_hfr_save_and_next")}
+                </Button>
+              </CardFooter>
+            </Card>
+          )}
+
+          {state.data && step === "detailed" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{stepTitle("detailed")}</CardTitle>
+                <CardDescription>{t("abdm_hfr_detailed_help")}</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <h3 className="text-sm font-semibold">
+                  {t("abdm_hfr_specialities")}
+                </h3>
+                {somCodes.length === 0 && (
+                  <p className="text-muted-foreground text-xs">
+                    {t("abdm_hfr_specialities_need_som")}
+                  </p>
+                )}
+                <p className="text-muted-foreground text-xs">
+                  {t("abdm_hfr_specialities_rule")}
+                </p>
+                {somCodes.map((som) => {
+                  const row = specialities.find(
+                    (s) => s.systemOfMedicineCode === som,
+                  ) ?? {
+                    systemOfMedicineCode: som,
+                    isSpecializationAvalaible: "Y",
+                    specialities: [],
+                  };
+                  const update = (patch: Json) =>
+                    setDetailedField("specialities", [
+                      ...specialities.filter(
+                        (s) => s.systemOfMedicineCode !== som,
+                      ),
+                      { ...row, ...patch },
+                    ]);
+                  return (
+                    <div
+                      key={som}
+                      className="grid gap-2 rounded-md border p-3 sm:grid-cols-[8rem_1fr]"
+                    >
+                      <div className="grid gap-1">
+                        <span className="text-sm font-medium">{som}</span>
+                        <Select
+                          id={`d-avail-${som}`}
+                          value={String(row.isSpecializationAvalaible ?? "N")}
+                          onChange={(v) =>
+                            update({ isSpecializationAvalaible: v })
+                          }
+                          options={YES_NO.map((c) => ({
+                            code: c,
+                            name: c === "Y" ? t("abdm_yes") : t("abdm_no"),
+                          }))}
+                        />
+                      </div>
+                      <MasterSelect
+                        kind="specialities"
+                        params={{ som }}
+                        multiple
+                        enabled={row.isSpecializationAvalaible === "Y"}
+                        value={(row.specialities as string[]) ?? []}
+                        onChange={(v) =>
+                          update({ specialities: v.split(",").filter(Boolean) })
+                        }
+                      />
+                    </div>
+                  );
+                })}
+
+                <h3 className="text-sm font-semibold">
+                  {t("abdm_hfr_infrastructure")}
+                </h3>
+                <p className="text-muted-foreground text-xs">
+                  {t("abdm_hfr_infrastructure_help")}
+                </p>
+                {/* The total is derived: the sum of the 6 counts below, the rule the registry applies.
+                  Every count starts at 0, so the sum is always right and never typed. */}
+                <div className="grid gap-3 rounded-md border p-3">
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span className="text-sm font-medium">
+                      {t("abdm_hfr_totalNumberOfBeds")}
+                    </span>
+                    <span className="text-2xl font-semibold tabular-nums">
+                      {bedSum}
+                    </span>
+                    <span className="text-muted-foreground text-xs">
+                      {t("abdm_hfr_beds_total_derived")}
+                    </span>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {BED_SUM_FIELDS.map((k) => (
+                      <Field
+                        key={k}
+                        labelKey={`abdm_hfr_${k}`}
+                        htmlFor={`d-${k}`}
+                      >
+                        <Text
+                          id={`d-${k}`}
+                          inputMode="numeric"
+                          value={String(infra[k] ?? 0)}
+                          onChange={(v) =>
+                            setDetailedField("medicalInfrastructure", {
+                              ...infra,
+                              [k]: count(v),
+                            })
+                          }
+                        />
+                      </Field>
+                    ))}
+                  </div>
+                  {bedSum === 0 && (
+                    <p className="text-muted-foreground text-xs">
+                      {t("abdm_hfr_beds_zero_hint")}
+                    </p>
+                  )}
+                </div>
+                <h4 className="text-xs font-semibold">
+                  {t("abdm_hfr_beds_not_counted")}
+                </h4>
+                <div className="grid gap-3 sm:grid-cols-4">
+                  {OTHER_COUNT_FIELDS.map((k) => (
                     <Field
                       key={k}
                       labelKey={`abdm_hfr_${k}`}
@@ -1249,309 +1265,285 @@ export default function HfrOnboardingWizard({
                     </Field>
                   ))}
                 </div>
-                {bedSum === 0 && (
-                  <p className="text-muted-foreground text-xs">
-                    {t("abdm_hfr_beds_zero_hint")}
-                  </p>
-                )}
-              </div>
-              <h4 className="text-xs font-semibold">
-                {t("abdm_hfr_beds_not_counted")}
-              </h4>
-              <div className="grid gap-3 sm:grid-cols-4">
-                {OTHER_COUNT_FIELDS.map((k) => (
-                  <Field key={k} labelKey={`abdm_hfr_${k}`} htmlFor={`d-${k}`}>
-                    <Text
-                      id={`d-${k}`}
-                      inputMode="numeric"
-                      value={String(infra[k] ?? 0)}
-                      onChange={(v) =>
-                        setDetailedField("medicalInfrastructure", {
-                          ...infra,
-                          [k]: count(v),
-                        })
-                      }
-                    />
-                  </Field>
-                ))}
-              </div>
 
-              {Boolean(general.hasPharmacy) && general.hasPharmacy !== "N" && (
-                <>
-                  <h3 className="text-sm font-semibold">
-                    {t("abdm_hfr_pharmacy")}
-                  </h3>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field
-                      labelKey="abdm_hfr_isJanAushadhiKendra"
-                      htmlFor="d-jak"
-                    >
-                      <Select
-                        id="d-jak"
-                        value={String(pharmacy.isJanAushadhiKendra ?? "")}
-                        onChange={(v) =>
-                          setDetailedField("pharmacyDetails", {
-                            ...pharmacy,
-                            isJanAushadhiKendra: v,
-                          })
-                        }
-                        options={YES_NO.map((c) => ({ code: c, name: c }))}
-                      />
-                    </Field>
-                    {[
-                      "janAushadhiKendraId",
-                      "drugLicenseNumber",
-                      "pharmacyGstinNumber",
-                      "pharmacistRegistrationNumber",
-                    ].map((k) => (
-                      <Field
-                        key={k}
-                        labelKey={`abdm_hfr_${k}`}
-                        htmlFor={`d-${k}`}
-                      >
-                        <Text
-                          id={`d-${k}`}
-                          value={String(pharmacy[k] ?? "")}
-                          onChange={(v) =>
-                            setDetailedField("pharmacyDetails", {
-                              ...pharmacy,
-                              [k]: v,
-                            })
-                          }
-                        />
-                      </Field>
-                    ))}
-                  </div>
-                </>
-              )}
-              {Boolean(general.hasBloodBank) &&
-                general.hasBloodBank !== "N" && (
-                  <>
-                    <h3 className="text-sm font-semibold">
-                      {t("abdm_hfr_blood_bank")}
-                    </h3>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {[
-                        "isFacilityRegisteredInERaktkosh",
-                        "bloodStorageCenters",
-                      ].map((k) => (
+                {Boolean(general.hasPharmacy) &&
+                  general.hasPharmacy !== "N" && (
+                    <>
+                      <h3 className="text-sm font-semibold">
+                        {t("abdm_hfr_pharmacy")}
+                      </h3>
+                      <div className="grid gap-3 sm:grid-cols-2">
                         <Field
-                          key={k}
-                          labelKey={`abdm_hfr_${k}`}
-                          htmlFor={`d-${k}`}
+                          labelKey="abdm_hfr_isJanAushadhiKendra"
+                          htmlFor="d-jak"
                         >
                           <Select
-                            id={`d-${k}`}
-                            value={String(bloodBank[k] ?? "")}
+                            id="d-jak"
+                            value={String(pharmacy.isJanAushadhiKendra ?? "")}
                             onChange={(v) =>
-                              setDetailedField("bloodBankDetails", {
-                                ...bloodBank,
-                                [k]: v,
+                              setDetailedField("pharmacyDetails", {
+                                ...pharmacy,
+                                isJanAushadhiKendra: v,
                               })
                             }
                             options={YES_NO.map((c) => ({ code: c, name: c }))}
                           />
                         </Field>
-                      ))}
-                      {[
-                        "eRaktoshId",
-                        "bloodBankLicenseNumber",
-                        "bloodCollectedPerAnnum",
-                        "bloodRequiredPerAnnum",
-                      ].map((k) => (
+                        {[
+                          "janAushadhiKendraId",
+                          "drugLicenseNumber",
+                          "pharmacyGstinNumber",
+                          "pharmacistRegistrationNumber",
+                        ].map((k) => (
+                          <Field
+                            key={k}
+                            labelKey={`abdm_hfr_${k}`}
+                            htmlFor={`d-${k}`}
+                          >
+                            <Text
+                              id={`d-${k}`}
+                              value={String(pharmacy[k] ?? "")}
+                              onChange={(v) =>
+                                setDetailedField("pharmacyDetails", {
+                                  ...pharmacy,
+                                  [k]: v,
+                                })
+                              }
+                            />
+                          </Field>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                {Boolean(general.hasBloodBank) &&
+                  general.hasBloodBank !== "N" && (
+                    <>
+                      <h3 className="text-sm font-semibold">
+                        {t("abdm_hfr_blood_bank")}
+                      </h3>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {[
+                          "isFacilityRegisteredInERaktkosh",
+                          "bloodStorageCenters",
+                        ].map((k) => (
+                          <Field
+                            key={k}
+                            labelKey={`abdm_hfr_${k}`}
+                            htmlFor={`d-${k}`}
+                          >
+                            <Select
+                              id={`d-${k}`}
+                              value={String(bloodBank[k] ?? "")}
+                              onChange={(v) =>
+                                setDetailedField("bloodBankDetails", {
+                                  ...bloodBank,
+                                  [k]: v,
+                                })
+                              }
+                              options={YES_NO.map((c) => ({
+                                code: c,
+                                name: c,
+                              }))}
+                            />
+                          </Field>
+                        ))}
+                        {[
+                          "eRaktoshId",
+                          "bloodBankLicenseNumber",
+                          "bloodCollectedPerAnnum",
+                          "bloodRequiredPerAnnum",
+                        ].map((k) => (
+                          <Field
+                            key={k}
+                            labelKey={`abdm_hfr_${k}`}
+                            htmlFor={`d-${k}`}
+                          >
+                            <Text
+                              id={`d-${k}`}
+                              value={String(bloodBank[k] ?? "")}
+                              onChange={(v) =>
+                                setDetailedField("bloodBankDetails", {
+                                  ...bloodBank,
+                                  [k]: v,
+                                })
+                              }
+                            />
+                          </Field>
+                        ))}
                         <Field
-                          key={k}
-                          labelKey={`abdm_hfr_${k}`}
-                          htmlFor={`d-${k}`}
+                          labelKey="abdm_hfr_storageCentersCount"
+                          htmlFor="d-scc"
                         >
                           <Text
-                            id={`d-${k}`}
-                            value={String(bloodBank[k] ?? "")}
+                            id="d-scc"
+                            inputMode="numeric"
+                            value={
+                              bloodBank.storageCentersCount === undefined
+                                ? ""
+                                : String(bloodBank.storageCentersCount)
+                            }
                             onChange={(v) =>
                               setDetailedField("bloodBankDetails", {
                                 ...bloodBank,
-                                [k]: v,
+                                storageCentersCount: num(v),
                               })
                             }
                           />
                         </Field>
-                      ))}
-                      <Field
-                        labelKey="abdm_hfr_storageCentersCount"
-                        htmlFor="d-scc"
-                      >
-                        <Text
-                          id="d-scc"
-                          inputMode="numeric"
-                          value={
-                            bloodBank.storageCentersCount === undefined
-                              ? ""
-                              : String(bloodBank.storageCentersCount)
-                          }
-                          onChange={(v) =>
-                            setDetailedField("bloodBankDetails", {
-                              ...bloodBank,
-                              storageCentersCount: num(v),
-                            })
-                          }
-                        />
-                      </Field>
-                    </div>
-                  </>
-                )}
-            </CardContent>
-            <CardFooter className="flex gap-2 border-t">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setStep("additional")}
-              >
-                {t("abdm_back")}
-              </Button>
-              {somWithoutSpecialities.length > 0 && (
-                <p className="text-destructive text-xs">
-                  {t("abdm_hfr_specialities_missing", {
-                    codes: somWithoutSpecialities.join(", "),
-                  })}
-                </p>
-              )}
-              <Button
-                type="button"
-                size="sm"
-                className="ml-auto"
-                disabled={busy || !sessionActive || !onboarding?.trackingId}
-                onClick={() => {
-                  const payload: Json = {
-                    specialities,
-                    medicalInfrastructure: Object.fromEntries([
-                      ...[...BED_SUM_FIELDS, ...OTHER_COUNT_FIELDS].map((k) => [
-                        k,
-                        Number(infra[k]) || 0,
-                      ]),
-                      ["totalNumberOfBeds", bedSum],
-                    ]),
-                  };
-                  if (general.hasPharmacy && general.hasPharmacy !== "N")
-                    payload.pharmacyDetails = pharmacy;
-                  if (general.hasBloodBank && general.hasBloodBank !== "N")
-                    payload.bloodBankDetails = bloodBank;
-                  run.mutate({ step: "detailed", payload });
-                }}
-              >
-                {busy && <Loader2 className="size-4 animate-spin" />}{" "}
-                {t("abdm_hfr_save_and_next")}
-              </Button>
-            </CardFooter>
-          </Card>
-        )}
-
-        {state.data && step === "submit" && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                {stepTitle("submit")}
-                {onboarding && (
-                  <Badge
-                    variant={submitted ? "success" : "warning"}
-                    size="sm"
-                    className="ml-auto"
-                  >
-                    {t(`abdm_hfr_ob_${onboarding.status}`)}
-                  </Badge>
-                )}
-              </CardTitle>
-              <CardDescription>{t("abdm_hfr_submit_help")}</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3 text-sm">
-              <div className="grid gap-1 sm:grid-cols-[10rem_1fr]">
-                <span className="text-muted-foreground">
-                  {t("abdm_hfr_tracking_id")}
-                </span>
-                <span className="font-mono">
-                  {onboarding?.trackingId || "—"}
-                </span>
-                <span className="text-muted-foreground">
-                  {t("abdm_hfr_facility_id")}
-                </span>
-                <span className="font-mono">
-                  {onboarding?.facilityId ||
-                    state.data.config.facility_id ||
-                    "—"}
-                </span>
-                {onboarding?.lastMessage && (
-                  <>
-                    <span className="text-muted-foreground">
-                      {t("abdm_hfr_registry_said")}
-                    </span>
-                    <span>{onboarding.lastMessage}</span>
-                  </>
-                )}
-              </div>
-              {!submitted && (
-                <Field
-                  labelKey="abdm_hfr_source_of_information"
-                  htmlFor="s-src"
-                  hint={t("abdm_hfr_source_hint")}
-                >
-                  <Text
-                    id="s-src"
-                    value={submitInfo.sourceOfInformation}
-                    onChange={(v) => setSubmitInfo({ sourceOfInformation: v })}
-                  />
-                </Field>
-              )}
-              {submitted && <p>{t("abdm_hfr_submitted_next")}</p>}
-            </CardContent>
-            <CardFooter className="flex gap-2 border-t">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setStep("detailed")}
-              >
-                {t("abdm_back")}
-              </Button>
-              {submitted ? (
+                      </div>
+                    </>
+                  )}
+              </CardContent>
+              <CardFooter className="flex gap-2 border-t">
                 <Button
                   type="button"
+                  variant="outline"
                   size="sm"
-                  className="ml-auto"
-                  onClick={() => navigate(`/facility/${facilityId}/abdm/setup`)}
+                  onClick={() => setStep("additional")}
                 >
-                  {t("abdm_open_setup")}
+                  {t("abdm_back")}
                 </Button>
-              ) : (
+                {somWithoutSpecialities.length > 0 && (
+                  <p className="text-destructive text-xs">
+                    {t("abdm_hfr_specialities_missing", {
+                      codes: somWithoutSpecialities.join(", "),
+                    })}
+                  </p>
+                )}
                 <Button
                   type="button"
                   size="sm"
                   className="ml-auto"
-                  disabled={busy || !sessionActive || !onboarding?.trackingId}
-                  onClick={() =>
-                    run.mutate({
-                      step: "submit",
-                      payload: submitInfo.sourceOfInformation
-                        ? {
-                            sourceOfInformation: submitInfo.sourceOfInformation,
-                          }
-                        : {},
-                    })
-                  }
+                  disabled={busy || !onboarding?.trackingId}
+                  onClick={() => {
+                    const payload: Json = {
+                      specialities,
+                      medicalInfrastructure: Object.fromEntries([
+                        ...[...BED_SUM_FIELDS, ...OTHER_COUNT_FIELDS].map(
+                          (k) => [k, Number(infra[k]) || 0],
+                        ),
+                        ["totalNumberOfBeds", bedSum],
+                      ]),
+                    };
+                    if (general.hasPharmacy && general.hasPharmacy !== "N")
+                      payload.pharmacyDetails = pharmacy;
+                    if (general.hasBloodBank && general.hasBloodBank !== "N")
+                      payload.bloodBankDetails = bloodBank;
+                    run.mutate({ step: "detailed", payload });
+                  }}
                 >
                   {busy && <Loader2 className="size-4 animate-spin" />}{" "}
-                  {t("abdm_hfr_submit")}
+                  {t("abdm_hfr_save_and_next")}
                 </Button>
-              )}
-            </CardFooter>
-          </Card>
-        )}
+              </CardFooter>
+            </Card>
+          )}
 
-        <HprLoginDialog
-          open={loginOpen}
-          onOpenChange={setLoginOpen}
-          pendingLogin={hpr.data?.pendingLogin ?? null}
-          onDone={() => qc.invalidateQueries({ queryKey: key })}
-        />
+          {state.data && step === "submit" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  {stepTitle("submit")}
+                  {onboarding && (
+                    <Badge
+                      variant={submitted ? "success" : "warning"}
+                      size="sm"
+                      className="ml-auto"
+                    >
+                      {t(`abdm_hfr_ob_${onboarding.status}`)}
+                    </Badge>
+                  )}
+                </CardTitle>
+                <CardDescription>{t("abdm_hfr_submit_help")}</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 text-sm">
+                <div className="grid gap-1 sm:grid-cols-[10rem_1fr]">
+                  <span className="text-muted-foreground">
+                    {t("abdm_hfr_tracking_id")}
+                  </span>
+                  <span className="font-mono">
+                    {onboarding?.trackingId || "—"}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {t("abdm_hfr_facility_id")}
+                  </span>
+                  <span className="font-mono">
+                    {onboarding?.facilityId ||
+                      state.data.config.facility_id ||
+                      "—"}
+                  </span>
+                  {onboarding?.lastMessage && (
+                    <>
+                      <span className="text-muted-foreground">
+                        {t("abdm_hfr_registry_said")}
+                      </span>
+                      <span>{onboarding.lastMessage}</span>
+                    </>
+                  )}
+                </div>
+                {!submitted && (
+                  <Field
+                    labelKey="abdm_hfr_source_of_information"
+                    htmlFor="s-src"
+                    hint={t("abdm_hfr_source_hint")}
+                  >
+                    <Text
+                      id="s-src"
+                      value={submitInfo.sourceOfInformation}
+                      onChange={(v) =>
+                        setSubmitInfo({ sourceOfInformation: v })
+                      }
+                    />
+                  </Field>
+                )}
+                {submitted && <p>{t("abdm_hfr_submitted_next")}</p>}
+              </CardContent>
+              <CardFooter className="flex gap-2 border-t">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setStep("detailed")}
+                >
+                  {t("abdm_back")}
+                </Button>
+                {submitted ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="ml-auto"
+                    onClick={() =>
+                      navigate(`/facility/${facilityId}/abdm/setup`)
+                    }
+                  >
+                    {t("abdm_open_setup")}
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="ml-auto"
+                    disabled={busy || !onboarding?.trackingId}
+                    onClick={() =>
+                      run.mutate({
+                        step: "submit",
+                        payload: submitInfo.sourceOfInformation
+                          ? {
+                              sourceOfInformation:
+                                submitInfo.sourceOfInformation,
+                            }
+                          : {},
+                      })
+                    }
+                  >
+                    {busy && <Loader2 className="size-4 animate-spin" />}{" "}
+                    {t("abdm_hfr_submit")}
+                  </Button>
+                )}
+              </CardFooter>
+            </Card>
+          )}
+        </HprGate>
       </div>
     </Frame>
   );

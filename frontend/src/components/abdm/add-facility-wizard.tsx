@@ -7,6 +7,8 @@ import {
 import CareFacilityForm from "@/components/abdm/care-facility-form";
 import FieldHelp from "@/components/abdm/field-help";
 import HfrOnboardingWizard from "@/components/abdm/hfr-onboarding-wizard";
+import HprGate, { gateSessionFromHprState } from "@/components/abdm/hpr-gate";
+import { hprQueryKey } from "@/components/abdm/nhpr-shared";
 import { errorMessage } from "@/components/abdm/nhpr-shared";
 import {
   RegistryFinder,
@@ -270,6 +272,11 @@ export default function AddFacilityWizard() {
     },
   });
 
+  const hprState = useQuery({
+    queryKey: hprQueryKey,
+    queryFn: query(careApi.hprState, { silent: true }),
+    retry: false,
+  });
   const facilityState = useQuery<AbdmHfrState>({
     queryKey: ["abdm", "facility", facilityId, "hfr"],
     queryFn: query(careApi.hfrOnboarding, {
@@ -449,27 +456,35 @@ export default function AddFacilityWizard() {
               <CardDescription>{t("abdm_add_find_help")}</CardDescription>
             </CardHeader>
             <CardContent>
-              <RegistryFinder
-                idPrefix="abdm-add"
-                busy={busy}
-                pickLabel={t("abdm_add_pick")}
-                lookup={async (id) => {
-                  const result = await query(careApi.hfrSearchForCreate, {
-                    queryParams: { facility_id: id },
-                    silent: true,
-                  })({ signal: new AbortController().signal });
-                  const record = result.facilities[0];
-                  if (!record) throw new Error(t("abdm_hfr_not_found"));
-                  return record;
-                }}
-                search={({ name, state, ownership }) =>
-                  query(careApi.hfrSearchForCreate, {
-                    queryParams: { name, state, ownership },
-                    silent: true,
-                  })({ signal: new AbortController().signal })
-                }
-                onPick={(record) => prefill.mutate(record.facilityId)}
-              />
+              {/* No facility exists yet, so the session comes from the person's own HPR state
+                  (nhpr/professional.py:686-698) rather than from hfr_state. */}
+              <HprGate
+                session={gateSessionFromHprState(hprState.data)}
+                loading={hprState.isLoading}
+                onSession={() => hprState.refetch()}
+              >
+                <RegistryFinder
+                  idPrefix="abdm-add"
+                  busy={busy}
+                  pickLabel={t("abdm_add_pick")}
+                  lookup={async (id) => {
+                    const result = await query(careApi.hfrSearchForCreate, {
+                      queryParams: { facility_id: id },
+                      silent: true,
+                    })({ signal: new AbortController().signal });
+                    const record = result.facilities[0];
+                    if (!record) throw new Error(t("abdm_hfr_not_found"));
+                    return record;
+                  }}
+                  search={({ name, state, ownership }) =>
+                    query(careApi.hfrSearchForCreate, {
+                      queryParams: { name, state, ownership },
+                      silent: true,
+                    })({ signal: new AbortController().signal })
+                  }
+                  onPick={(record) => prefill.mutate(record.facilityId)}
+                />
+              </HprGate>
             </CardContent>
             <CardFooter className="border-t">
               <Button type="button" variant="ghost" size="sm" onClick={restart}>

@@ -1,4 +1,5 @@
 import FieldHelp, { type FieldHelpContent } from "@/components/abdm/field-help";
+import HprGate, { hprGateBlock } from "@/components/abdm/hpr-gate";
 import MasterSelect from "@/components/abdm/master-select";
 import { OtpField } from "@/components/abdm/otp-field";
 import FailureNotice from "@/components/abdm/failure-notice";
@@ -495,8 +496,21 @@ export default function RegistryCard({
   const linked = Boolean(config.facility_id);
   const hipNameInvalid =
     Boolean(config.hip_name) && !HIP_NAME_RE.test(config.hip_name);
+  // Registry work needs a facility manager's HPR session (nhpr/facility.py:159-165); the finder and
+  // the registration entry are shown as blocked rather than as a form the registry will refuse.
+  const blocked = hprGateBlock(state.data?.hprSession);
   const bridgeOk = Boolean(
     bridge?.bridge?.url && bridge.bridge.url === bridge.callback_url,
+  );
+
+  const gated = (node: ReactNode) => (
+    <HprGate
+      session={state.data?.hprSession}
+      loading={state.isLoading}
+      onSession={() => state.refetch()}
+    >
+      {node}
+    </HprGate>
   );
 
   const finder = (
@@ -544,7 +558,7 @@ export default function RegistryCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-5">
-        {!linked && finder}
+        {!linked && gated(finder)}
 
         {linked && (
           <>
@@ -582,7 +596,7 @@ export default function RegistryCard({
                 <p className="text-muted-foreground text-xs">
                   {t("abdm_hfr_change_link_help")}
                 </p>
-                {finder}
+                {gated(finder)}
               </div>
             )}
 
@@ -740,6 +754,7 @@ export default function RegistryCard({
               type="button"
               className="ml-auto"
               size="sm"
+              disabled={Boolean(blocked)}
               variant={onboardingOpen ? "default" : "outline"}
               onClick={() =>
                 navigate(`/facility/${facilityId}/abdm/hfr/register`)
