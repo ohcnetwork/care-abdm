@@ -354,6 +354,8 @@ export function AbhaPanel({
           onOpenChange={(o) => !o && setCard(false)}
         />
       )}
+
+      <DevFooter filters={{ patient: patientId }} className="mt-3" />
     </div>
   );
 }
@@ -386,7 +388,6 @@ export default function AbdmDemographyGeneralInfo({
         phoneNumber={patientData.phone_number}
         canWrite={canWrite}
       />
-      <DevFooter filters={{ patient: patientId }} className="mt-3" />
     </PluginComponent>
   );
 }
