@@ -70,6 +70,17 @@ Facts that shape the design:
    gradient, so a hero button is white with green words (`heroSolid`) or a translucent white face
    (`heroGhost`). The state with no HPR ID keeps the plain card: it is a prompt, not an identity.
 
+   **Every ABDM identity now takes that face** (Rithvik, 2026-09-23), and the face lives in 1 file,
+   `components/abdm/hero.tsx`: `heroCard`, `<HeroLayers />`, `<HeroIcon>`, `<HeroFact>`, `heroBadge`,
+   `heroLead`, `heroMuted`, `heroTile`, `heroPanel`, `heroSolid` and `heroGhost`. 4 places use it —
+   the care context of an encounter, the HPR ID on the user profile, the ABHA of a patient
+   (`AbhaPanel`), and the HFR record of a facility (`RegistryCard`). The rule is the same each time:
+   an identity that exists gets the gradient; a state with nothing linked keeps the plain face.
+
+   A card that holds a control is the one difference. An input on the gradient is hard to read, so
+   the HFR card puts the HIP name, the registry finder and the OTP block in `heroPanel`, a light
+   panel on the gradient. The controls keep their usual skin, and the card still reads as 1 identity.
+
 8. **The sheet renders into the plug container.** `ui/sheet.tsx` comes from the Care UI registry with
    1 local change: the portal takes `container={usePortalContainer()}`, like `dialog.tsx` and
    `dropdown-menu.tsx`. Without it the sheet loses every token.

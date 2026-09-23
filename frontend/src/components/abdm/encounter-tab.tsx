@@ -10,6 +10,14 @@ import {
   viewFor,
 } from "@/components/abdm/care-context-state";
 import FetchRecordsCard from "@/components/abdm/fetch-records-card";
+import {
+  HeroFact,
+  HeroIcon,
+  HeroLayers,
+  heroBadge,
+  heroCard,
+  heroLead,
+} from "@/components/abdm/hero";
 import DevFooter from "@/components/abdm/dev/dev-footer";
 import PluginComponent from "@/components/common/plugin-component";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -40,6 +48,7 @@ import careApi, {
   type AbdmShareItemStatus,
 } from "@/lib/careApi";
 import { mutate } from "@/lib/request";
+import { cn } from "@/lib/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link2, Loader2, Share2 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -229,24 +238,13 @@ export default function AbdmEncounterTab({
          * ABHA address and the share state first. `isolate` holds the decorative
          * layers in this card, and the card's own `overflow-hidden` trims them.
          */}
-        <Card className="text-primary-50 shadow-primary-950/25 relative isolate shadow-lg ring-white/10">
-          <div
-            aria-hidden
-            className="from-primary-700 via-primary-900 to-primary-950 pointer-events-none absolute inset-0 -z-10 bg-linear-to-br"
-          />
-          <div
-            aria-hidden
-            className="bg-primary-300/25 pointer-events-none absolute -top-24 -right-12 -z-10 size-72 rounded-full blur-3xl"
-          />
-          <div
-            aria-hidden
-            className="bg-primary-400/15 pointer-events-none absolute -bottom-28 -left-16 -z-10 size-72 rounded-full blur-3xl"
-          />
+        <Card className={heroCard}>
+          <HeroLayers />
           <CardHeader>
             <CardTitle className="flex items-center gap-3">
-              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/10 ring-1 ring-white/20">
+              <HeroIcon>
                 <Link2 className="size-4.5 text-white" />
-              </span>
+              </HeroIcon>
               <span className="text-base font-semibold text-white">
                 {data?.careContext?.display ?? t("abdm_care_context")}
               </span>
@@ -254,57 +252,37 @@ export default function AbdmEncounterTab({
                 <Badge
                   variant={toneFor(view)}
                   size="sm"
-                  className="ml-auto border-white/25 bg-white/15 text-white backdrop-blur-sm"
+                  className={cn("ml-auto", heroBadge)}
                 >
                   {t(statusKey(view))}
                 </Badge>
               )}
             </CardTitle>
-            <CardDescription className="text-primary-100/85 max-w-3xl">
+            <CardDescription className={cn("max-w-3xl", heroLead)}>
               {t("abdm_tab_intro")}
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-4">
-            <div className="grid gap-1 rounded-lg bg-white/5 p-3 ring-1 ring-white/10">
-              <span className="text-primary-200 text-[11px] font-medium tracking-wide uppercase">
-                {t("abdm_abha_address")}
-              </span>
-              <span className="font-mono text-xs break-all text-white">
-                {data?.patientAbhaAddress || "\u2014"}
-              </span>
-            </div>
-            <div className="grid gap-1 rounded-lg bg-white/5 p-3 ring-1 ring-white/10">
-              <span className="text-primary-200 text-[11px] font-medium tracking-wide uppercase">
-                {t("abdm_cc_reference")}
-              </span>
-              <span className="font-mono text-xs break-all text-white">
-                {data?.careContext?.referenceNumber ?? "\u2014"}
-              </span>
-            </div>
-            <div className="grid gap-1 rounded-lg bg-white/5 p-3 ring-1 ring-white/10">
-              <span className="text-primary-200 text-[11px] font-medium tracking-wide uppercase">
-                {t("abdm_tab_shared_types")}
-              </span>
-              <span className="text-xs text-white">
-                {data?.careContext?.hiTypes.length
-                  ? data.careContext.hiTypes
-                      .map((h) => hiTypeLabel(t, h))
-                      .join(", ")
-                  : "\u2014"}
-              </span>
-            </div>
-            <div className="grid gap-1 rounded-lg bg-white/5 p-3 ring-1 ring-white/10">
-              <span className="text-primary-200 text-[11px] font-medium tracking-wide uppercase">
-                {t("abdm_tab_counts")}
-              </span>
-              <span className="text-xs text-white tabular-nums">
-                {counts.linked} {t("abdm_item_status_linked").toLowerCase()} ·{" "}
-                {counts.staged} {t("abdm_item_status_staged").toLowerCase()} ·{" "}
-                {counts.queued} {t("abdm_item_status_queued").toLowerCase()}
-                {counts.failed > 0 &&
-                  ` · ${counts.failed} ${t("abdm_item_status_failed").toLowerCase()}`}
-              </span>
-            </div>
+            <HeroFact label={t("abdm_abha_address")} mono>
+              {data?.patientAbhaAddress || "\u2014"}
+            </HeroFact>
+            <HeroFact label={t("abdm_cc_reference")} mono>
+              {data?.careContext?.referenceNumber ?? "\u2014"}
+            </HeroFact>
+            <HeroFact label={t("abdm_tab_shared_types")}>
+              {data?.careContext?.hiTypes.length
+                ? data.careContext.hiTypes
+                    .map((h) => hiTypeLabel(t, h))
+                    .join(", ")
+                : "\u2014"}
+            </HeroFact>
+            <HeroFact label={t("abdm_tab_counts")} className="tabular-nums">
+              {counts.linked} {t("abdm_item_status_linked").toLowerCase()} ·{" "}
+              {counts.staged} {t("abdm_item_status_staged").toLowerCase()} ·{" "}
+              {counts.queued} {t("abdm_item_status_queued").toLowerCase()}
+              {counts.failed > 0 &&
+                ` · ${counts.failed} ${t("abdm_item_status_failed").toLowerCase()}`}
+            </HeroFact>
           </CardContent>
           {(actionError ||
             isError ||

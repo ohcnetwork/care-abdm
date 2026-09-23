@@ -4,6 +4,15 @@ import AbhaWizard, {
   relayMessage,
 } from "@/components/abdm/abha-wizard";
 import DevFooter from "@/components/abdm/dev/dev-footer";
+import {
+  HeroFact,
+  HeroIcon,
+  HeroLayers,
+  heroBadge,
+  heroCard,
+  heroGhost,
+  heroMuted,
+} from "@/components/abdm/hero";
 import PluginComponent from "@/components/common/plugin-component";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -153,7 +162,13 @@ function useLinkAbha(patientId: string) {
   return { ...m, error };
 }
 
-function CopyButton({ value }: { value: string }) {
+function CopyButton({
+  value,
+  className,
+}: {
+  value: string;
+  className?: string;
+}) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   return (
@@ -161,6 +176,7 @@ function CopyButton({ value }: { value: string }) {
       type="button"
       variant="ghost"
       size="icon-xs"
+      className={className}
       aria-label={t("abdm_copy")}
       onClick={() => {
         navigator.clipboard?.writeText(value);
@@ -197,16 +213,42 @@ export function AbhaPanel({
     link.mutate({ txn_id: r.txnId }, { onSuccess: () => setWizard(false) });
 
   const s: PatientAbhaStatus | undefined = status.data;
+  const linked = Boolean(s?.linked);
 
+  /*
+   * A linked ABHA is an identity, so the panel takes the inverted hero face (ADR-017 decision 7),
+   * the same as the care context of an encounter and the HPR ID on the user profile. The panel is
+   * not a `Card`, so it trims the orbs itself with `overflow-hidden`. A patient with no ABHA keeps
+   * the plain face: there is no identity to show yet.
+   */
   return (
     <div className={cn("pr-4 sm:col-span-2", className)}>
-      <div className="rounded-xl border">
-        <div className="flex items-center justify-between gap-3 border-b px-4 py-2.5">
+      <div
+        className={cn(
+          "overflow-hidden rounded-xl",
+          linked ? cn(heroCard, "ring-1") : "border",
+        )}
+      >
+        {linked && <HeroLayers />}
+        <div
+          className={cn(
+            "flex items-center justify-between gap-3 border-b px-4 py-2.5",
+            linked && "border-white/15",
+          )}
+        >
           <div className="flex items-center gap-2 text-sm font-semibold whitespace-nowrap">
-            <IdCard className="text-primary size-4" />
-            {t("abdm_abha_short")}
+            {linked ? (
+              <HeroIcon className="size-7">
+                <IdCard className="size-4 text-white" />
+              </HeroIcon>
+            ) : (
+              <IdCard className="text-primary size-4" />
+            )}
+            <span className={cn(linked && "text-white")}>
+              {t("abdm_abha_short")}
+            </span>
             {s?.linked && s.kyc_verified && (
-              <Badge variant="success" size="sm">
+              <Badge variant="success" size="sm" className={heroBadge}>
                 <ShieldCheck /> {t("abdm_kyc_verified")}
               </Badge>
             )}
@@ -217,6 +259,7 @@ export function AbhaPanel({
                 type="button"
                 variant="outline"
                 size="xs"
+                className={heroGhost}
                 disabled={!s.card_available}
                 title={
                   s.card_available ? undefined : t("abdm_card_unavailable")
@@ -253,26 +296,24 @@ export function AbhaPanel({
             </p>
           ) : s?.linked ? (
             <div className="grid gap-3 lg:grid-cols-2">
-              <div>
-                <div className="text-muted-foreground text-xs">
-                  {t("abdm_abha_number")}
-                </div>
-                <div className="flex items-center gap-1 font-mono text-base font-semibold tracking-wider whitespace-nowrap">
+              <HeroFact label={t("abdm_abha_number")}>
+                <span className="flex items-center gap-1 font-mono text-base font-semibold tracking-wider whitespace-nowrap">
                   {formatAbhaNumber(s.abha_number)}
-                  {s.abha_number && <CopyButton value={s.abha_number} />}
-                </div>
-              </div>
-              <div>
-                <div className="text-muted-foreground text-xs">
-                  {t("abdm_abha_address")}
-                </div>
-                <div className="flex items-center gap-1 font-mono text-sm">
+                  {s.abha_number && (
+                    <CopyButton value={s.abha_number} className={heroGhost} />
+                  )}
+                </span>
+              </HeroFact>
+              <HeroFact label={t("abdm_abha_address")}>
+                <span className="flex items-center gap-1 font-mono text-sm break-all">
                   {s.abha_address ?? "—"}
-                  {s.abha_address && <CopyButton value={s.abha_address} />}
-                </div>
-              </div>
+                  {s.abha_address && (
+                    <CopyButton value={s.abha_address} className={heroGhost} />
+                  )}
+                </span>
+              </HeroFact>
               {s.abha_linked_at && (
-                <div className="text-muted-foreground text-xs lg:col-span-2">
+                <div className={cn("text-xs lg:col-span-2", heroMuted)}>
                   {t("abdm_linked_on", {
                     date: new Date(s.abha_linked_at).toLocaleString(),
                     source: t(`abdm_source_${s.abha_source ?? "unknown"}`),
@@ -286,7 +327,14 @@ export function AbhaPanel({
             </p>
           )}
           {link.error && (
-            <p className="text-destructive mt-2 text-sm">{link.error}</p>
+            <p
+              className={cn(
+                "mt-2 text-sm",
+                linked ? "text-red-200" : "text-destructive",
+              )}
+            >
+              {link.error}
+            </p>
           )}
         </div>
       </div>

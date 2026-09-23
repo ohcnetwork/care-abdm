@@ -115,9 +115,6 @@ const manifest = {
     PatientDetailsTabDemographyGeneralInfo: lazy(
       () => import("@/components/abdm/patient-abha-panel"),
     ),
-    PatientHomeActions: lazy(
-      () => import("@/components/abdm/patient-home-actions"),
-    ),
     PatientSearchActions: lazy(
       () => import("@/components/abdm/patient-search-actions"),
     ),

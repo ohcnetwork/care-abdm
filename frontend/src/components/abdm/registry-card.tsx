@@ -7,6 +7,18 @@ import {
   type FailureNoticeProps,
   noticeFromError,
 } from "@/components/abdm/failure-notice-shared";
+import {
+  HeroIcon,
+  HeroLayers,
+  heroBadge,
+  heroCard,
+  heroGhost,
+  heroLead,
+  heroMuted,
+  heroPanel,
+  heroSolid,
+  heroTile,
+} from "@/components/abdm/hero";
 import { errorMessage, statusTone } from "@/components/abdm/nhpr-shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -65,25 +77,44 @@ import { useState } from "react";
 
 const HIP_NAME_RE = /^[A-Za-z0-9 ]{1,15}$/;
 
-/** 1 registry record as a compact block: name, ID, status, type line, address line. */
+/**
+ * 1 registry record as a compact block: name, ID, status, type line, address line. On the inverted
+ * hero face of the linked card, `inverted` gives the block a translucent white tile and pale
+ * labels, because the muted token is unreadable there.
+ */
 export function RegistryRecord({
   record,
   action,
   className,
+  inverted,
 }: {
   record: Partial<AbdmHfrFacility>;
   action?: ReactNode;
   className?: string;
+  inverted?: boolean;
 }) {
+  const quiet = inverted ? heroMuted : "text-muted-foreground";
   return (
-    <div className={cn("grid gap-2 rounded-md border p-3 text-sm", className)}>
+    <div
+      className={cn(
+        "grid gap-2 text-sm",
+        inverted ? heroTile : "rounded-md border p-3",
+        className,
+      )}
+    >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-medium">{record.facilityName}</span>
-        <span className="text-muted-foreground font-mono text-xs">
+        <span className={cn("font-medium", inverted && "text-white")}>
+          {record.facilityName}
+        </span>
+        <span className={cn("font-mono text-xs", quiet)}>
           {record.facilityId}
         </span>
         {record.facilityStatus && (
-          <Badge variant={statusTone(record.facilityStatus)} size="sm">
+          <Badge
+            variant={statusTone(record.facilityStatus)}
+            size="sm"
+            className={cn(inverted && heroBadge)}
+          >
             {record.facilityStatus}
           </Badge>
         )}
@@ -91,7 +122,7 @@ export function RegistryRecord({
       {[record.facilityType, record.ownership, record.systemOfMedicine].some(
         Boolean,
       ) && (
-        <span className="text-muted-foreground text-xs">
+        <span className={cn("text-xs", quiet)}>
           {[record.facilityType, record.ownership, record.systemOfMedicine]
             .filter(Boolean)
             .join(" · ")}
@@ -100,7 +131,7 @@ export function RegistryRecord({
       {[record.address, record.districtName, record.stateName].some(
         Boolean,
       ) && (
-        <span className="text-muted-foreground text-xs">
+        <span className={cn("text-xs", quiet)}>
           {[
             record.address,
             record.districtName,
@@ -389,16 +420,24 @@ function StatusLine({
   done,
   label,
   value,
+  inverted,
 }: {
   done: boolean;
   label: string;
   value: string;
+  inverted?: boolean;
 }) {
   return (
     <span
       className={cn(
         "inline-flex items-center gap-1.5 text-xs",
-        done ? "text-green-800" : "text-muted-foreground",
+        inverted
+          ? done
+            ? "text-white"
+            : heroMuted
+          : done
+            ? "text-green-800"
+            : "text-muted-foreground",
       )}
     >
       {done ? (
@@ -537,23 +576,38 @@ export default function RegistryCard({
     />
   );
 
+  /*
+   * A linked facility is an identity, so the card takes the inverted hero face (ADR-017
+   * decision 7), the same as the care context, the HPR ID and the ABHA. The card still holds
+   * controls, so the HIP name and the OTP block sit in a light panel: an input on the gradient is
+   * hard to read. A facility with no registry record keeps the plain card.
+   */
   return (
-    <Card>
+    <Card className={cn(linked && heroCard)}>
+      {linked && <HeroLayers />}
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Building2 className="text-muted-foreground size-4" />
-          {t("abdm_hfr_title")}
+          {linked ? (
+            <HeroIcon className="size-7">
+              <Building2 className="size-4 text-white" />
+            </HeroIcon>
+          ) : (
+            <Building2 className="text-muted-foreground size-4" />
+          )}
+          <span className={cn(linked && "text-white")}>
+            {t("abdm_hfr_title")}
+          </span>
           <Badge
             variant={linked ? "success" : "neutral"}
             size="sm"
-            className="ml-auto"
+            className={cn("ml-auto", linked && heroBadge)}
           >
             {linked
               ? t("abdm_hfr_linked_badge")
               : t("abdm_hfr_not_linked_badge")}
           </Badge>
         </CardTitle>
-        <CardDescription>
+        <CardDescription className={cn(linked && heroLead)}>
           {linked ? t("abdm_hfr_linked_intro") : t("abdm_hfr_intro")}
         </CardDescription>
       </CardHeader>
@@ -563,6 +617,7 @@ export default function RegistryCard({
         {linked && (
           <>
             <RegistryRecord
+              inverted
               record={{
                 ...(config.hfr ?? {}),
                 facilityId: config.facility_id,
@@ -571,7 +626,7 @@ export default function RegistryCard({
               action={
                 <div className="flex flex-wrap items-center gap-3">
                   {config.hfr?.linked_at && (
-                    <span className="text-muted-foreground text-xs">
+                    <span className={cn("text-xs", heroMuted)}>
                       {t("abdm_hfr_linked_on", {
                         date: new Date(config.hfr.linked_at).toLocaleString(),
                         user: config.hfr.linked_by || "—",
@@ -580,9 +635,9 @@ export default function RegistryCard({
                   )}
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="ml-auto"
+                    className={cn("ml-auto", heroGhost)}
                     disabled={pending}
                     onClick={() => setChanging((c) => !c)}
                   >
@@ -592,7 +647,7 @@ export default function RegistryCard({
               }
             />
             {changing && (
-              <div className="grid gap-3 rounded-md border border-dashed p-3">
+              <div className={cn("grid gap-3", heroPanel)}>
                 <p className="text-muted-foreground text-xs">
                   {t("abdm_hfr_change_link_help")}
                 </p>
@@ -600,7 +655,7 @@ export default function RegistryCard({
               </div>
             )}
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className={cn("grid gap-4 md:grid-cols-2", heroPanel)}>
               <div className="grid gap-1.5">
                 <div className="flex min-h-5 items-center gap-1.5">
                   <Label htmlFor="abdm-hip_name">{t("abdm_hip_name")}</Label>
@@ -639,7 +694,7 @@ export default function RegistryCard({
               </div>
             </div>
 
-            <details className="rounded-md border p-3 text-sm">
+            <details className={cn("text-sm", heroPanel)}>
               <summary className="cursor-pointer font-medium">
                 {t("abdm_hfr_otp_title")}
               </summary>
@@ -691,11 +746,17 @@ export default function RegistryCard({
 
         {error && <FailureNotice {...error} />}
       </CardContent>
-      <CardFooter className="flex flex-wrap items-center gap-3 border-t">
+      <CardFooter
+        className={cn(
+          "flex flex-wrap items-center gap-3 border-t",
+          linked && "border-white/15",
+        )}
+      >
         {linked ? (
           <>
             <div className="grid gap-1">
               <StatusLine
+                inverted
                 done={Boolean(config.hrp_registered_at)}
                 label={t("abdm_hrp_registered_at")}
                 value={
@@ -704,13 +765,18 @@ export default function RegistryCard({
                     : t("abdm_not_recorded")
                 }
               />
-              <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 text-xs",
+                  heroMuted,
+                )}
+              >
                 {bridgeOk
                   ? t("abdm_bridge_registered")
                   : t("abdm_bridge_not_registered")}
                 <a
                   href="/admin/abdm"
-                  className="text-primary underline-offset-4 hover:underline"
+                  className="text-white underline-offset-4 hover:underline"
                 >
                   {t("abdm_bridge_admin_link")}
                 </a>
@@ -718,14 +784,15 @@ export default function RegistryCard({
             </div>
             <div className="ml-auto flex items-center gap-2">
               {dirty && (
-                <span className="text-muted-foreground text-xs">
+                <span className={cn("text-xs", heroMuted)}>
                   {t("abdm_save_before_register")}
                 </span>
               )}
               <Button
                 type="button"
-                variant={config.hrp_registered_at ? "outline" : "default"}
+                variant={config.hrp_registered_at ? "outline" : "secondary"}
                 size="sm"
+                className={config.hrp_registered_at ? heroGhost : heroSolid}
                 disabled={
                   pending || dirty || hipNameInvalid || !config.hip_name
                 }

@@ -4,6 +4,18 @@ import HprDocuments from "@/components/abdm/hpr-documents";
 import HprLoginDialog from "@/components/abdm/hpr-login-dialog";
 import HprRegisterForm from "@/components/abdm/hpr-register-form";
 import {
+  HeroFact,
+  HeroIcon,
+  HeroLayers,
+  heroBadge,
+  heroCard,
+  heroGhost,
+  heroLead,
+  heroMuted,
+  heroSolid,
+  heroTile,
+} from "@/components/abdm/hero";
+import {
   errorMessage,
   hprQueryKey,
   useMaster,
@@ -52,7 +64,7 @@ import {
   Unlink,
   Upload,
 } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 
 /**
  * Slot: `UserProfileSections` (care_fe pluginTypes.ts:141-146), mounted on the user profile summary
@@ -68,17 +80,6 @@ import { type ReactNode, useState } from "react";
  */
 
 type Sheets = "create" | "profile" | "documents" | null;
-
-/**
- * A solid button on the inverted hero card: a white face with green words. The `default` variant is
- * green on green there, so it disappears.
- */
-const heroSolid =
-  "border-white bg-white text-primary-900 shadow-none hover:border-white/90 hover:bg-white/90 dark:bg-white dark:text-primary-900";
-
-/** A quiet button on the inverted hero card: a translucent white face. */
-const heroGhost =
-  "border-white/25 bg-white/10 text-white shadow-none hover:bg-white/20 hover:text-white dark:bg-white/10 dark:hover:bg-white/20 [:active,[data-pressed]]:bg-white/25";
 
 /** `camelCase` or `snake_case` from the registry, as words a reader knows. */
 function humanise(key: string) {
@@ -104,7 +105,7 @@ function RegistryFacts({
   );
   const flat = entries.filter(([, v]) => typeof v !== "object");
   const nested = entries.filter(([, v]) => typeof v === "object");
-  const labelClass = inverted ? "text-primary-200" : "text-muted-foreground";
+  const labelClass = inverted ? heroMuted : "text-muted-foreground";
   if (!entries.length)
     return (
       <p className={cn("text-sm", labelClass)}>
@@ -136,31 +137,6 @@ function RegistryFacts({
           </pre>
         </details>
       )}
-    </div>
-  );
-}
-
-/**
- * 1 fact of the inverted hero card. The same tile as the encounter hero
- * (encounter-tab.tsx), so the 2 ABDM identity cards read alike.
- */
-function HeroFact({
-  label,
-  children,
-  mono,
-}: {
-  label: string;
-  children: ReactNode;
-  mono?: boolean;
-}) {
-  return (
-    <div className="grid gap-1 rounded-lg bg-white/5 p-3 ring-1 ring-white/10">
-      <span className="text-primary-200 text-[11px] font-medium tracking-wide uppercase">
-        {label}
-      </span>
-      <span className={cn("text-xs text-white", mono && "font-mono break-all")}>
-        {children}
-      </span>
     </div>
   );
 }
@@ -305,38 +281,27 @@ export default function AbdmUserProfileSection({
              * carries the same gradient as the care-context hero in the encounter ABDM tab.
              * `isolate` holds the decorative layers here; the card's `overflow-hidden` trims them.
              */
-            <Card className="text-primary-50 shadow-primary-950/25 relative isolate shadow-lg ring-white/10">
-              <div
-                aria-hidden
-                className="from-primary-700 via-primary-900 to-primary-950 pointer-events-none absolute inset-0 -z-10 bg-linear-to-br"
-              />
-              <div
-                aria-hidden
-                className="bg-primary-300/25 pointer-events-none absolute -top-24 -right-12 -z-10 size-72 rounded-full blur-3xl"
-              />
-              <div
-                aria-hidden
-                className="bg-primary-400/15 pointer-events-none absolute -bottom-28 -left-16 -z-10 size-72 rounded-full blur-3xl"
-              />
+            <Card className={heroCard}>
+              <HeroLayers />
               <CardHeader>
                 <CardTitle className="flex items-center gap-3">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/10 ring-1 ring-white/20">
+                  <HeroIcon>
                     <IdCard className="size-4.5 text-white" />
-                  </span>
+                  </HeroIcon>
                   <span className="text-base font-semibold break-all text-white">
                     {profile.name || profile.hprId}
                   </span>
                   <Badge
                     variant={active ? "success" : "neutral"}
                     size="sm"
-                    className="ml-auto shrink-0 border-white/25 bg-white/15 text-white backdrop-blur-sm"
+                    className={cn("ml-auto shrink-0", heroBadge)}
                   >
                     {active
                       ? t("abdm_hpr_session_active")
                       : t("abdm_hpr_session_inactive")}
                   </Badge>
                 </CardTitle>
-                <CardDescription className="text-primary-100/85">
+                <CardDescription className={heroLead}>
                   {t(`abdm_hpr_source_${profile.source}`)}
                 </CardDescription>
               </CardHeader>
@@ -365,10 +330,10 @@ export default function AbdmUserProfileSection({
                 </div>
                 {Object.keys(account).length > 0 && (
                   <details className="text-sm">
-                    <summary className="text-primary-200 cursor-pointer">
+                    <summary className={cn("cursor-pointer", heroMuted)}>
                       {t("abdm_hpr_account_details")}
                     </summary>
-                    <div className="mt-2 rounded-lg bg-white/5 p-3 text-white ring-1 ring-white/10">
+                    <div className={cn("mt-2 text-white", heroTile)}>
                       <RegistryFacts data={account} inverted />
                     </div>
                   </details>
